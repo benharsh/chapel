@@ -209,7 +209,6 @@ proc stencil(ivar : int) {
     for o in Offsets do work[i] += g[i + o];
   }
   
-  writef("+ reduce work = %30.dr\n", + reduce work);
   work /= points;
   grids[ivar][Space] = work;
 }
