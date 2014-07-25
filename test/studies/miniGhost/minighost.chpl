@@ -1,7 +1,9 @@
 /*
 TODO:
+  - floating point issues:
+    - parallel reductions don't always produce the same result as a serial
+      summation. Why?
   - Make everything distributed
-  - flux for 9 and 27 point stencils
   - IO checkpoints?
 */
 
@@ -170,11 +172,13 @@ proc main() {
     for tstep in 1..nsteps {
       for ivar in allVars {
         stencil(ivar); // all stencil types
+
         if gridsToSum[ivar] {
           const errorIter = check(ivar);
           if errorIter > errorTol then
             halt("errorIter exceeds tolerance: ", errorIter, " > ", errorTol);
           if tstep % reportEvery == 0 {
+            // TODO: writef with %1.5dr
             writeln("Time step\t",tstep, " for spike\t", ispike, " for variable\t", ivar, " the error is\t", errorIter, "; error tolerance is\t", errorTol);
           }
         }
@@ -201,36 +205,124 @@ proc main() {
 
 proc stencil(ivar : int) {
   var work : [Space] real;
-
-  bounds(ivar);
-
   var g => grids[ivar];
+
+  bounds(g, flux[ivar]);
+
   forall i in Space {
     for o in Offsets do work[i] += g[i + o];
   }
   
   work /= points;
-  grids[ivar][Space] = work;
+  g[Space] = work;
 }
 
 proc check(ivar : int) {
-  var gsum = + reduce grids[ivar];
+  // var gsum = + reduce grids[ivar];
+  var gsum : real;
+  for g in grids[ivar] do gsum += g;
   gsum += flux[ivar];
-  const ret = abs(sources[ivar] - gsum) / sources[ivar];
-  return ret;
+  return abs(sources[ivar] - gsum) / sources[ivar];
 }
 
-proc bounds(ivar : int) {
+proc bounds(ref grid : [], ref flux : real) {
+  var loc : real;
   if points == 5 || points == 7 {
-    flux[ivar] +=  + reduce grids[ivar][1, 1.., 1..] / points;
-    flux[ivar] += + reduce grids[ivar][nx, 1.., 1..] / points;
-    flux[ivar] += + reduce grids[ivar][1.., 1, 1..]  / points;
-    flux[ivar] += + reduce grids[ivar][1.., ny, 1..] / points;
-    if dimension == 3 {
-      flux[ivar] += + reduce grids[ivar][1.., 1.., 1]/ points;
-      flux[ivar] += + reduce grids[ivar][1.., 1.., nz]/points;
+
+    // can be done with reductions, but we're having
+    // issues with atomic reals and determinism
+    for z in 1..nz {
+      for y in 1..ny do
+        loc += grid[1,y,z] + grid[nx,y,z];
+      for x in 1..nx do
+        loc += grid[x,1,z] + grid[x,ny,z];
     }
-  } else {
-    // TODO: 9 or 27 point stencils
+
+    if dimension == 3 {
+      for x in 1..nx do
+        for y in 1..ny do
+          loc += grid[x,y,1] + grid[x,y,nz];
+    }
+  } else if points == 9 {
+    // TODO: ask original miniGhost authors what the algorithm
+    // is supposed to be here. I see a lot of duplicate additions, and
+    // that seems surprising to me.
+   
+    for z in 1..nz {
+      for x in 1..nx {
+        loc += grid[x-1,1,z] + grid[x,1,z] + grid[x+1,1,z];
+        loc += grid[x-1,ny,z] + grid[x,ny,z] + grid[x+1,ny,z];
+      }
+
+      // corners
+      loc += grid[1,1,z] + grid[1,ny,z] + grid[nx,1,z] + grid[nx,ny,z];
+
+      for y in 1..ny {
+        loc += grid[1,y-1,z] +  grid[1,y,z] +  grid[1,y+1,z];
+        loc += grid[nx,y-1,z] + grid[nx,y,z] + grid[nx,y+1,z];
+      }
+    }
+  } else { // 27 point
+    for z in 1..nz {
+      for x in 1..nx {
+        for param i in -1..1 do
+          for param k in -1..1 {
+            loc += grid[x+i, 1, z+k];
+            loc += grid[x+i, ny, z+k];
+          }
+      }
+
+      for param k in -1..1 {
+        loc += grid[1,1,z+k];
+        loc += grid[1,ny,z+k];
+      }
+
+      for y in 1..ny {
+        for param j in -1..1 {
+          for param k in -1..1 {
+            loc += grid[1, y+j, z+k];
+            loc += grid[nx, y+j, z+k];
+          }
+        }
+      }
+    }
+
+    for y in 1..ny {
+      for x in 1..nx {
+        for param i in -1..1 {
+          for param j in -1..1 {
+            loc += grid[x+i, y+j, 1];
+            loc += grid[x+i, y+j, nz];
+          }
+        }
+      }
+
+      for param j in -1..1 {
+        loc += grid[1, y+j, 1];
+        loc += grid[nx, y+j, 1];
+        loc += grid[1, y+j, nz];
+        loc += grid[nx, y+j, nz];
+      }
+    }
+
+    for x in 1..nx {
+      for param i in -1..1 {
+        loc += grid[x+i, 1, 1];
+        loc += grid[x+i, ny, 1];
+        loc += grid[x+i, 1, nz];
+        loc += grid[x+i, ny, nz];
+      }
+    }
+
+    loc += grid[1,1,1];
+    loc += grid[1,ny,1];
+    loc += grid[nx,1,1];
+    loc += grid[nx,ny,1];
+    loc += grid[1,1,nz];
+    loc += grid[1,ny,nz];
+    loc += grid[nx,1,nz];
+    loc += grid[nx,ny,nz];
   }
+
+  flux += loc / points;
 }
