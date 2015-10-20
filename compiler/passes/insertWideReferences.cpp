@@ -210,6 +210,8 @@ static void debug(Symbol* sym, const char* format, ...) {
 
 Timer debugTimer;
 
+// TODO: Long-term it could be better to track individual uses instead of
+// symbols.
 static std::set<Symbol*> _todo_set;
 static std::queue<Symbol*> _todo_queue;
 
@@ -224,6 +226,9 @@ static std::map<Type*, Type*> narrowToWideVal;
 static std::map<FnSymbol*, bool> downstreamFromOn;
 
 static std::set<Symbol*> fieldsToMakeWide;
+
+// Maps first argument of a narrow function to the corresponding wide function.
+static std::map<ArgSymbol*, FnSymbol*> cloneMap;
 
 // Various mini-passes to manipulate the AST into something functional
 static void convertNilToObject();
@@ -802,6 +807,8 @@ static void propagateVar(Symbol* sym) {
     }
   }
 
+  std::vector<CallExpr*> cloneThese;
+
   for_uses(use, useMap, sym) {
     if (CallExpr* call = toCallExpr(use->parentExpr)) {
       CallExpr* parentCall = toCallExpr(call->parentExpr);
@@ -953,10 +960,23 @@ static void propagateVar(Symbol* sym) {
       else if (FnSymbol* fn = call->isResolved()) {
         debug(sym, "passed to fn %s (%d)\n", fn->cname, fn->id);
 
-        // TODO: Duplicate functions here.
         ArgSymbol* arg = actual_to_formal(use);
-        debug(sym, "Default widening of arg %s (%d)\n", arg->cname, arg->id);
-        matchWide(sym, arg);
+
+        // If the first argument is passed in by some const intent, add the
+        // call to a list. The functions in this list will later be duplicated
+        // so that we can have wide and narrow versions of the function.
+        if (use == call->get(1) && 
+            arg->intent == INTENT_CONST_IN &&
+            !isTaskFun(fn) &&
+            sym->typeInfo() != arg->typeInfo() &&
+            strcmp(fn->cname, "this") == 0) { // FLAG_METHOD? 'this' arg?
+          debug(sym, "Call %d to %s (%d) has been added to list of functions to clone...", call->id, fn->cname, fn->id);
+          cloneThese.push_back(call);
+        } else {
+          // TODO: Duplicate functions here.
+          debug(sym, "Default widening of arg %s (%d)\n", arg->cname, arg->id);
+          matchWide(sym, arg);
+        }
       }
     }
   }
@@ -1006,6 +1026,98 @@ static void propagateVar(Symbol* sym) {
         }
       }
     }
+  }
+
+  for_vector(CallExpr, call, cloneThese) {
+    FnSymbol* orig = call->isResolved();
+    INT_ASSERT(orig);
+
+    DefExpr* defArg = toDefExpr(orig->formals.head);
+    ArgSymbol* arg = toArgSymbol(defArg->sym);
+    FnSymbol* clone = cloneMap[arg];
+
+    if (clone == NULL) {
+      SET_LINENO(orig);
+
+      clone = orig->copy();
+      orig->defPoint->insertBefore(new DefExpr(clone));
+
+      //
+      // Find all wide symbols in the cloned function and add them to the queue.
+      //
+      // SymExprs defined elsewhere (fields, globals) aren't added to the
+      // queue.  For those to propagage, we need to update the def/use maps. If
+      // they have already propagated then we don't need to do anything.
+      std::vector<DefExpr*> defs;
+      collectDefExprs(clone->body, defs);
+      for_vector(DefExpr, def, defs) {
+        if (hasSomeWideness(def->sym)) {
+          addToQueue(def->sym);
+        }
+      }
+
+      cloneMap[arg] = clone;
+
+      ArgSymbol* newFirst = toArgSymbol(toDefExpr(clone->formals.head)->sym);
+      cloneMap[newFirst] = clone;
+
+      // The clone was created because the corresponding actual was wide.  We
+      // skipped the widening step earlier to preserve the original non-wide
+      // function. This first argument of our new clone will need to be wide.
+      setWide(newFirst);
+
+      DEBUG_PRINTF("Cloned %s (%d) in %s -> %s (%d)\n", orig->cname, orig->id,
+          orig->getModule()->cname, clone->cname, clone->id);
+
+      Vec<Symbol*> symSet;
+      Vec<SymExpr*> symExprs;
+      collectSymbolSetSymExprVec(clone, symSet, symExprs);
+      buildDefUseMaps(symSet, symExprs, defMap, useMap);
+      if (!clone->calledBy) {
+        clone->calledBy = new Vec<CallExpr*>();
+      }
+
+      std::vector<CallExpr*> newCalls;
+      collectCallExprs(clone, newCalls);
+      for_vector(CallExpr, newCall, newCalls) {
+        // TODO: Create this utility function out of code in compute_call_sites
+        update_calledBy(newCall);
+      }
+    }
+
+    DEBUG_PRINTF("Replacing call %d with fn %s (%d)\n", call->id, clone->cname, clone->id);
+
+    SET_LINENO(call);
+    call->baseExpr->replace(new SymExpr(clone));
+
+    for_formals_actuals(formal, actual, call) {
+      // New formal needs to propagate.
+      if (hasSomeWideness(formal)) {
+        addToQueue(formal);
+      }
+
+      // Manually propagate the actual's wideness.
+      Symbol* act = toSymExpr(actual)->var;
+      if (isFullyWide(act)) {
+        setWide(formal);
+      } else if (valIsWideClass(act)) {
+        setValWide(formal);
+      }
+    }
+
+    // Q: do we have to rebuild the uses for the actuals?
+    // A: No. The formals' intents remain the same so the actual is still
+    //    a def or a use, as it was before.
+    
+    if (hasSomeWideness(clone->getReturnSymbol())) {
+      addToQueue(clone->getReturnSymbol());
+    }
+
+    // Update the original function's calledBy vector to reflect that it is
+    // no longer called by the CallExpr 'call'
+    orig->calledBy->remove(orig->calledBy->index(call));
+
+    clone->calledBy->add(call);
   }
 }
 

@@ -329,6 +329,7 @@ class BlockArr: BaseArr {
   var doRADOpt: bool = defaultDoRADOpt;
   var dom: BlockDom(rank, idxType, stridable);
   var locArr: [dom.dist.targetLocDom] LocBlockArr(eltType, rank, idxType, stridable);
+  pragma "local field"
   var myLocArr: LocBlockArr(eltType, rank, idxType, stridable);
   var pid: int = -1; // privatized object id (this should be factored out)
   const SENTINEL = max(rank*idxType);
@@ -349,8 +350,10 @@ class LocBlockArr {
   param rank: int;
   type idxType;
   param stridable: bool;
+  pragma "local field"
   const locDom: LocBlockDom(rank, idxType, stridable);
   var locRAD: LocRADCache(eltType, rank, idxType); // non-nil if doRADOpt=true
+  pragma "local field"
   var myElems: [locDom.myBlock] eltType;
   var locRADLock: atomicflag; // This will only be accessed locally
                               // force the use of processor atomics
@@ -1002,10 +1005,10 @@ inline proc BlockArr.dsiLocalAccess(i: rank*idxType) ref {
 // TODO: Do we need a global bounds check here or in targetLocsIdx?
 //
 proc BlockArr.dsiAccess(i: rank*idxType) ref {
-  local {
+//  local {
     if myLocArr != nil && myLocArr.locDom.member(i) then
       return myLocArr.this(i);
-  }
+ // }
   if doRADOpt {
     if myLocArr {
       if boundsChecking then
