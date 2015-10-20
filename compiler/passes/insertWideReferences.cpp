@@ -962,14 +962,14 @@ static void propagateVar(Symbol* sym) {
 
         ArgSymbol* arg = actual_to_formal(use);
 
-        // If the first argument is passed in by some const intent, add the
-        // call to a list. The functions in this list will later be duplicated
-        // so that we can have wide and narrow versions of the function.
-        if (use == call->get(1) && 
-            arg->intent == INTENT_CONST_IN &&
-            !isTaskFun(fn) &&
+        bool isThisFn = (use == call->get(1) &&
+            strcmp(fn->cname, "this") == 0 && 
+            arg->intent != INTENT_REF);
+        // TODO: 
+        //   - all fns with FLAG_METHOD?
+        if (!isTaskFun(fn) &&
             sym->typeInfo() != arg->typeInfo() &&
-            strcmp(fn->cname, "this") == 0) { // FLAG_METHOD? 'this' arg?
+            isThisFn) {
           debug(sym, "Call %d to %s (%d) has been added to list of functions to clone...", call->id, fn->cname, fn->id);
           cloneThese.push_back(call);
         } else {
@@ -1051,7 +1051,7 @@ static void propagateVar(Symbol* sym) {
       std::vector<DefExpr*> defs;
       collectDefExprs(clone->body, defs);
       for_vector(DefExpr, def, defs) {
-        if (hasSomeWideness(def->sym)) {
+        if (isLcnSymbol(def->sym) && hasSomeWideness(def->sym)) {
           addToQueue(def->sym);
         }
       }
