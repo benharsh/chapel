@@ -1005,10 +1005,9 @@ inline proc BlockArr.dsiLocalAccess(i: rank*idxType) ref {
 // TODO: Do we need a global bounds check here or in targetLocsIdx?
 //
 proc BlockArr.dsiAccess(i: rank*idxType) ref {
-//  local {
-    if myLocArr != nil && myLocArr.locDom.member(i) then
-      return myLocArr.this(i);
- // }
+  if myLocArr != nil && myLocArr.locDom.member(i) then
+    return myLocArr.this(i);
+
   if doRADOpt {
     if myLocArr {
       if boundsChecking then
