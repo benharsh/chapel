@@ -1,0 +1,109 @@
+===============
+Local variables
+===============
+
+Status: Draft
+
+Author: Ben Harshbarger
+
+Abstract
+--------
+
+Syntax and sematics for 'local variables'.
+
+Rationale
+---------
+
+The Chapel compiler inserts wide pointers when it thinks that a variable may
+point to remote data. Wide pointers are the source of some runtime overhead,
+and are generally assumed to thwart backend C compiler optimizations under
+certain circumstances.
+
+While the Chapel compiler can certainly do a better job of determining the
+locality of a variable, it can only ever do so much with the information it has
+at compile-time.
+
+ The author of a program may very well know more about the locality of a
+ variable, and given the right tools could pass that information on to the
+ compiler. 'Local variables' are a first step towards creating such tools.
+
+ Note that local variables are intended to be an optional feature that users
+ can leverage for performance. It is not intended to be a cure-all crutch. The
+ compiler can and will see improved capability to statically determine locality,
+ so users' programs should not end up being full of local variables. Ideally
+ these local variables will be mostly used within distributed data structures.
+
+
+Syntax
+--------
+
+Initially wanted to only do something like this:
+
+  local var foo : T;
+  local var foo = ...; // inferred
+
+But then I thought about arrays and their elements:
+
+  local var foo : [1..10] T;
+
+Does this mean a local array of wide elements, or an array of local elements?
+
+Should 'locality' really be attached to the type? I think so.
+
+Ex)
+  var foo : [1..10] local T;
+
+  Clearly an array of local Ts. This would also make it easier to deal with
+  type variables.
+
+Ex)
+  type LT = local T;
+  var foo : LT;
+
+  Allows one to always make a local thing out of something.
+
+Ex)
+  local class c_ptr { ... }
+
+  Similar, but gives more control to the class designer. Cleaner than a pragma.
+
+But what if I don't know the type?
+
+Ex)
+  proc foo(x) {
+    local var foo = x; // clean, easy to see what's up
+  }
+
+Comparing types?
+Ex)
+  var foo : local T;
+  var bar : T;
+
+  writeln(foo.type == bar.type); // true or false?
+
+  I feel like it should be false, because they do kind of have really different
+  semantics. Then again, we don't have this kind of thing for 'const', which
+  again makes me feel like it shouldn't be attached to the type.
+
+Casting?
+Ex)
+  var foo : local T;
+  var bar : T;
+
+  bar = foo; // no problem, just widen the pointer.
+
+  foo = bar; // local check before narrowing
+
+Semantics
+---------
+
+Types with pointer-like semantics (classes, references, arrays) should be the
+only types for which one can create a local variable.
+
+Ideas
+-----
+
+User-defined cast to 'local' ?
+  Allow them to create and return a local copy?
+
+Local forall intents?
