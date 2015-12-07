@@ -708,6 +708,7 @@ class CyclicArr: BaseArr {
   var dom: CyclicDom(rank, idxType, stridable);
 
   var locArr: [dom.dist.targetLocDom] LocCyclicArr(eltType, rank, idxType, stridable);
+  pragma "local field"
   var myLocArr: LocCyclicArr(eltType=eltType, rank=rank, idxType=idxType, stridable=stridable);
   var pid: int = -1;
   const SENTINEL = max(rank*idxType);
@@ -899,10 +900,8 @@ inline proc _remoteAccessData.getDataIndex(param stridable, myStr: rank*idxType,
 }
 
 proc CyclicArr.dsiAccess(i:rank*idxType) ref {
-  local {
-    if myLocArr != nil && myLocArr.locDom.member(i) then
-      return myLocArr.this(i);
-  }
+  if myLocArr != nil && myLocArr.locDom.member(i) then
+    return myLocArr.this(i);
   if doRADOpt && !stridable {
     if myLocArr {
       if boundsChecking then
@@ -1064,6 +1063,7 @@ class LocCyclicArr {
   type idxType;
   param stridable: bool;
 
+  pragma "local field"
   const locDom: LocCyclicDom(rank, idxType, stridable);
 
   var locRAD: LocRADCache(eltType, rank, idxType); // non-nil if doRADOpt=true
