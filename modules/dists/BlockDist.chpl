@@ -353,7 +353,6 @@ class LocBlockArr {
   pragma "local field"
   const locDom: LocBlockDom(rank, idxType, stridable);
   var locRAD: LocRADCache(eltType, rank, idxType); // non-nil if doRADOpt=true
-  pragma "local field"
   var myElems: [locDom.myBlock] eltType;
   var locRADLock: atomicflag; // This will only be accessed locally
                               // force the use of processor atomics
