@@ -50,6 +50,7 @@ extern bool fNoStackChecks;
 extern bool fNoCastChecks;
 extern bool fMungeUserIdents;
 extern bool fEnableTaskTracking;
+extern bool fNoReduceWidePointers;
 extern bool fLLVMWideOpt;
 
 extern bool fNoRemoteValueForwarding;

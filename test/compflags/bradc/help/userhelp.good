@@ -40,6 +40,8 @@ Optimization Control Options:
                                       optimization search
       --[no-]privatization            Enable [disable] privatization of
                                       distributed arrays and domains
+      --[no-]reduce-wide-pointers     Enable [disable] reduction of wide
+                                      pointer overhead
       --[no-]remote-value-forwarding  Enable [disable] remote value forwarding
       --[no-]remove-copy-calls        Enable [disable] remove copy calls
       --[no-]scalar-replacement       Enable [disable] scalar replacement

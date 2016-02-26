@@ -480,6 +480,7 @@ static void setWide(BaseAST* cause, SymExpr* se) {
 
 
 static void setValWide(BaseAST* cause, Symbol* sym) {
+  if (sym->id == 174664) gdbShouldBreakHere();
   Type* valType = sym->type->getValType();
   if (!typeCanBeWide(sym)) return;
   if (!isClass(valType)) return;
@@ -746,7 +747,12 @@ static void widenSubAggregateTypes(BaseAST* cause, Type* parent) {
 // Widen variables that we don't know how to keep narrow.
 //
 static void addKnownWides() {
+
   forv_Vec(FnSymbol, fn, gFnSymbols) {
+    //
+    // Note: the optimization benefits from local-on statements are thwarted
+    // by the --no-reduce-wide-pointers flag
+    //
     if (fn->hasFlag(FLAG_ON_BLOCK) && !fn->hasFlag(FLAG_LOCAL_ON)) {
       // Get the arg bundle type for an on-stmt. Testing against a name like
       // "_class_localson_fn" is NOT enough, because sometimes the name is
@@ -768,15 +774,29 @@ static void addKnownWides() {
       }
     }
   }
+
   forv_Vec(VarSymbol, var, gVarSymbols) {
     if (!typeCanBeWide(var)) continue;
+
+    //
+    // User has requested that we do not attempt to reduce the number of wide
+    // pointers. To accomplish this we intentionally make many things wide
+    // pointers.
+    //
+    if (fNoReduceWidePointers) {
+      if (isField(var) && fieldCanBeWide(var)) {
+        setWide(rootModule, var);
+      }
+    }
+
     Symbol* defParent = var->defPoint->parentSymbol;
 
     //
     // FLAG_LOCALE_PRIVATE variables can be used within an on-statement without
     // needing to be wide.
     //
-    if (isModuleSymbol(defParent) && !var->hasFlag(FLAG_LOCALE_PRIVATE)) {
+    bool canWiden = fNoReduceWidePointers || !var->hasFlag(FLAG_LOCALE_PRIVATE);
+    if (isModuleSymbol(defParent) && canWiden) {
       if (FnSymbol* fn = usedInOn(var)) {
         debug(var, "Module scope variable used in on-statement\n");
         setWide(fn, var);

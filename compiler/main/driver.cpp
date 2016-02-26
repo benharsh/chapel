@@ -116,6 +116,7 @@ bool fUserSetStackChecks = false;
 bool fNoCastChecks = false;
 bool fMungeUserIdents = true;
 bool fEnableTaskTracking = false;
+bool fNoReduceWidePointers = false;
 
 bool  printPasses     = false;
 FILE* printPassesFile = NULL;
@@ -492,6 +493,7 @@ static void setFastFlag(const ArgumentDescription* desc, const char* unused) {
   fNoOptimizeLoopIterators = false;
   fNoVectorize = false;
   fNoLiveAnalysis = false;
+  fNoReduceWidePointers = false;
   fNoRemoteValueForwarding = false;
   fNoRemoveCopyCalls = false;
   fNoScalarReplacement = false;
@@ -534,6 +536,7 @@ static void setBaselineFlag(const ArgumentDescription* desc, const char* unused)
   fNoLiveAnalysis = true;
   fNoOptimizeLoopIterators = true;
   fNoVectorize = true;
+  fNoReduceWidePointers = true;
   fNoRemoteValueForwarding = true;
   fNoRemoveCopyCalls = true;
   fNoScalarReplacement = true;
@@ -646,6 +649,7 @@ static ArgumentDescription arg_desc[] = {
  {"optimize-on-clauses", ' ', NULL, "Enable [disable] optimization of on clauses", "n", &fNoOptimizeOnClauses, "CHPL_DISABLE_OPTIMIZE_ON_CLAUSES", NULL},
  {"optimize-on-clause-limit", ' ', "<limit>", "Limit recursion depth of on clause optimization search", "I", &optimize_on_clause_limit, "CHPL_OPTIMIZE_ON_CLAUSE_LIMIT", NULL},
  {"privatization", ' ', NULL, "Enable [disable] privatization of distributed arrays and domains", "n", &fNoPrivatization, "CHPL_DISABLE_PRIVATIZATION", NULL},
+ {"reduce-wide-pointers", ' ', NULL, "Enable [disable] reduction of wide pointer overhead", "n", &fNoReduceWidePointers, NULL, NULL},
  {"remote-value-forwarding", ' ', NULL, "Enable [disable] remote value forwarding", "n", &fNoRemoteValueForwarding, "CHPL_DISABLE_REMOTE_VALUE_FORWARDING", NULL},
  {"remove-copy-calls", ' ', NULL, "Enable [disable] remove copy calls", "n", &fNoRemoveCopyCalls, "CHPL_DISABLE_REMOVE_COPY_CALLS", NULL},
  {"scalar-replacement", ' ', NULL, "Enable [disable] scalar replacement", "n", &fNoScalarReplacement, "CHPL_DISABLE_SCALAR_REPLACEMENT", NULL},
