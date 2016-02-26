@@ -212,6 +212,10 @@ OPTIONS
     Enable [disable] privatization of distributed arrays and domains if the
     distribution supports it.
 
+**--[no-]reduce-wide-pointers**
+
+    Enable [disable] reduction of wide pointer overhead.
+
 **--[no-]remove-copy-calls**
 
     Enable [disable] removal of copy calls (including calls to what amounts
