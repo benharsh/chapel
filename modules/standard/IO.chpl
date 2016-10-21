@@ -19,7 +19,11 @@
 
 /*
 
+
 Support for a variety of kinds of input and output.
+
+.. note:: All Chapel programs automatically ``use`` this module by default.
+          An explicit ``use`` statement is not necessary.
 
 Input/output (I/O) facilities in Chapel include the types :record:`file` and
 :record:`channel`; the constants :record:`stdin`, :record:`stdout` and
@@ -5150,9 +5154,13 @@ proc _toNumeric(x:?t) where !_isIoPrimitiveType(t)
 }
 
 
-
 private inline
-proc _toString(x:?t) where _isIoPrimitiveType(t)
+proc _toString(x:?t) where t==string
+{
+  return (x, true);
+}
+private inline
+proc _toString(x:?t) where (_isIoPrimitiveType(t) && t!=string)
 {
   return (x:string, true);
 }

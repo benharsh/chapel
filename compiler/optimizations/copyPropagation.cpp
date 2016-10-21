@@ -204,7 +204,7 @@ static void extractReferences(Expr* expr,
           RefMap::iterator refDef = refs.find(rhs);
           // Refs can come from outside the function (e.g. through arguments),
           // so are not necessarily defined within the function.
-          if (refDef != refs.end())
+          if (refDef != refs.end() && refDef->second != NULL)
           {
             Symbol* val = refDef->second;
 #if DEBUG_CP
@@ -213,6 +213,16 @@ static void extractReferences(Expr* expr,
                      lhs->name, lhs->id, val->name, val->id);
 #endif
             refs.insert(RefMapElem(lhs, val));
+          } else {
+#if DEBUG_CP
+            if (debug > 0) {
+              printf("Setting pair to NULL: %s[%d]\n", lhs->name, lhs->id);
+            }
+#endif
+            // If we can't reason about this useage of a reference, mark it's
+            // corresponding value with NULL to indicate that nothing should
+            // happen.
+            refs[lhs] = NULL;
           }
         }
       }
@@ -226,12 +236,22 @@ static void extractReferences(Expr* expr,
           // Create the pair lhs <- &rhs.
           Symbol* lhs = lhe->var;
           Symbol* rhs = rhe->var;
+
+          RefMap::iterator refDef = refs.find(lhs);
+          if (refDef != refs.end()) {
+            // Multiple ADDR_OFs. Make the value NULL to indicate that we cannot
+            // replace this reference.
+            refs[lhs] = NULL;
+          } else {
 #if DEBUG_CP
-          if (debug > 0)
-            printf("Creating ref (%s[%d], %s[%d])\n",
-                   lhs->name, lhs->id, rhs->name, rhs->id);
+            if (debug > 0)
+              printf("Creating ref (%s[%d], %s[%d])\n",
+                     lhs->name, lhs->id, rhs->name, rhs->id);
 #endif
-          refs.insert(RefMapElem(lhs, rhs));
+            refs.insert(RefMapElem(lhs, rhs));
+          }
+        } else {
+          refs[lhs] = NULL;
         }
       }
     }
@@ -565,8 +585,8 @@ static Expr* derefUse(SymExpr* se)
   CallExpr* call = toCallExpr(se->parentExpr);
   if (call->isPrimitive(PRIM_DEREF))
     return call;
-  if (isDerefMove(call)) {
-    return call->get(2);
+  if (isDerefMove(call) && se == call->get(2)) {
+    return se;
   }
   return NULL;
 }
@@ -602,6 +622,17 @@ static void propagateCopies(std::vector<SymExpr*>& symExprs,
       }
     }
 
+    // If we encounter an ADDR_OF with a symbol, do not allow further
+    // replacements in case the reference is used to modify the symbol's data.
+    if (CallExpr* parent = toCallExpr(se->parentExpr)) {
+      if (parent->isPrimitive(PRIM_ADDR_OF)) {
+        AvailableMap::iterator ami = available.find(se->var);
+        if (ami != available.end()) {
+          available.erase(ami);
+        }
+      }
+    }
+
     // Also if the SymExpr is used in an expression of the form (deref se),
     // and there exists a ref-def pair s.t. ref == (addr_of def) and
     // se->var == ref, replace the deref expression with def.
@@ -610,7 +641,7 @@ static void propagateCopies(std::vector<SymExpr*>& symExprs,
     {
       // See if there is a (ref,def) pair.
       RefMap::iterator ref_def_pair = refs.find(se->var);
-      if (ref_def_pair != refs.end())
+      if (ref_def_pair != refs.end() && ref_def_pair->second != NULL)
       {
 #if DEBUG_CP
         if (debug > 0)
@@ -1188,7 +1219,7 @@ eliminateSingleAssignmentReference(Map<Symbol*,Vec<SymExpr*>*>& defMap,
                                    Symbol* var) {
   if (CallExpr* move = findRefDef(defMap, var)) {
     if (CallExpr* rhs = toCallExpr(move->get(2))) {
-      if (rhs->isPrimitive(PRIM_ADDR_OF)) {
+      if (rhs->isPrimitive(PRIM_ADDR_OF) || rhs->isPrimitive(PRIM_SET_REFERENCE)) {
         bool stillAlive = false;
         for_uses(se, useMap, var) {
           CallExpr* parent = toCallExpr(se->parentExpr);
@@ -1214,13 +1245,26 @@ eliminateSingleAssignmentReference(Map<Symbol*,Vec<SymExpr*>*>& defMap,
             ++s_ref_repl_count;
             addUse(useMap, se);
           }
-          else if (parent && isMoveOrAssign(parent)) {
+          else if (parent && (parent->isPrimitive(PRIM_MOVE) || parent->isPrimitive(PRIM_SET_REFERENCE))) {
             CallExpr* rhsCopy = rhs->copy();
+            if (parent->isPrimitive(PRIM_SET_REFERENCE)) {
+              // Essentially a pointer copy like a (move refA refB)
+              parent = toCallExpr(parent->parentExpr);
+              INT_ASSERT(parent && isMoveOrAssign(parent));
+            }
             parent->get(2)->replace(rhsCopy);
             ++s_ref_repl_count;
             SymExpr* se = toSymExpr(rhsCopy->get(1));
             INT_ASSERT(se);
             addUse(useMap, se);
+            // BHARSH TODO: Is it possible to handle the following case safely
+            // for PRIM_ASSIGN?
+            //
+            // ref i_foo : T;
+            // (move i_foo (set reference bar))
+            // (= call_tmp i_foo)
+            //
+            // Should that turn into (= call_tmp bar)?
           } else
             stillAlive = true;
         }
