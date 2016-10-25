@@ -164,7 +164,7 @@ removeWrapRecords() {
     } else if (call->isPrimitive(PRIM_GET_MEMBER)) {
       if (SymExpr* se = toSymExpr(call->get(1))) {
         if (isRecordWrappedType(se->var->type)) {
-          call->primitive = primitives[PRIM_ADDR_OF];
+          call->primitive = primitives[PRIM_SET_REFERENCE];
           call->get(2)->remove();
         }
       }

@@ -57,7 +57,7 @@ inlineCall(FnSymbol* fn, CallExpr* call, Vec<FnSymbol*>& canRemoveRefTempSet) {
           if (CallExpr* move = findRefTempInit(se)) {
             SymExpr* origSym = NULL;
             if (CallExpr* addrOf = toCallExpr(move->get(2))) {
-              INT_ASSERT(addrOf->isPrimitive(PRIM_ADDR_OF));
+              INT_ASSERT(addrOf->isPrimitive(PRIM_ADDR_OF) || addrOf->isPrimitive(PRIM_SET_REFERENCE));
               origSym = toSymExpr(addrOf->get(1));
             } else {
               origSym = toSymExpr(move->get(2));
@@ -154,7 +154,7 @@ static CallExpr* findRefTempInit(SymExpr* se) {
       if (call->isPrimitive(PRIM_MOVE)) {
         if (se->var == toSymExpr(call->get(1))->var) {
           if (CallExpr* nestedCall = toCallExpr(call->get(2))) {
-            if (!nestedCall->isPrimitive(PRIM_ADDR_OF)) {
+            if (!(nestedCall->isPrimitive(PRIM_ADDR_OF) || nestedCall->isPrimitive(PRIM_SET_REFERENCE))) {
               return NULL;
             }
           }

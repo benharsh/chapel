@@ -843,7 +843,7 @@ replicateGlobalRecordWrappedVars(DefExpr *def) {
             // expression
             CallExpr *parent = toCallExpr(se->parentExpr);
             INT_ASSERT(parent);
-            INT_ASSERT(parent->isPrimitive(PRIM_ADDR_OF));
+            INT_ASSERT(parent->isPrimitive(PRIM_ADDR_OF) || parent->isPrimitive(PRIM_SET_REFERENCE));
             INT_ASSERT(isCallExpr(parent->parentExpr));
             // Now start looking for the first use of the captured
             // reference
@@ -1395,7 +1395,7 @@ makeHeapAllocations() {
 
     for_uses(use, useMap, var) {
       if (CallExpr* call = toCallExpr(use->parentExpr)) {
-        if (call->isPrimitive(PRIM_ADDR_OF)) {
+        if (call->isPrimitive(PRIM_ADDR_OF) || call->isPrimitive(PRIM_SET_REFERENCE)) {
           CallExpr* move = toCallExpr(call->parentExpr);
           INT_ASSERT(move && (move->isPrimitive(PRIM_MOVE)));
           if (move->get(1)->typeInfo() == heapType) {
@@ -1485,7 +1485,7 @@ reprivatizeIterators() {
           call->primitive = primitives[PRIM_GET_MEMBER_VALUE];
           VarSymbol* valTmp = newTemp(lhs->getValType());
           move->insertBefore(new DefExpr(valTmp));
-          move->insertAfter(new CallExpr(PRIM_MOVE, lhs, new CallExpr(PRIM_ADDR_OF, valTmp)));
+          move->insertAfter(new CallExpr(PRIM_MOVE, lhs, new CallExpr(PRIM_SET_REFERENCE, valTmp)));
           move->insertAfter(new CallExpr(PRIM_MOVE, valTmp, new CallExpr(PRIM_GET_PRIV_CLASS, lhs->getValType()->symbol, tmp)));
         } else if (call->isPrimitive(PRIM_SET_MEMBER)) {
           AggregateType* ct = toAggregateType(se->var->type);

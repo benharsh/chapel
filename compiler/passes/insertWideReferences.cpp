@@ -2203,7 +2203,7 @@ static void insertWideTemp(Type* type, SymExpr* src) {
   VarSymbol* tmp = newTemp(type);
   Expr* rhs = src->copy();
   if (needsAddrOf)
-    rhs = new CallExpr(PRIM_ADDR_OF, rhs);
+    rhs = new CallExpr(PRIM_SET_REFERENCE, rhs);
   if (needsDeref) {
     // Need to handle case of passing a _ref_T to a wide_T
     // Easiest way seems to be having codegen handle the 'wide = narrow'
@@ -2323,7 +2323,7 @@ static void fixAST() {
             INT_ASSERT(parent->isPrimitive(PRIM_MOVE));
 
             CallExpr* addrof = toCallExpr(parent->get(2));
-            INT_ASSERT(addrof->isPrimitive(PRIM_ADDR_OF));
+            INT_ASSERT(addrof->isPrimitive(PRIM_ADDR_OF) || addrof->isPrimitive(PRIM_SET_REFERENCE));
             SymExpr* dest = toSymExpr(addrof->get(1));
 
             VarSymbol* refTemp = newTemp(formal->typeInfo());
@@ -2332,7 +2332,7 @@ static void fixAST() {
             VarSymbol* destTemp = newTemp(refTemp->getValType());
             call->insertBefore(new DefExpr(destTemp));
 
-            call->insertBefore(new CallExpr(PRIM_MOVE, refTemp, new CallExpr(PRIM_ADDR_OF, destTemp)));
+            call->insertBefore(new CallExpr(PRIM_MOVE, refTemp, new CallExpr(PRIM_SET_REFERENCE, destTemp)));
             act->replace(new SymExpr(refTemp));
 
             call->insertAfter(new CallExpr(PRIM_MOVE, dest->copy(), new SymExpr(destTemp)));
@@ -2379,7 +2379,7 @@ static void fixAST() {
           SET_LINENO(stmt);
           VarSymbol* narrowRef = newTemp(act->var->type->refType);
           stmt->insertBefore(new DefExpr(narrowRef));
-          stmt->insertBefore(new CallExpr(PRIM_MOVE, narrowRef, new CallExpr(PRIM_ADDR_OF, act->copy())));
+          stmt->insertBefore(new CallExpr(PRIM_MOVE, narrowRef, new CallExpr(PRIM_SET_REFERENCE, act->copy())));
           SymExpr* se = new SymExpr(narrowRef);
           act->replace(se);
 
@@ -2428,10 +2428,10 @@ static void fixAST() {
       else if (call->isPrimitive(PRIM_MOVE) || call->isPrimitive(PRIM_ASSIGN)) {
         // TODO: Local checks for references from GET_MEMBER_VALUE
         if (CallExpr* rhs = toCallExpr(call->get(2))) {
-          if (rhs->isPrimitive(PRIM_ADDR_OF)) {
+          if (rhs->isPrimitive(PRIM_ADDR_OF) || rhs->isPrimitive(PRIM_SET_REFERENCE)) {
             Type* val = toSymExpr(call->get(1))->getValType();
             SymExpr* src = toSymExpr(rhs->get(1));
-            if (val != src->var->type) {
+            if (val != src->getValType()) {
               insertWideTemp(val, src);
             }
           }

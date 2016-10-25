@@ -221,7 +221,7 @@ static void addPrintModInitOrder(FnSymbol* fn)
   VarSymbol* refIndentLevel = newTemp("refIndentLevel",refIndentLevelType);
   CallExpr *getAddr = new CallExpr(PRIM_MOVE,
                                    new SymExpr(refIndentLevel),
-                                   new CallExpr(PRIM_ADDR_OF,
+                                   new CallExpr(PRIM_SET_REFERENCE,
                                                 new SymExpr(gModuleInitIndentLevel)));
   CallExpr *incIndentLevel = new CallExpr(PRIM_ADD_ASSIGN,
                                           new SymExpr(refIndentLevel),

@@ -278,7 +278,7 @@ scalarReplaceClass(AggregateType* ct, Symbol* sym) {
       if (call->isPrimitive(PRIM_GET_MEMBER)) {
         SymExpr* member = toSymExpr(call->get(2));
         SymExpr* use = new SymExpr(fieldMap.get(member->var));
-        call->replace(new CallExpr(PRIM_ADDR_OF, use));
+        call->replace(new CallExpr(PRIM_SET_REFERENCE, use));
         addUse(useMap, use);
       } else if (call->isPrimitive(PRIM_GET_MEMBER_VALUE)) {
         SymExpr* member = toSymExpr(call->get(2));
@@ -315,7 +315,7 @@ scalarReplaceClass(AggregateType* ct, Symbol* sym) {
         call->insertAtHead(def);
         addDef(defMap, def);
         if (call->get(1)->typeInfo() == call->get(2)->typeInfo()->refType)
-          call->insertAtTail(new CallExpr(PRIM_ADDR_OF, call->get(2)->remove()));
+          call->insertAtTail(new CallExpr(PRIM_SET_REFERENCE, call->get(2)->remove()));
       } else {
         /*
          * If we fall into this case, it suggests that we did not
@@ -473,7 +473,7 @@ scalarReplaceRecord(AggregateType* ct, Symbol* sym) {
       } else if (call->isPrimitive(PRIM_GET_MEMBER)) {
         SymExpr* member = toSymExpr(call->get(2));
         SymExpr* use = new SymExpr(fieldMap.get(member->var));
-        call->replace(new CallExpr(PRIM_ADDR_OF, use));
+        call->replace(new CallExpr(PRIM_SET_REFERENCE, use));
         addUse(useMap, use);
       } else if (call->isPrimitive(PRIM_GET_MEMBER_VALUE)) {
         SymExpr* member = toSymExpr(call->get(2));
@@ -489,7 +489,7 @@ scalarReplaceRecord(AggregateType* ct, Symbol* sym) {
         call->insertAtHead(def);
         addDef(defMap, def);
         if (call->get(1)->typeInfo() == call->get(2)->typeInfo()->refType)
-          call->insertAtTail(new CallExpr(PRIM_ADDR_OF, call->get(2)->remove()));
+          call->insertAtTail(new CallExpr(PRIM_SET_REFERENCE, call->get(2)->remove()));
       } else {
         /*
          * If we fall into this case, it suggests that we did not

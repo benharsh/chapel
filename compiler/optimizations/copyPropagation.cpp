@@ -219,7 +219,7 @@ static void extractReferences(Expr* expr,
 
       if (CallExpr* rhc = toCallExpr(call->get(2)))
       {
-        if (rhc->isPrimitive(PRIM_ADDR_OF))
+        if (rhc->isPrimitive(PRIM_ADDR_OF) || rhc->isPrimitive(PRIM_SET_REFERENCE))
         {
           SymExpr* rhe = toSymExpr(rhc->get(1));
 
@@ -397,6 +397,7 @@ static bool isUse(SymExpr* se)
         return false;
       return true;
      case PRIM_ADDR_OF:
+     case PRIM_SET_REFERENCE:
       return false; // See Note #2.
      case PRIM_PRIVATE_BROADCAST:
       // The operand is used by name (it must be a manifest constant).
@@ -605,7 +606,7 @@ static void propagateCopies(std::vector<SymExpr*>& symExprs,
     // If we encounter an ADDR_OF with a symbol, do not allow further
     // replacements in case the reference is used to modify the symbol's data.
     if (CallExpr* parent = toCallExpr(se->parentExpr)) {
-      if (parent->isPrimitive(PRIM_ADDR_OF)) {
+      if (parent->isPrimitive(PRIM_ADDR_OF) || parent->isPrimitive(PRIM_SET_REFERENCE)) {
         AvailableMap::iterator ami = available.find(se->var);
         if (ami != available.end()) {
           available.erase(ami);

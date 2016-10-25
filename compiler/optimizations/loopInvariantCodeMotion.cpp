@@ -349,7 +349,7 @@ rhsAlias(CallExpr* call) {
           // instead of the field itself. We need to return the field so that
           // we note that the lhs aliases the field and not just an integer 
           return getSvecSymbol(rhsCall);
-        } else if(rhsCall->isPrimitive(PRIM_ADDR_OF)) {
+        } else if(rhsCall->isPrimitive(PRIM_ADDR_OF) || rhsCall->isPrimitive(PRIM_SET_REFERENCE)) {
           SymExpr* rhs = toSymExpr(rhsCall->get(1));
           INT_ASSERT(rhs);
           return rhs->var;
@@ -438,6 +438,7 @@ static bool isLoopInvariantPrimitive(PrimitiveOp* primitiveOp)
       case PRIM_GET_SVEC_MEMBER_VALUE:        
     
       case PRIM_ADDR_OF:            
+      case PRIM_SET_REFERENCE:
       case PRIM_DEREF:    
         return true;
     default:

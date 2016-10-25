@@ -108,7 +108,7 @@ static void updateLoopBodyClasses(Map<Symbol*, Vec<SymExpr*>*>& defMap,
                 move->insertBefore(new DefExpr(tmp));
                 move->insertBefore(new CallExpr(PRIM_MOVE, tmp, value));
 
-                move->insertAtTail(new CallExpr(PRIM_ADDR_OF, tmp));
+                move->insertAtTail(new CallExpr(PRIM_SET_REFERENCE, tmp));
 
               } else {
                 INT_FATAL(field, "unexpected case");
@@ -332,15 +332,16 @@ static void updateTaskArg(Map<Symbol*, Vec<SymExpr*>*>& useMap,
       call->replace(new SymExpr(arg));
 
     } else if (call && call->isPrimitive(PRIM_MOVE)) {
-      use->replace(new CallExpr(PRIM_ADDR_OF, arg));
-
+      if (call->get(1)->isRef()) {
+        use->replace(new CallExpr(PRIM_SET_REFERENCE, arg));
+      }
     } else {
       Expr*      stmt   = use->getStmtExpr();
       VarSymbol* reref = newTemp("rvfRerefTmp", prevArgType);
 
       Expr* rhs = NULL;
       if (reref->isRef()) {
-        rhs = new CallExpr(PRIM_ADDR_OF, arg);
+        rhs = new CallExpr(PRIM_SET_REFERENCE, arg);
       } else {
         rhs = new SymExpr(arg);
       }
