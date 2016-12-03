@@ -195,6 +195,7 @@ static void runPass(PhaseTracker& tracker, size_t passIndex, bool isChpldoc) {
   // The primary work for this pass
   //
 
+  printf("PASS %s\n", info->name);
   tracker.StartPhase(info->name, PhaseTracker::kPrimary);
 
   if (fPrintStatistics[0] != '\0' && passIndex > 0)

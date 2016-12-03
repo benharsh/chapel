@@ -446,7 +446,7 @@ replaceIteratorFormalsWithIteratorFields(FnSymbol* iterator, Symbol* ic,
           // count is used to get the nth field out of the iterator class;
           // it is replaced by the field once the iterator class is created
           Expr* stmt = se->getStmtExpr();
-          VarSymbol* tmp = newTemp(formal->name, formal->type);
+          VarSymbol* tmp = newTemp(formal->name, formal->cleanQual());
           stmt->insertBefore(new DefExpr(tmp));
           stmt->insertBefore(new CallExpr(PRIM_MOVE, tmp, new CallExpr(PRIM_GET_MEMBER, ic, new_IntSymbol(count))));
           se->setSymbol(tmp);
@@ -834,7 +834,7 @@ static void localizeReturnSymbols(FnSymbol* iteratorFn, std::vector<BaseAST*> as
             se->setSymbol(repl);
           } else {
             SET_LINENO(se);
-            Symbol* newRet = newTemp("newRet", ret->type);
+            Symbol* newRet = newTemp("newRet", ret->cleanQual());
             newRet->addFlag(FLAG_SHOULD_NOT_PASS_BY_REF);
             block->insertAtHead(new DefExpr(newRet));
             se->setSymbol(newRet);
@@ -1265,7 +1265,7 @@ expandBodyForIteratorInline(ForLoop*       forLoop,
   for_vector(BaseAST, ast, asts) {
     if (CallExpr* call = toCallExpr(ast)) {
       if (call->isPrimitive(PRIM_YIELD)) {
-        Symbol*    yieldedIndex  = newTemp("_yieldedIndex", index->type);
+        Symbol*    yieldedIndex  = newTemp("_yieldedIndex", index->cleanQual());
         Symbol*    yieldedSymbol = toSymExpr(call->get(1))->symbol();
         BlockStmt* bodyCopy      = NULL;
         bool       inserted      = false;
@@ -1486,7 +1486,7 @@ setupSimultaneousIterators(Vec<Symbol*>& iterators,
 
     for (int i = 1; i <= iteratorType->fields.length; i++) {
       Symbol* tmpIterator = newTemp("_iterator", iteratorType->getField(i)->type);
-      Symbol* tmpIndex    = newTemp("_index",    indexType->getField(i)->type);
+      Symbol* tmpIndex    = newTemp("_index",    indexType->getField(i)->cleanQual());
 
       loop->insertBefore(new DefExpr(tmpIterator));
       loop->insertBefore(new CallExpr(PRIM_MOVE,
@@ -1562,7 +1562,7 @@ buildIteratorCallInner(BlockStmt* block, Symbol* ret, int fnid, Symbol* iterator
   CallExpr* call = new CallExpr(fn, iterator);
   if (ret) {
     if (fn->retType->getValType() == ret->type->getValType()) {
-      INT_ASSERT(fn->retType == ret->type);
+      //INT_ASSERT(fn->retType == ret->type);
       block->insertAtTail(new CallExpr(PRIM_MOVE, ret, call));
     } else {
       VarSymbol* tmp = newTemp("retTmp", fn->retType);
@@ -2121,12 +2121,13 @@ static void cleanupLeaderFollowerIteratorCalls()
                 Symbol* field = toAggregateType(iteratorType)->getField(i);
                 VarSymbol* tmp = NULL;
                 SET_LINENO(call);
-                if (field->type == se->symbol()->type) {
-                  tmp = newTemp(field->name, field->type);
+                if ((field->isRef() && se->isRef()) ||
+                    (field->isRef() == false && se->isRef() == false)) {
+                  tmp = newTemp(field->name, QualifiedType(field->qualType().getQual(), field->getValType()));
                   call->getStmtExpr()->insertBefore(new DefExpr(tmp));
                   call->getStmtExpr()->insertBefore(new CallExpr(PRIM_MOVE, tmp, new CallExpr(PRIM_GET_MEMBER_VALUE, iterator, field)));
-                } else if (field->type->refType == se->symbol()->type) {
-                  tmp = newTemp(field->name, field->type->refType);
+                } else if (field->isRef() == false &&  se->isRef()) {
+                  tmp = newTemp(field->name, QualifiedType(QUAL_REF, field->type->getValType()));
                   call->getStmtExpr()->insertBefore(new DefExpr(tmp));
                   call->getStmtExpr()->insertBefore(new CallExpr(PRIM_MOVE, tmp, new CallExpr(PRIM_GET_MEMBER, iterator, field)));
                 }
@@ -2216,7 +2217,7 @@ static void reconstructIRAutoCopy(FnSymbol* fn)
       block->insertAtTail(new DefExpr(tmp1));
       block->insertAtTail(new DefExpr(tmp2));
       if (isReferenceType(autoCopy->getFormal(1)->type)) {
-        refTmp = newTemp(autoCopy->getFormal(1)->type);
+        refTmp = newTemp(autoCopy->getFormal(1)->cleanQual());
         block->insertAtTail(new DefExpr(refTmp));
       }
       block->insertAtTail(new CallExpr(PRIM_MOVE, tmp1, new CallExpr(PRIM_GET_MEMBER_VALUE, arg, field)));
@@ -2226,7 +2227,7 @@ static void reconstructIRAutoCopy(FnSymbol* fn)
       block->insertAtTail(new CallExpr(PRIM_MOVE, tmp2, new CallExpr(autoCopy, refTmp?refTmp:tmp1)));
       block->insertAtTail(new CallExpr(PRIM_SET_MEMBER, ret, field, tmp2));
     } else {
-      Symbol* tmp = newTemp(field->name, field->type);
+      Symbol* tmp = newTemp(field->name, QualifiedType(field->qualType().getQual(), field->type->getValType()));
       block->insertAtTail(new DefExpr(tmp));
       block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, new CallExpr(PRIM_GET_MEMBER_VALUE, arg, field)));
       block->insertAtTail(new CallExpr(PRIM_SET_MEMBER, ret, field, tmp));

@@ -4738,7 +4738,7 @@ static void resolveSetMember(CallExpr* call) {
     fs->type = t;
   }
 
-  if (t != fs->type && t != dtNil && t != dtObject) {
+  if (t->getValType() != fs->getValType() && t != dtNil && t != dtObject) {
     SymExpr* se = toSymExpr(call->get(3));
     Symbol* actual = se->symbol();
     FnSymbol* fn = toFnSymbol(call->parentSymbol);
@@ -4839,7 +4839,7 @@ static void resolveMove(CallExpr* call) {
 
           // Add PRIM_ADDR_OF
           //  (this won't be necessary with QualifiedType/PRIM_SET_REFERENCE)
-          VarSymbol* addrOfTmp = newTemp("moveAddr", rhsType);
+          VarSymbol* addrOfTmp = newTemp("moveAddr", QualifiedType(QUAL_REF, rhsType->getValType()));
           call->insertBefore(new DefExpr(addrOfTmp));
           call->insertBefore(new CallExpr(PRIM_MOVE, addrOfTmp,
                                         new CallExpr(PRIM_ADDR_OF,
@@ -6634,7 +6634,7 @@ preFold(Expr* expr) {
             Expr* stmt = call->getStmtExpr();
             Type* t = sym2->type;
             makeRefType(t);
-            VarSymbol* tmp = newTemp("_fold_tmp", t->refType);
+            VarSymbol* tmp = newTemp("_fold_tmp", sym2->cleanQual().toRef());
             stmt->insertBefore(new DefExpr(tmp));
             stmt->insertBefore(new CallExpr(PRIM_MOVE, tmp, new CallExpr(PRIM_ADDR_OF, result)));
             result = new SymExpr(tmp);
@@ -9558,7 +9558,7 @@ static void insertReturnTemps() {
 
           if (!isCallExpr(parent) && !isDefExpr(parent)) { // no use
             SET_LINENO(call); // TODO: reset_ast_loc() below?
-            VarSymbol* tmp = newTemp("_return_tmp_", fn->retType);
+            VarSymbol* tmp = newTemp("_return_tmp_", qualFromType(fn->retType));
             DefExpr*   def = new DefExpr(tmp);
 
             if (isUserDefinedRecord(fn->retType) == true)
@@ -10346,7 +10346,7 @@ static void replaceTypeArgsWithFormalTypeTemps()
 
       // Replace the formal with a _formal_type_tmp_.
       SET_LINENO(formal);
-      VarSymbol* tmp = newTemp("_formal_type_tmp_", formal->type);
+      VarSymbol* tmp = newTemp("_formal_type_tmp_", formal->cleanQual());
       fn->insertAtHead(new DefExpr(tmp));
       subSymbol(fn, formal, tmp);
 

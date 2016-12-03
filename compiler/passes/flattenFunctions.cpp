@@ -177,7 +177,7 @@ static void
 addVarsToFormals(FnSymbol* fn, SymbolMap* vars) {
   form_Map(SymbolMapElem, e, *vars) {
     if (Symbol* sym = e->key) {
-      Type* type = sym->type;
+      Type* type = sym->type->getValType();
       IntentTag intent = INTENT_BLANK;
 
         /* NOTE: This is still conservative.  This avoids passing
@@ -203,7 +203,6 @@ addVarsToFormals(FnSymbol* fn, SymbolMap* vars) {
           temp = INTENT_CONST_REF;
         }
         intent = concreteIntent(temp, type);
-        type = type->getValType()->refType;
       } else {
         IntentTag temp = INTENT_BLANK;
         if (sym->hasFlag(FLAG_CONST) && sym->isRef()) {
@@ -288,7 +287,7 @@ replaceVarUsesWithFormals(FnSymbol* fn, SymbolMap* vars) {
                 call->replace(new SymExpr(arg));
               } else {
                 SET_LINENO(se);
-                VarSymbol* tmp = newTemp(sym->type);
+                VarSymbol* tmp = newTemp(sym->cleanQual());
                 se->getStmtExpr()->insertBefore(new DefExpr(tmp));
                 se->getStmtExpr()->insertBefore(new CallExpr(PRIM_MOVE, tmp, new CallExpr(PRIM_DEREF, arg)));
                 se->setSymbol(tmp);
@@ -310,7 +309,7 @@ addVarsToActuals(CallExpr* call, SymbolMap* vars, bool outerCall) {
         // This is only a performance issue.
         INT_ASSERT(!sym->hasFlag(FLAG_SHOULD_NOT_PASS_BY_REF));
         /* NOTE: See note above in addVarsToFormals() */
-        VarSymbol* tmp = newTemp(sym->type->getValType()->refType);
+        VarSymbol* tmp = newTemp(sym->cleanQual().toRef());
         call->getStmtExpr()->insertBefore(new DefExpr(tmp));
         call->getStmtExpr()->insertBefore(new CallExpr(PRIM_MOVE, tmp, new CallExpr(PRIM_ADDR_OF, sym)));
         call->insertAtTail(tmp);

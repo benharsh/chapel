@@ -227,11 +227,8 @@ ArgSymbol* ReturnByRef::addFormal(FnSymbol* fn)
 {
   SET_LINENO(fn);
 
-  Type*          type    = fn->retType;
-  AggregateType* refType = type->refType;
-  IntentTag      intent  = blankIntentForType(refType);
   // Note: other code does strcmps against the name _retArg
-  ArgSymbol*     formal  = new ArgSymbol(intent, "_retArg", refType);
+  ArgSymbol*     formal  = new ArgSymbol(INTENT_REF, "_retArg", fn->retType);
   formal->addFlag(FLAG_RETARG);
 
   fn->insertFormalAtTail(formal);
@@ -551,7 +548,7 @@ void ReturnByRef::transformMove(CallExpr* moveExpr)
   CallExpr* copyExpr = NULL;
 
   Symbol*   useLhs   = toSymExpr(lhs)->symbol();
-  Symbol*   refVar   = newTemp("ret_to_arg_ref_tmp_", useLhs->type->refType);
+  Symbol*   refVar   = newTemp("ret_to_arg_ref_tmp_", useLhs->cleanQual().toRef());
 
   // Make sure that we created a temp with a type
   INT_ASSERT(useLhs->type->refType);
@@ -669,7 +666,7 @@ createClonedFnWithRetArg(FnSymbol* fn, FnSymbol* useFn)
   SET_LINENO(fn);
   FnSymbol* newFn = fn->copy();
   // Note: other code does strcmps against the name _retArg
-  ArgSymbol* arg = new ArgSymbol(blankIntentForType(useFn->retType->refType), "_retArg", useFn->retType->refType);
+  ArgSymbol* arg = new ArgSymbol(INTENT_REF, "_retArg", useFn->retType->getValType());
   arg->addFlag(FLAG_RETARG);
   newFn->insertFormalAtTail(arg);
   newFn->addFlag(FLAG_FN_RETARG);
@@ -809,7 +806,8 @@ static void replaceUsesOfFnResultInCaller(CallExpr* move, CallExpr* call,
           Symbol* useLhs = toSymExpr(useMove->get(1))->symbol();
           if (!useLhs->isRef())
           {
-            useLhs = newTemp("ret_to_arg_ref_tmp_", useFn->retType->refType);
+            INT_ASSERT(useLhs->getValType() == useFn->retType);
+            useLhs = newTemp("ret_to_arg_ref_tmp_", useLhs->cleanQual().toRef());
             move->insertBefore(new DefExpr(useLhs));
             move->insertBefore(new CallExpr(PRIM_MOVE, useLhs, new CallExpr(PRIM_ADDR_OF, useMove->get(1)->remove())));
           }
@@ -924,7 +922,8 @@ fixupDestructors() {
           INT_ASSERT(fct);
           if (!isClass(fct)) {
             bool useRefType = !isRecordWrappedType(fct);
-            VarSymbol* tmp = newTemp("_field_destructor_tmp_", useRefType ? fct->refType : fct);
+            QualifiedType newType = useRefType ? field->cleanQual().toRef() : field->cleanQual().toVal();
+            VarSymbol* tmp = newTemp("_field_destructor_tmp_", newType);
             fn->insertBeforeReturnAfterLabel(new DefExpr(tmp));
             fn->insertBeforeReturnAfterLabel(new CallExpr(PRIM_MOVE, tmp,
               new CallExpr(useRefType ? PRIM_GET_MEMBER : PRIM_GET_MEMBER_VALUE, fn->_this, field)));
@@ -1183,10 +1182,10 @@ static void insertYieldTemps()
 //
 void insertReferenceTemps(CallExpr* call) {
   for_formals_actuals(formal, actual, call) {
-    if (formal->type == actual->typeInfo()->refType) {
+    if (formal->isRef() && actual->isRef() == false) {
       SET_LINENO(call);
       Expr* stmt = call->getStmtExpr();
-      VarSymbol* tmp = newTemp("_ref_tmp_", formal->type);
+      VarSymbol* tmp = newTemp("_ref_tmp_", formal->cleanQual());
       tmp->addFlag(FLAG_REF_TEMP);
       stmt->insertBefore(new DefExpr(tmp));
       actual->replace(new SymExpr(tmp));

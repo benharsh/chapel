@@ -921,3 +921,16 @@ void collectUsedFnSymbols(BaseAST* ast, std::set<FnSymbol*>& fnSymbols) {
     }
   }
 }
+
+QualifiedType qualFromType(Type* type) {
+  Qualifier q = QUAL_VAL;
+  if (type->symbol->hasFlag(FLAG_REF)) {
+    q = QUAL_REF;
+  } else if (type->symbol->hasFlag(FLAG_WIDE_REF)) {
+    q = QUAL_WIDE_REF;
+  }
+  return QualifiedType(q, type->getValType());
+}
+bool matchQual(QualifiedType a, QualifiedType b) {
+  return (a.type() == b.type()) && !(a.isRef() != b.isRef());
+}

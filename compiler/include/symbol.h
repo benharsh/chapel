@@ -108,6 +108,7 @@ public:
   virtual GenRet     codegen();
   virtual bool       inTree();
   virtual QualifiedType qualType();
+  virtual QualifiedType cleanQual();
   virtual void       verify();
 
   // New interfaces
@@ -162,6 +163,9 @@ protected:
                      Symbol(AstTag      astTag,
                             const char* init_name,
                             Type*       init_type = dtUnknown);
+                     Symbol(AstTag        astTag,
+                            const char*   init_name,
+                            QualifiedType qt);
 
   virtual           ~Symbol();
 
@@ -207,6 +211,9 @@ protected:
             LcnSymbol(AstTag      astTag,
                       const char* initName,
                       Type*       initType);
+            LcnSymbol(AstTag        astTag,
+                      const char*   initName,
+                      QualifiedType qt);
 
   virtual  ~LcnSymbol();
 
@@ -230,6 +237,7 @@ public:
 
   //changed isconstant flag to reflect var, const, param: 0, 1, 2
   VarSymbol(const char* init_name, Type* init_type = dtUnknown);
+  VarSymbol(const char* init_name, QualifiedType qt);
   virtual ~VarSymbol();
 
   void verify();
@@ -285,6 +293,12 @@ public:
             Expr*       iTypeExpr     = NULL,
             Expr*       iDefaultExpr  = NULL,
             Expr*       iVariableExpr = NULL);
+  ArgSymbol(IntentTag   iIntent,
+            const char*   iName,
+            QualifiedType qt,
+            Expr*         iTypeExpr     = NULL,
+            Expr*         iDefaultExpr  = NULL,
+            Expr*         iVariableExpr = NULL);
 
 
   // Interface for BaseAST

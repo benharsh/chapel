@@ -170,6 +170,11 @@ public:
   {
   }
 
+  QualifiedType(Qualifier qual, Type* type)
+    : _type(type), _qual(qual)
+  {
+  }
+
   bool isAbstract() const {
     return (_qual == QUAL_UNKNOWN || _qual == QUAL_CONST ||
             _qual == QUAL_REF || _qual == QUAL_CONST_REF);
@@ -191,6 +196,14 @@ public:
   }
   bool isRefType() const;
   bool isWideRefType() const;
+
+  QualifiedType toVal() {
+    return QualifiedType(QUAL_VAL, _type);
+  }
+
+  QualifiedType toRef() {
+    return QualifiedType(QUAL_REF, _type);
+  }
 
 
   Type* type() const {
@@ -232,6 +245,7 @@ public:
       case QUAL_CONST_WIDE_REF:
         return "const-wide-ref";
     }
+    gdbShouldBreakHere();
     INT_FATAL("Unhandled Qualifier");
     return "UNKNOWN-QUAL";
   }
@@ -241,6 +255,8 @@ private:
   Type*      _type;
   Qualifier  _qual;
 };
+
+extern QualifiedType NullQualType;
 
 class EnumType : public Type {
  public:

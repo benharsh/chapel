@@ -1623,3 +1623,4 @@ bool isPOD(Type* t)
   return false;
 }
 
+QualifiedType NullQualType = QualifiedType(QUAL_UNKNOWN, NULL);

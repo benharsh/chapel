@@ -132,6 +132,35 @@ Symbol::Symbol(AstTag astTag, const char* init_name, Type* init_type) :
     name = astr("");
   }
   cname = name;
+  if (init_type &&
+      init_type->symbol &&
+      init_type->symbol->hasFlag(FLAG_REF)) {
+    if (id == breakOnID) gdbShouldBreakHere();
+    printf("Created ref type %s[%d]\n", cname, id);
+  }
+}
+
+Symbol::Symbol(AstTag astTag, const char* init_name, QualifiedType qt) :
+  BaseAST(astTag),
+  flags(),
+  defPoint(NULL),
+  symExprsHead(NULL),
+  symExprsTail(NULL)
+{
+  qual = qt.getQual();
+  type = qt.type();
+  if (init_name) {
+    name = astr(init_name);
+  } else {
+    name = astr("");
+  }
+  cname = name;
+  if (type &&
+      type->symbol &&
+      type->symbol->hasFlag(FLAG_REF)) {
+    if (id == breakOnID) gdbShouldBreakHere();
+    printf("Created ref type %s[%d]\n", cname, id);
+  }
 }
 
 
@@ -200,6 +229,11 @@ QualifiedType Symbol::qualType() {
   }
 
   return ret;
+}
+
+QualifiedType Symbol::cleanQual() {
+  QualifiedType other = this->qualType();
+  return QualifiedType(other.getQual(), other.type()->getValType());
 }
 
 
@@ -352,6 +386,15 @@ LcnSymbol::LcnSymbol(AstTag      astTag,
   mOffset = -1;
 }
 
+LcnSymbol::LcnSymbol(AstTag        astTag,
+                     const char*   initName,
+                     QualifiedType qt) :
+  Symbol(astTag, initName, qt)
+{
+  mDepth  = -1;
+  mOffset = -1;
+}
+
 LcnSymbol::~LcnSymbol()
 {
 
@@ -399,6 +442,17 @@ VarSymbol::VarSymbol(const char *init_name,
   }
 }
 
+VarSymbol::VarSymbol(const char *init_name,
+                     QualifiedType qt) :
+  LcnSymbol(E_VarSymbol, init_name, qt),
+  immediate(NULL),
+  doc(NULL),
+  isField(false),
+  llvmDIGlobalVariable(NULL),
+  llvmDIVariable(NULL)
+{
+  gVarSymbols.add(this);
+}
 
 VarSymbol::~VarSymbol() {
   if (immediate)
@@ -417,6 +471,9 @@ void VarSymbol::verify() {
 
 VarSymbol*
 VarSymbol::copyInner(SymbolMap* map) {
+  if (type->symbol->hasFlag(FLAG_REF)) {
+    printf("DELETEME: ");
+  }
   VarSymbol* newVarSymbol = new VarSymbol(name, type);
   newVarSymbol->copyFlags(this);
   newVarSymbol->cname = cname;
@@ -570,6 +627,46 @@ ArgSymbol::ArgSymbol(IntentTag iIntent, const char* iName,
   gArgSymbols.add(this);
 }
 
+ArgSymbol::ArgSymbol(IntentTag iIntent, const char* iName,
+                     QualifiedType qt, Expr* iTypeExpr,
+                     Expr* iDefaultExpr, Expr* iVariableExpr) :
+  LcnSymbol(E_ArgSymbol, iName, qt),
+  intent(iIntent),
+  typeExpr(NULL),
+  defaultExpr(NULL),
+  variableExpr(NULL),
+  instantiatedFrom(NULL),
+  llvmDIFormal(NULL)
+{
+  if (intentsResolved) {
+    if (iIntent == INTENT_BLANK || iIntent == INTENT_CONST) {
+      INT_FATAL(this, "You can't create an argument with blank/const intent once intents have been resolved; please be more specific");
+      // NOTE: One way to be more specific is to use the blankIntentForType()/
+      // constIntentForType() routines to map a (possibly unknown) type to
+      // the intent that blank/const would use for that type.
+    }
+  }
+  if (!iTypeExpr)
+    typeExpr = NULL;
+  else if (BlockStmt* block = toBlockStmt(iTypeExpr))
+    typeExpr = block;
+  else
+    typeExpr = new BlockStmt(iTypeExpr, BLOCK_TYPE);
+  if (!iDefaultExpr)
+    defaultExpr = NULL;
+  else if (BlockStmt* block = toBlockStmt(iDefaultExpr))
+    defaultExpr = block;
+  else
+    defaultExpr = new BlockStmt(iDefaultExpr, BLOCK_SCOPELESS);
+  if (!iVariableExpr)
+    variableExpr = NULL;
+  else if (BlockStmt* block = toBlockStmt(iVariableExpr))
+    variableExpr = block;
+  else
+    variableExpr = new BlockStmt(iVariableExpr, BLOCK_SCOPELESS);
+  gArgSymbols.add(this);
+}
+
 
 void ArgSymbol::verify() {
   Symbol::verify();
@@ -603,6 +700,9 @@ void ArgSymbol::verify() {
 
 ArgSymbol*
 ArgSymbol::copyInner(SymbolMap* map) {
+  if (type->symbol->hasFlag(FLAG_REF)) {
+    printf("DELETEME: ");
+  }
   ArgSymbol *ps = new ArgSymbol(intent, name, type, COPY_INT(typeExpr),
                                 COPY_INT(defaultExpr), COPY_INT(variableExpr));
   ps->copyFlags(this);

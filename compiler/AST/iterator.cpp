@@ -81,7 +81,7 @@ static inline CallExpr* parentYieldExpr(SymExpr* se) {
 // and the PRIM_RETURN CallExpr are not needed and would cause trouble.
 // Returns the type yielded by the iterator. (fn->retType is not it.)
 //
-static Type*
+static QualifiedType 
 removeRetSymbolAndUses(FnSymbol* fn) {
   // follows getReturnSymbol()
   CallExpr* ret = toCallExpr(fn->body->body.last());
@@ -95,7 +95,7 @@ removeRetSymbolAndUses(FnSymbol* fn) {
 
   // We cannot remove rsym's definition, because rsym
   // may also be referenced in an autoDestroy call.
-  return rsym->type;
+  return rsym->cleanQual();
 }
 
 //
@@ -215,7 +215,7 @@ static void replaceLocalWithFieldTemp(SymExpr*       se,
   CallExpr* call = toCallExpr(se->parentExpr);
 
   // Create a new temp and load the field value into it.
-  VarSymbol* tmp = newTemp(se->symbol()->type);
+  VarSymbol* tmp = newTemp(se->symbol()->cleanQual());
 
   // Find the statement containing the symexpr access.
   Expr* stmt = se->getStmtExpr();
@@ -825,7 +825,11 @@ buildGetValue(IteratorInfo* ii, BlockStmt* singleLoop) {
   INT_ASSERT(my_this == ii->getValue->_this);
   map.put(advance_this, my_this);
 
-  VarSymbol* tmp         = newTemp(ii->getValue->retType);
+  Qualifier q = QUAL_VAL;
+  if (ii->getValue->retType->symbol->hasFlag(FLAG_REF)) {
+    q = QUAL_REF;
+  }
+  VarSymbol* tmp         = newTemp(QualifiedType(q, ii->getValue->retType->getValType()));
   getValueBody->insertAtTail(new DefExpr(tmp));
 
   if (singleLoop && singleLoop->isForLoop())
@@ -1338,7 +1342,7 @@ removeLocals(Vec<Symbol*>& locals, Vec<BaseAST*>& asts, Vec<Symbol*>& yldSymSet,
 
 // Creates (and returns) an iterator class field.
 // 'type' is used if local==NULL.
-static inline Symbol* createICField(int& i, Symbol* local, Type* type,
+static inline Symbol* createICField(int& i, Symbol* local, QualifiedType type,
                                     bool isValueField, FnSymbol* fn) {
   // The field name is "value" for the return value of the iterator,
   // or F<int>_<local->name> otherwise.
@@ -1347,12 +1351,13 @@ static inline Symbol* createICField(int& i, Symbol* local, Type* type,
     : astr("F", istr(i++), "_", local->name);
 
   if (local) {
-    type = local->type;
+    type = local->cleanQual();
     // The return value is automatically dereferenced (I guess).
-    if (local == fn->_this && type->symbol->hasFlag(FLAG_REF) &&
+    if (local == fn->_this && type.isRef() &&
         // TODO -- why is this dereferencing done ever?
-        !isRecordWrappedType(type->getValType()))
-      type = type->getValType();
+        !isRecordWrappedType(type.type())) {
+      type = type.toVal();
+    }
   }
 
   // Add a field to the class
@@ -1366,7 +1371,7 @@ static inline Symbol* createICField(int& i, Symbol* local, Type* type,
 // local variables defined in the iterator function (or its static context)
 // and live at any yield.
 static void addLocalsToClassAndRecord(Vec<Symbol*>& locals, FnSymbol* fn,
-                                      Vec<Symbol*>& yldSymSet, Type* yieldedType,
+                                      Vec<Symbol*>& yldSymSet, QualifiedType yieldedType,
                                       Symbol** valFieldRef, bool oneLocalYS,
                                       SymbolMap& local2field, SymbolMap& local2rfield)
 {
@@ -1390,10 +1395,11 @@ static void addLocalsToClassAndRecord(Vec<Symbol*>& locals, FnSymbol* fn,
   int i = 0;    // This numbers the fields.
   forv_Vec(Symbol, local, locals) {
     bool isYieldSym = yldSymSet.set_in(local);
-    Symbol* field = createICField(i, local, NULL, isYieldSym && oneLocalYS, fn);
+    Symbol* field = createICField(i, local, NullQualType, isYieldSym && oneLocalYS, fn);
     local2field.put(local, field);
     if (isYieldSym) {
-      INT_ASSERT(local->type == yieldedType);
+      // matching if both are ref, or if neither are ref
+      INT_ASSERT(matchQual(local, yieldedType));
       if (oneLocalYS) {
         INT_ASSERT(valField == NULL); // there is exactly 1 yield symbol
         valField = field;
@@ -1402,7 +1408,7 @@ static void addLocalsToClassAndRecord(Vec<Symbol*>& locals, FnSymbol* fn,
 
     // Only (live) arguments are added to the record.
     if (isArgSymbol(local)) {
-      Symbol* rfield = new VarSymbol(field->name, field->type);
+      Symbol* rfield = new VarSymbol(field->name, field->cleanQual());
       local2rfield.put(local, rfield);
       ii->irecord->fields.insertAtTail(new DefExpr(rfield));
 
@@ -1436,7 +1442,7 @@ void lowerIterator(FnSymbol* fn) {
 
   SET_LINENO(fn);
   Vec<BaseAST*> asts;
-  Type* yieldedType = removeRetSymbolAndUses(fn);
+  QualifiedType yieldedType = removeRetSymbolAndUses(fn);
   collect_asts_postorder(fn, asts);
 
   BlockStmt* singleLoop = NULL;

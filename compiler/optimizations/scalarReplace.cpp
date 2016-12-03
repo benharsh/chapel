@@ -252,7 +252,7 @@ scalarReplaceClass(AggregateType* ct, Symbol* sym) {
   SymbolMap fieldMap;
   for_fields(field, ct) {
     SET_LINENO(sym);
-    Symbol* var = new VarSymbol(astr(sym->name, "_", field->name), field->type);
+    Symbol* var = new VarSymbol(astr(sym->name, "_", field->name), QualifiedType(field->getValType(), field->qualType().getQual()));
     fieldMap.put(field, var);
     sym->defPoint->insertBefore(new DefExpr(var));
     if (sym->hasFlag(FLAG_TEMP))
@@ -379,7 +379,7 @@ scalarReplaceRecord(AggregateType* ct, Symbol* sym) {
   SymbolMap fieldMap;
   for_fields(field, ct) {
     SET_LINENO(sym);
-    Symbol* var = new VarSymbol(astr(sym->name, "_", field->name), field->type);
+    Symbol* var = new VarSymbol(astr(sym->name, "_", field->name), QualifiedType(field->getValType(), field->qualType().getQual()));
     fieldMap.put(field, var);
     sym->defPoint->insertBefore(new DefExpr(var));
     if (sym->hasFlag(FLAG_TEMP))
@@ -408,8 +408,7 @@ scalarReplaceRecord(AggregateType* ct, Symbol* sym) {
           SymExpr *a2 = toSymExpr(oldrhs->get(2))->copy();
 
           // create a temporary to hold a reference to the tuple field
-          rhs = newTemp(astr(sym->name, "_"),
-                        oldrhs->typeInfo()->symbol->type->refType);
+          rhs = newTemp(astr(sym->name, "_"), QualifiedType(oldrhs->getValType(), QUAL_REF));
           sym->defPoint->insertBefore(new DefExpr(rhs));
 
           // get the reference to the field to use for the rhs

@@ -218,7 +218,9 @@ FnSymbol* makeConstructTuple(std::vector<TypeSymbol*>& args,
 
   for(int i = 0; i < size; i++ ) {
     const char* name = typeCtorArgs[i+1]->name;
-    ArgSymbol* arg = new ArgSymbol(INTENT_BLANK, name, args[i]->type);
+    // TODO: This used to accept a _ref type but leave the intent blank, why
+    // would we do that?
+    ArgSymbol* arg = new ArgSymbol(INTENT_BLANK, name, args[i]->type->getValType());
     ctor->insertFormalAtTail(arg);
     // TODO : one would think that the tuple constructor body
     // should call initCopy vs autoCopy, but these are more
@@ -335,7 +337,7 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
 
     for(size_t i = 0; i < args.size(); i++) {
       const char* name = astr("x", istr(i+1));
-      ArgSymbol* typeArg = new ArgSymbol(INTENT_TYPE, name, args[i]->type);
+      ArgSymbol* typeArg = new ArgSymbol(INTENT_TYPE, name, args[i]->type->getValType());
       typeArg->addFlag(FLAG_TYPE_VARIABLE);
       typeCtorArgs.push_back(typeArg);
     }
@@ -645,7 +647,7 @@ instantiate_tuple_initCopy_or_autoCopy(FnSymbol* fn,
     Symbol*    toName = new_CStringSymbol(  toField->name);
     const char* name  = toField->name;
 
-    VarSymbol* read = new VarSymbol(astr("read_", name), fromField->type);
+    VarSymbol* read = new VarSymbol(astr("read_", name), fromField->cleanQual());
     block->insertAtTail(new DefExpr(read));
     VarSymbol* element = NULL;
 

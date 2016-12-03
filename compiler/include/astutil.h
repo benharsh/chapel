@@ -22,6 +22,7 @@
 
 #include "baseAST.h"
 #include "alist.h"
+#include "type.h"
 
 #include <vector>
 #include <set>
@@ -188,5 +189,12 @@ void collectUsedFnSymbols(BaseAST* ast, std::set<FnSymbol*>& fnSymbols);
 
 // move to resolve when scope resolution is put in resolution directory
 BlockStmt* getVisibilityBlock(Expr* expr);
+
+QualifiedType qualFromType(Type* type);
+
+bool matchQual(QualifiedType a, QualifiedType b);
+inline bool matchQual(BaseAST* a, BaseAST* b) { return matchQual(a->qualType(), b->qualType()); }
+inline bool matchQual(BaseAST* a, QualifiedType b) { return matchQual(a->qualType(), b); }
+inline bool matchQual(QualifiedType a, BaseAST* b) { return matchQual(a, b->qualType()); }
 
 #endif
