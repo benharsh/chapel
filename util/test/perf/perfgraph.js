@@ -120,12 +120,12 @@ while (curThirdDate.isBefore(Date.today())) {
 
 // array of currently displayed graphs
 var gs = [];
+
 // used to prevent multiple redraws of graphs when syncing x-axis zooms
 var globalBlockRedraw = false;
 
 // The main elements that all the graphs and graph legends will be put in
-var parent = document.getElementById('graphdisplay');
-var legend = document.getElementById('legenddisplay');
+var graphPane = document.getElementById('graphdisplay');
 
 // setup the default configuration even if it's not multi-conf
 var multiConfs = configurations.length != 0;
@@ -139,6 +139,21 @@ var diffColorForEachConfig = pageTitle.indexOf("16 node XC") >= 0;
 var lastFilterVal = "";
 
 var filterBox = $("[name='filterBox']")[0];
+
+
+// ctrl+f
+$(document).keydown(function(e) {
+  // 'metaKey' for OS X
+  if (e.which == 70 && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    $(filterBox).focus();
+  }
+});
+
+function clearFilter() {
+  filterBox.value = "";
+  doFilter();
+}
 
 // If 'val' is true, disable typing into the filterBox and set the background
 // color to grey. If false, allow typing and set background to white.
@@ -213,22 +228,22 @@ function getNextDivs(afterDiv, afterLDiv) {
     beforeLDiv = afterLDiv.nextSibling.nextSibling;
   }
 
+  var container = document.createElement('div');
+  container.className = 'graphContainer';
+  graphPane.insertBefore(container, beforeDiv);
+
   // create the graph/legend divs and spacers
   var div = document.createElement('div');
   div.className = 'perfGraph';
-  parent.insertBefore(div, beforeDiv);
-
-  var gspacer = document.createElement('div');
-  gspacer.className = 'gspacer';
-  parent.insertBefore(gspacer, beforeDiv);
+  container.appendChild(div);
 
   var ldiv = document.createElement('div');
   ldiv.className = 'perfLegend';
-  legend.insertBefore(ldiv, beforeLDiv);
+  container.appendChild(ldiv);
 
-  var lspacer = document.createElement('div');
-  lspacer.className = 'lspacer';
-  legend.insertBefore(lspacer, beforeLDiv);
+  var gspacer = document.createElement('div');
+  gspacer.className = 'gspacer';
+  container.appendChild(gspacer);
 
   function addButtonHelper(buttonText) {
     var button = document.createElement('input');
@@ -240,10 +255,11 @@ function getNextDivs(afterDiv, afterLDiv) {
     return button;
   }
 
-  var logToggle = addButtonHelper('log');
-  var annToggle = addButtonHelper('annotations');
+  var logToggle        = addButtonHelper('log');
+  var annToggle        = addButtonHelper('annotations');
   var screenshotToggle = addButtonHelper('screenshot');
   var closeGraphToggle = addButtonHelper('close');
+  var resetY           = addButtonHelper('reset Y zoom');
 
   return {
     div: div,
@@ -252,8 +268,9 @@ function getNextDivs(afterDiv, afterLDiv) {
     annToggle: annToggle,
     screenshotToggle: screenshotToggle,
     closeGraphToggle: closeGraphToggle,
+    resetY: resetY,
     gspacer: gspacer,
-    lspacer: lspacer
+    container: container,
   }
 }
 
@@ -347,6 +364,7 @@ function genDygraph(graphInfo, graphDivs, graphData, graphLabels, expandInfo) {
     setupAnnToggle(g, graphInfo, graphDivs.annToggle);
     setupScreenshotToggle(g, graphInfo, graphDivs.screenshotToggle);
     setupCloseGraphToggle(g, graphInfo, graphDivs.closeGraphToggle);
+    setupResetYZoom(g, graphInfo, graphDivs.resetY);
 
     g.isReady = true;
 
@@ -456,20 +474,14 @@ function setupScreenshotToggle(g, graphInfo, screenshotToggle) {
 
 // g: A DyGraph object
 function hideGraph(g) {
-  $(g.maindiv_).hide();
-  $(g.divs.ldiv).hide();
-  $(g.divs.gspacer).hide();
-  $(g.divs.lspacer).hide();
+  $(g.divs.container).hide();
 }
 
 function showGraph(g) {
   if (g.removed) {
     return;
   }
-  $(g.maindiv_).show();
-  $(g.divs.ldiv).show();
-  $(g.divs.gspacer).show();
-  $(g.divs.lspacer).show();
+  $(g.divs.container).show();
 }
 
 // Setup the close graph button
@@ -493,6 +505,14 @@ function setupCloseGraphToggle(g, graphInfo, closeGraphToggle) {
   }
 }
 
+function setupResetYZoom(g, graphInfo, resetY) {
+  resetY.style.visibility = 'visible';
+
+  resetY.onclick = function() {
+    g.updateOptions({ valueRange: null });
+  }
+}
+
 
 // Function to capture a screenshot of a graph and open the image in a new
 // window.
@@ -508,7 +528,8 @@ function setupCloseGraphToggle(g, graphInfo, closeGraphToggle) {
 // and legend and just render that one.
 function captureScreenshot(g, graphInfo) {
 
-  var gWidth = g.divs.div.clientWidth + g.divs.ldiv.clientWidth;
+  // 100 padding
+  var gWidth = g.divs.div.clientWidth + g.divs.ldiv.clientWidth + 100;
   var gHeight = g.divs.div.clientHeight;
 
   var captureCanvas = document.createElement('canvas');
@@ -833,7 +854,7 @@ function perfGraphInit() {
   var dateElem= document.getElementById('dateElem');
   if(parseDate(runDate) < parseDate(todayDate)) {
     dateElem.innerHTML = 'Graphs Last Updated on ' + runDate;
-    dateElem.style.color = "RED";
+    dateElem.style.color = "red";
   }
 
   // generate the multi configuration menu and toggle options
@@ -920,6 +941,7 @@ function perfGraphInit() {
     var elem = document.createElement('div');
     elem.className = 'graph';
     elem.innerHTML = '<input id="graph' + i + '" type="checkbox">' + allGraphs[i].title;
+    elem.title = allGraphs[i].title;
     graphlist.appendChild(elem);
   }
 
@@ -927,8 +949,6 @@ function perfGraphInit() {
 
   setGraphsFromURL();
   displaySelectedGraphs();
-
-  disableFilterBox(false);
 }
 
 
@@ -1216,9 +1236,8 @@ function selectSuite(suite) {
 
 function displaySelectedGraphs() {
   // Clean up divs
-  while (parent.childNodes.length > 0) {
-    parent.removeChild(parent.childNodes[0]);
-    legend.removeChild(legend.childNodes[0]);
+  while (graphPane.childNodes.length > 0) {
+    graphPane.removeChild(graphPane.childNodes[0]);
   }
 
   // clean up all the dygraphs
@@ -1500,13 +1519,36 @@ function parseDate(date) {
   }
 }
 
+function lastTwoWeeks() {
+  var end = getTodaysDate('-');
+
+  // Two weeks ago
+  var sd = new Date();
+  sd.setDate(sd.getDate() - 14);
+  var start = dateFormatter(sd, '-');
+
+  var range = [parseDate(start), parseDate(end)];
+
+  setURLFromDate(OptionsEnum.STARTDATE, Dygraph.dateString_(range[0]));
+  setURLFromDate(OptionsEnum.ENDDATE, Dygraph.dateString_(range[1]));
+
+  applyFnToAllGraphs(function(g) {
+    if (g.isReady && differentDateRanges(range, g.xAxisRange())) {
+      g.updateOptions({ dateWindow: range });
+    }
+  });
+}
+
+function dateFormatter(d, delimiter) {
+  return  d.getFullYear() + delimiter + (d.getMonth()+1) + delimiter + d.getDate();
+}
 
 // returns todays date formatted as 'YYYY<delimiter>MM<delimiter>DD'. Defaults
 // to 'YYYY-MM-DD' if a delimiter isn't specified.
 function getTodaysDate(delimiter) {
   delimiter = defaultFor(delimiter, '-');
   var d = new Date();
-  return  d.getFullYear() + delimiter + (d.getMonth()+1) + delimiter + d.getDate();
+  return dateFormatter(d, delimiter);
 }
 
 

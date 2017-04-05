@@ -19,8 +19,6 @@
 
   </head>
   <body onload="perfGraphInit()">
-    <center><h2 id="titleElem"></h2></center>
-    <center><h4 id="dateElem"></h4></center>
     <script>
       <!-- hide
            function jumpto(x){
@@ -31,32 +29,73 @@
            }
            // end hide -->
     </script>
-    <table>
+    <div id="graphSelectionPane" class="graphSelectionPane">
+      <a class="actionButton configLink"
+        href="http://chapel.sourceforge.net/perf/"
+        style="margin-left: 10px;
+               margin-top: 10px;
+               font-size: 20px;">Home</a>
+
+      <p><em>Other configurations</em></p>
+      <a class="actionButton configLink" href="http://chapel.sourceforge.net/perf/chapcs/">chapcs</a>
+      <a class="actionButton configLink" href="http://chapel.sourceforge.net/perf/16-node-xc/">16-node-xc</a>
+      <a class="actionButton configLink" href="http://chapel.sourceforge.net/perf/chapcs/releaseOverRelease/">Release-Over-Release</a>
+      <hr/>
+
+      <p id='toggleConf'><em>Toggle configurations</em></p>
+      <p><em>Select a test suite</em></p>
+      <div id="suiteMenu"></div>
+
+      <p><em>Select and display specific tests</em></p>
+
+      <table id="buttonTable">
       <tr>
-        <td id="graphSelectionPane" class="graphSelectionPane">
-            <p id='toggleConf'><em>Toggle configurations</em></p>
-            <p><em>Select a test suite</em></p>
-            <div id="suiteMenu"></div>
-            <p><strong>OR</strong></p>
-            <p><em>Select and display specific tests</em></p>
-            <input type="button" onclick="displaySelectedGraphs()"
-            value="Display">
-             <input type="button" onclick="clearDates()"
-            value="Clear Dates">
-            <br>
-            <input type="button" onclick="selectAllGraphs()"
-            value="Select All">
-            <input type="button" onclick="unselectAllGraphs()"
-            value="Unselect All">
-            <p>Filter: <input type="text" name="filterBox"></p>
-            <div id="graphlist" class="graphList"></div>
-          <td valign="top">
-            <div id="graphdisplay" class=graphdisplay></div>
-          </td>
-          <td id="legenddisplay" valign="top">
+        <td>
+          <input type="button" onclick="displaySelectedGraphs()"
+          class="actionButton"
+          value="Display">
+        </td>
+        <td>
+          <input type="button" onclick="clearDates()"
+          class="actionButton"
+          value="Clear Dates">
+        </td>
+        <td>
+          <input type="button" onclick="lastTwoWeeks()"
+          class="actionButton"
+          value="Last Two Weeks">
         </td>
       </tr>
-    </table>
+      <tr>
+        <td>
+          <input type="button" onclick="selectAllGraphs()"
+          class="actionButton"
+          value="Select All">
+        </td>
+        <td>
+          <input type="button" onclick="unselectAllGraphs()"
+          class="actionButton"
+          value="Unselect All">
+        </td>
+      </tr>
+      </table>
+
+      <p>Filter: <input type="text" name="filterBox">&nbsp;
+        <input type="button" onclick="clearFilter()" class="actionButton" value="&#x2715;" style="padding: 0px 3px 0px 3px">
+      </p>
+
+      <div id="graphlist" class="graphList">
+       <!-- populated with checkboxes by javascript -->
+      </div>
+    </div>
+    <div id="titleDiv">
+      <center><h2 id="titleElem"></h2></center>
+      <center><h4 id="dateElem"></h4></center>
+    </div>
+
+    <div id="graphdisplay" class="graphdisplay">
+       <!-- populated with graphs by javascript -->
+    </div>
 
     <script src="perfgraph.js"></script>
   </body>
