@@ -1,3 +1,14 @@
+
+//
+// BHARSH TODO:
+// - store series-hiding in URL?
+// - store 'graphInfo' when creating Dygraph, instead of after?
+//
+// - firefox on mac seems a little sluggish when hiding a series,
+//   any way we can optimize that?
+//
+
+
 // Release branch info
 // For now, I'm not using the release fields
 var branchInfo = [
@@ -260,6 +271,7 @@ function getNextDivs(afterDiv, afterLDiv) {
   var screenshotToggle = addButtonHelper('screenshot');
   var closeGraphToggle = addButtonHelper('close');
   var resetY           = addButtonHelper('reset Y zoom');
+  var checkboxToggle   = addButtonHelper('hide checkboxes')
 
   return {
     div: div,
@@ -269,11 +281,126 @@ function getNextDivs(afterDiv, afterLDiv) {
     screenshotToggle: screenshotToggle,
     closeGraphToggle: closeGraphToggle,
     resetY: resetY,
+    checkboxToggle: checkboxToggle,
     gspacer: gspacer,
     container: container,
   }
 }
 
+function chapelValueFormatter(val, opts, series_name, graph) {
+  // Find the range we're displaying and adjust digits accordingly
+  var yRange = graph.yAxisRange();
+  var yDiff = yRange[1] - yRange[0];
+  var digits = 0;
+  if (yDiff < 1.0) {
+    digits = 4;
+  } else if (yDiff < 100.0) {
+    digits = 2;
+  } else if (yDiff < 1000.0) {
+    digits = 1;
+  } else if (yDiff < 1000000.0) {
+    digits = 0;
+  } else {
+    digits = 2;
+  }
+
+  // update digits, but do NOT redraw. Then use the default value formatter
+  graph.updateOptions({digitsAfterDecimal: digits}, true);
+
+  return val.toFixed(digits);
+}
+
+function yAxisFormatter(val, gran, opts, graph) {
+  return chapelValueFormatter(val, opts, '', graph);
+}
+
+function xAxisFormatter(val, opts, series_name, graph) {
+  var d = new Date(val);
+  return d.getFullYear() + '/' + d.getMonth() + '/' + d.getDate();
+}
+
+function hideSeries(check, graphIdx, seriesIdx) {
+  var g = gs[graphIdx];
+  var x = g.getSelection();
+  g.setVisibility(seriesIdx, check.checked);
+  g.setSelection(x);
+
+  // TODO: update annotation series before calling setVisibility
+  // to reduce graph draws. Maybe pass in the soon-to-be-invisible
+  // series index and find the next one?
+  if (g.annotations().length > 0) {
+    updateAnnotationsSeries(g);
+    g.setAnnotations(g.graphInfo.annotations);
+  }
+}
+
+// TODO: always hide invisible series, then have a 'reset series'
+// button?
+function customLegendFormatter(data) {
+  var g = data.dygraph;
+
+  var sepLines = g.getOption('labelsSeparateLines');
+  var hasX = (typeof data.x !== 'undefined');
+  var allowChecks = g.getOption('wantsCheckboxes');
+  var showUnchecked = g.getOption('showUnchecked');
+  var html;
+
+  html = '';
+  if (hasX) {
+    html += data.xHTML + ':';
+  }
+
+  for (var i = 0; i < data.series.length; i++) {
+    var series = data.series[i];
+    if (!series.yHTML && hasX) continue;
+    if (html !== '') html += sepLines ? '<br/>' : ' ';
+
+    var inner = '';
+    if (hasX == false) {
+      inner += series.dashHTML;
+    }
+    inner += " " + series.labelHTML;
+
+    // TODO: g.getOption('chapelGraphInfo')
+    // For now, maybe just do 'chapelGraphIdx' instead of the whole graphInfo object?
+    var graphIdx = indexMap[g.user_attrs_.chapelGraphInfo.title];
+    var isVisible = !(!series.isVisible);
+
+    if (!isVisible && !showUnchecked) continue;
+
+    var checkedAttr = "";
+    var classes     = "";
+    if (isVisible) {
+      checkedAttr = "checked";
+    } else {
+      classes = " class='fadeSeries'";
+    }
+    var check = "<input class='toggleSeries' type='checkbox' " + checkedAttr + " onchange='hideSeries(this, " + graphIdx + ", " + i + ")'/>";
+    var checkHTML = allowChecks ? check : "";
+
+    var cur = "<span" + classes + " style='font-weight: bold; color: " + series.color + ";'>" + checkHTML + inner + "</span>";
+
+    if (hasX && series.yHTML) {
+      var cls = series.isHighlighted ? ' class="highlight"' : '';
+      cur = "<span" + cls + "> <b>" + cur + "</b>&nbsp;" + series.yHTML + "</span>";
+    }
+    html += cur;
+  }
+  return html;
+}
+
+//
+// TODO: would like to avoid using regex here and precompute this when
+// creating graphdata.js. Would also want a visually distinct css class
+// to aid users in finding clickable annotations.
+//
+function openGithubPR(annotation, point, dygraph, ev) {
+  var matches = annotation.text.match(/#[0-9]+/i);
+  if (matches && matches.length == 1) {
+    var str = matches[0].substring(1); // cut off the leading '#'
+    window.open("https://github.com/chapel-lang/chapel/pull/" + str);
+  }
+}
 
 // Gen a new dygraph, if an existing graph is being expanded then expandInfo
 // will contain the expansion information, else it is null
@@ -290,14 +417,15 @@ function genDygraph(graphInfo, graphDivs, graphData, graphLabels, expandInfo) {
     ylabel: graphInfo.ylabel,
     axes: {
       x: {
-        drawGrid: false
+        drawGrid: false,
+        valueFormatter: xAxisFormatter,
       },
       y: {
         drawGrid: true,
         // So y values don't overlap with the y label
         axisLabelWidth: 80,
-        valueFormatter: customValueFormatter,
-        axisLabelFormatter: customAxisLabelFormatter
+        valueFormatter: chapelValueFormatter,
+        axisLabelFormatter: yAxisFormatter
       }
     },
     includeZero: true,
@@ -320,8 +448,16 @@ function genDygraph(graphInfo, graphDivs, graphData, graphLabels, expandInfo) {
     dateWindow: [startdate, enddate],
     // sync graphs anytime we pan, zoom, or at initial draw
     drawCallback: customDrawCallback,
+    // handler to open link to github PR in browser
+    annotationClickHandler: openGithubPR,
     // mark the release dates on the graph before the chart gets drawn
-    underlayCallback: markReleaseDates
+    underlayCallback: markReleaseDates,
+    legendFormatter: customLegendFormatter,
+    chapelGraphInfo: graphInfo,
+    // enable series-hiding checkboxes by default
+    wantsCheckboxes: true,
+    // show checkboxes/label for hidden series
+    showUnchecked: true,
   }
 
   if (multiConfs) {
@@ -345,7 +481,9 @@ function genDygraph(graphInfo, graphDivs, graphData, graphLabels, expandInfo) {
   }
 
   // actually create the dygraph
+  indexMap[graphInfo.title] = gs.length;
   var g = new Dygraph(graphDivs.div, graphData, graphOptions);
+
   g.isReady = false;
   setupSeriesLocking(g);
 
@@ -365,15 +503,16 @@ function genDygraph(graphInfo, graphDivs, graphData, graphLabels, expandInfo) {
     setupScreenshotToggle(g, graphInfo, graphDivs.screenshotToggle);
     setupCloseGraphToggle(g, graphInfo, graphDivs.closeGraphToggle);
     setupResetYZoom(g, graphInfo, graphDivs.resetY);
+    setupCheckboxToggle(g, graphInfo, graphDivs.checkboxToggle);
 
     g.isReady = true;
 
     expandGraphs(g, graphInfo, graphDivs, graphData, graphLabels);
 
   });
-
+//
   gs.push(g);
-  indexMap[g.graphInfo.title] = gs.length-1;
+//  indexmap[g.graphinfo.title] = gs.length-1;
 }
 
 // Function to expand an existing graph. This leaves the original graph
@@ -513,6 +652,35 @@ function setupResetYZoom(g, graphInfo, resetY) {
   }
 }
 
+function setupCheckboxToggle(g, graphInfo, toggle) {
+  toggle.style.visibility = 'visible';
+
+  toggle.onclick = function() {
+    var cur = g.getOption('wantsCheckboxes');
+    cur = !cur;
+    g.updateOptions({ wantsCheckboxes: cur }, false);
+
+    // BHARSH TODO: what we should really be doing here is
+    // computing the computing the default visibility state
+    // of the graph (based on multi-conf) and setting the
+    // visibility to force a redraw.
+    //
+    // TODO: skip for graphs with checkboxes on by default.
+    // maybe just avoid adding the button entirely?
+    var vs = g.visibility();
+    for (var i = 0; i < vs.length; i++) {
+      vs[i] = true;
+    }
+    g.setVisibility(vs);
+
+    if (cur) {
+      toggle.value = 'hide checkboxes';
+    } else {
+      toggle.value = 'force checkboxes';
+    }
+  }
+}
+
 
 // Function to capture a screenshot of a graph and open the image in a new
 // window.
@@ -536,12 +704,24 @@ function captureScreenshot(g, graphInfo) {
   captureCanvas.width = gWidth;
   captureCanvas.height = gHeight;
   var ctx = captureCanvas.getContext('2d');
+  var label = graphInfo.ylabel;
+
+  var restoreOpts = {
+    showRoller: true,
+    ylabel: label,
+    showUnchecked: true,
+  };
+
+  var tempOpts = {
+    showRoller: false,
+    ylabel: '',
+    showUnchecked: false,
+  };
 
   // html2canvas doesn't render transformed ccs3 text (like our ylabel.) We
   // make the label inivisible and we also hide the roll button box since
   // theres no point in capturing it in a screenshot
-  g.updateOptions({showRoller: false, ylabel:''});
-  var label = graphInfo.ylabel;
+  g.updateOptions(tempOpts);
 
   // generate the graph
   html2canvas(g.divs.div, {
@@ -569,7 +749,7 @@ function captureScreenshot(g, graphInfo) {
           window.open(captureCanvas.toDataURL());
 
           // restore the roll box and ylabel
-          g.updateOptions({showRoller: true, ylabel:label});
+          g.updateOptions(restoreOpts);
         }
       });
     }
@@ -577,32 +757,45 @@ function captureScreenshot(g, graphInfo) {
 }
 
 
+// BHARSH TODO: remove this old comment if 16-node-xc testing goes well
 // Update which series the annotations for a graph are attached to based on the
 // current configurations. Checks against disabled configs so we don't change
 // annotations for graphs that aren't using multi-configs. This only changes
 // the annotations in graphInfo, it does _not_ update the graph annotations
+//
+// Updates the annotations array 'g.graphInfo.annotations' with a new common
+// series if the current series is invisible.
 function updateAnnotationsSeries(g) {
   // if only one config or there's no annotations, nothing to update
   var annotations = g.graphInfo.annotations;
   var annLength = annotations.length;
-  if (multiConfs === false || annLength === 0) return;
+  if (annLength === 0) return;
 
-  // if all configs are hidden or all configs are visible, nothing to update
-  var enabledConfs = getCheckedConfigurations();
-  var disabledConfs = getCheckedConfigurations(false);
-  if (enabledConfs.length === 0 || disabledConfs.length == 0) return;
+  // Assume that all annotations attach themselves to the same series
+  var taggedSeries = annotations[0].series;
 
-  // note that all annotations attach themselves to the same series
-  var firstAnn = annotations[0].series;
+  var seriesInfo = g.getPropertiesForSeries(taggedSeries);
 
-  // if ann series is a disabled config, replace it with an enabled one
-  for (var i = 0, len = disabledConfs.length; i < len; i++) {
-    if (firstAnn.endsWith(disabledConfs[i])) {
-      var newSeries = firstAnn.replace(disabledConfs[i], enabledConfs[0]);
-      for (var j = 0; j < annLength; j++) {
-        annotations[j].series = newSeries;
+  if (!seriesInfo.visible) {
+    var nextSeries = "";
+    var labels = g.getLabels();
+
+    // Find the next visible series for the annotations to attach themselves
+    // to.
+    //
+    // 'labels' array starts with 'Date', which is not a valid series
+    for (var i = 1; i < labels.length; i++) {
+      var props = g.getPropertiesForSeries(labels[i]);
+      if (props.visible) {
+        nextSeries = props.name;
+        break;
       }
-      break; // replaced the series, break out of disabledConfigs loop
+    }
+
+    if (nextSeries !== '') {
+      for (var i = 0; i < annLength; i++) {
+        annotations[i].series = nextSeries;
+      }
     }
   }
 }
@@ -722,46 +915,6 @@ function genSeriesColors(graphSeries) {
   return colors;
 }
 
-
-// We use a custom value formatter so that we can adjust the number of digits
-// displayed based on min and max y values. This makes the graphs look a lot
-// cleaner, especially since many of our graphs have widely varying y axis
-// ranges. e.g. you don't care if a test takes 500.21 vs 500.29 seconds, but do
-// care about 0.21 vs 0.29 seconds.
-//
-// Previously we did this in the zoom callback, but that forced us to re-render
-// the dygraph which is slow. This adds some overhead to updating the value
-// displayed in the label and legend, but there doesn't appear to be any
-// performance issues.
-function customValueFormatter(val, opts, series_name, dygraph) {
-
-  // Find the range we're displaying and adjust digits accordingly
-  var yRange = dygraph.yAxisRange();
-  var yDiff = yRange[1] - yRange[0];
-  var digits = 0;
-  if (yDiff < 1.0) {
-    digits = 4;
-  } else if (yDiff < 100.0) {
-    digits = 2;
-  } else if (yDiff < 1000.0) {
-    digits = 1;
-  } else if (yDiff < 1000000.0) {
-    digits = 0;
-  } else {
-    digits = 2;
-  }
-
-  // update digits, but do NOT redraw. Then use the default value formatter
-  dygraph.updateOptions({digitsAfterDecimal: digits}, true);
-  return Dygraph.numberValueFormatter(val, opts);
-}
-
-// custom formatter for the y axis labels, calls the legend value formatter
-function customAxisLabelFormatter(val, granularity, opts, dygraph) {
-  return customValueFormatter(val, opts, '', dygraph);
-}
-
-
 // synchronize our graphs along the x-axis and check if we should warn that
 // using a log scale will result in wonky behavior.
 function customDrawCallback(graph, initial) {
@@ -789,12 +942,16 @@ function customDrawCallback(graph, initial) {
     range[0] = roundDate(range[0], false);
     range[1] = roundDate(range[1], true);
 
-    setURLFromDate(OptionsEnum.STARTDATE, Dygraph.dateString_(range[0]));
-    setURLFromDate(OptionsEnum.ENDDATE, Dygraph.dateString_(range[1]));
+    setURLFromDate(OptionsEnum.STARTDATE, range[0]);
+    setURLFromDate(OptionsEnum.ENDDATE, range[1]);
+
+    var intRange = [Date.parse(range[0]), Date.parse(range[1])]
 
     applyFnToAllGraphs(function(g) {
-      if (g.isReady && differentDateRanges(range, g.xAxisRange())) {
-        g.updateOptions({ dateWindow: range });
+      if (g.isReady && differentDateRanges(intRange, g.xAxisRange())) {
+        g.updateOptions({
+          dateWindow: intRange
+        });
       }
     });
   }
@@ -1262,7 +1419,7 @@ function displaySelectedGraphs() {
   }
 
   $.when.apply($, jsons).done(function() {
-      console.log("done with all json");
+      console.log("done generating graphs");
       doFilter();
       disableFilterBox(false);
   });
@@ -1504,18 +1661,20 @@ function roundDate(date, roundUp) {
     } else {
       var dateString = Dygraph.dateString_(date).split(' ');
     }
-    return parseDate(dateString[0]);
+    return dateString[0];
   }
 }
 
 
 // helper function to parse a date (either use dygraph date parser, or do
 // nothing for numericX)
+//
+// numericX may be set from graphdata.js
 function parseDate(date) {
   if (numericX) {
     return date;
   } else {
-    return Dygraph.dateParser(date);
+    return Date.parse(date);
   }
 }
 
