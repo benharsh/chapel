@@ -43,6 +43,26 @@ const activePoints = (order-2*R)*(order-2*R),
 
 var timer: Timer;
 
+record LocalSlice {
+  type classType;
+  var pid : int;
+
+  inline proc _value {
+    return chpl_getPrivatizedCopy(classType, pid);
+  }
+
+  pragma "reference to const when const this"
+  inline proc ref this(idx...) ref {
+    return _value.dsiLocalAccess(idx);
+  }
+  inline proc const this(idx...) where shouldReturnRvalueByValue(_value.eltType) {
+    return _value.dsiLocalAccess(idx);
+  }
+  inline proc const this(idx...) const ref where shouldReturnRvalueByConstRef(_value.eltType) {
+    return _value.dsiLocalAccess(idx);
+  }
+}
+
 /* Parallel Research Kernel - Stencil */
 proc main() {
 
@@ -148,17 +168,18 @@ proc main() {
     if iteration >= 1 then subTimer.start();
 
     if debug then diagnostics('stencil');
-    forall (i,j) in innerDom with (in weight) do local {
+    var slice = new LocalSlice(input._value.type, input._pid);
+    forall (i,j) in innerDom with (in weight, in slice) do local {
       var tmpout: dtype = 0.0;
       if (!compact) {
-        for param jj in -R..-1 do tmpout += weight[R1][R1+jj] * input.localAccess[i, j+jj];
-        for param jj in 1..R   do tmpout += weight[R1][R1+jj] * input.localAccess[i, j+jj];
-        for param ii in -R..-1 do tmpout += weight[R1+ii][R1] * input.localAccess[i+ii, j];
-        for param ii in 1..R   do tmpout += weight[R1+ii][R1] * input.localAccess[i+ii, j];
+        for param jj in -R..-1 do tmpout += weight[R1][R1+jj] * slice[i, j+jj];
+        for param jj in 1..R   do tmpout += weight[R1][R1+jj] * slice[i, j+jj];
+        for param ii in -R..-1 do tmpout += weight[R1+ii][R1] * slice[i+ii, j];
+        for param ii in 1..R   do tmpout += weight[R1+ii][R1] * slice[i+ii, j];
       } else {
         for param ii in -R..R do
           for param jj in -R..R do
-            tmpout += weight[R1+ii][R1+jj] * input.localAccess[i+ii, j+jj];
+            tmpout += weight[R1+ii][R1+jj] * slice[i+ii, j+jj];
       }
       output.localAccess[i, j] += tmpout;
     }
