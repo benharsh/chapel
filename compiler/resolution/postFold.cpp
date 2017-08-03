@@ -302,7 +302,8 @@ Expr* postFold(Expr* expr) {
       Symbol* sym = baseType->getField(memberName);
       SymExpr* left = toSymExpr(call->get(1));
       VarSymbol* varSym = toVarSymbol(sym);
-      if (left && left->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
+      if (left && left->symbol()->hasFlag(FLAG_TYPE_VARIABLE) &&
+          sym->isParameter() == false) {
         result = new SymExpr(sym->type->symbol);
         call->replace(result);
       } else if (sym->isParameter() || (varSym && varSym->isType())) {

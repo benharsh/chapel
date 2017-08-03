@@ -35,7 +35,7 @@
 static bool mainReturnsInt;
 
 static void build_chpl_entry_points();
-static void build_accessor(AggregateType* ct, Symbol* field, bool setter);
+static void build_accessor(AggregateType* ct, Symbol* field, bool setter, bool makeTypeMethod);
 static void build_accessors(AggregateType* ct, Symbol* field);
 
 static void buildDefaultInitializer(AggregateType* ct);
@@ -301,10 +301,10 @@ static void fixup_accessor(AggregateType* ct, Symbol *field,
 
 // This function builds the getter or the setter, depending on the
 // 'setter' argument.
-static void build_accessor(AggregateType* ct, Symbol* field, bool setter) {
+static void build_accessor(AggregateType* ct, Symbol* field, bool setter, bool makeTypeMethod) {
   // Only build a 'ref' version for records and classes.
   // Unions need a special getter and setter.
-  if (isUnion(ct) == false && setter == false)
+  if (isUnion(ct) == false && setter == false && makeTypeMethod == false)
     return;
 
   const bool fieldIsConst = field->hasFlag(FLAG_CONST);
@@ -349,6 +349,10 @@ static void build_accessor(AggregateType* ct, Symbol* field, bool setter) {
         _this->intent = INTENT_REF;
       }
     }
+  }
+
+  if (makeTypeMethod) {
+    _this->addFlag(FLAG_TYPE_VARIABLE);
   }
 
   if (isUnion(ct)) {
@@ -426,8 +430,12 @@ static void build_accessors(AggregateType* ct, Symbol *field) {
     return;
 
   // Otherwise, build compiler-default getter and setter.
-  build_accessor(ct, field, true);
-  build_accessor(ct, field, false);
+  build_accessor(ct, field, true, false);
+  build_accessor(ct, field, false, false);
+
+  if (field->hasFlag(FLAG_TYPE_VARIABLE) || field->hasFlag(FLAG_PARAM)) {
+    build_accessor(ct, field, false, true);
+  }
 }
 
 static FnSymbol* chpl_gen_main_exists() {
