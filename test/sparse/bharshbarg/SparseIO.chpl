@@ -67,7 +67,7 @@ proc readCSV(fname : string, type eltType=real, type idxType=int, delim=",") {
       rdr.readf(idxValFormat, rt, ct, vals[i]);
       inds[i] = (rt, ct);
     }
-    sparseDom.bulkAdd(inds, dataSorted=true, isUnique=true);
+    sparseDom.bulkAdd(inds[1..len], dataSorted=true, isUnique=true);
     forall (i, v) in zip(inds[1..len], vals[1..len]) {
       sparseArr[i] = v;
     }
