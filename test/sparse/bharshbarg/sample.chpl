@@ -22,12 +22,12 @@ proc main() {
   ref A = R.getArray();
 
   var Squared = A.dot(A);
-  
-  for s in Squared.domain do assert(Squared.domain.member(s), "BUG");
 
   writeBinary(outputFile, Squared);
 
   if verify {
+    forall s in Squared.domain do assert(Squared.domain.member(s), "Result of A*A is corrupted");
+
     var BR = readBinary(outputFile);
     ref B = BR.getArray();
 
