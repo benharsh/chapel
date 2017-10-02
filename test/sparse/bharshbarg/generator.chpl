@@ -6,8 +6,8 @@ config const seed = 12345;
 
 config const n = 500;
 
-config const rowStart = 0,
-             colStart = 0;
+config const rowStart = 1,
+             colStart = 1;
 
 config const rows = n,
              cols = n;
