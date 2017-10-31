@@ -131,11 +131,8 @@ module SQLite3 {
     proc prepare(sql : string) {
       return new Statement(chan, sql);
     }
-    proc prepare(sql : string, binds ...?k) {
-      return new Statement(chan, sql, binds);
-    }
-    proc prepare(sql : string, binds ...?k, type typeTuple ...?z) {
-      return new Statement(chan, sql, binds, typeTuple);
+    proc prepare(sql : string, type tup) where isTuple(tup) {
+      return new Statement(chan, sql, tup);
     }
     proc prepare(sql : string, type typeTuple ...?z) {
       return new Statement(chan, sql, typeTuple);
@@ -213,6 +210,17 @@ module SQLite3 {
     //   https://stackoverflow.com/a/24029046/6814354
   }
 
+  private proc _getRetType(type t) type {
+    // For now, disallow records
+    if isValidTypeTuple(t) {
+      return t;
+    } else if isValidSQLiteType(t) {
+      return t;
+    } else {
+      compilerError("Unsupported SQLite type: ", t:string);
+    }
+  }
+
   // TODO: accept associative array as 'binds'
   record Statement {
     type retType;
@@ -228,23 +236,14 @@ module SQLite3 {
 
       _common(chan, sql);
     }
-    proc init(chan : c_ptr(sqlite3), sql : string, binds ...?k) {
-      retType = Row;
-      initialBinds = binds;
-
-      super.init();
-      _common(chan, sql);
-      _bind(initialBinds);
-    }
-    proc init(chan : c_ptr(sqlite3), sql : string, binds ...?k, type typeTuple ...?z) {
-      retType = _getRetType(typeTuple);
+    proc init(chan : c_ptr(sqlite3), sql : string, type tup) where isTuple(tup) {
+      retType = _getRetType(tup);
 
       super.init();
 
       _common(chan, sql);
-      _bind(binds);
     }
-    proc init(chan : c_ptr(sqlite3), sql : string, type typeTuple ...?z) {
+    proc init(chan : c_ptr(sqlite3), sql : string, type typeTuple ...) {
       retType = _getRetType(typeTuple);
 
       super.init();
@@ -261,31 +260,55 @@ module SQLite3 {
       checkResult(err, db);
     }
 
-    proc _getRetType(type t) type {
-      // For now, disallow records
-      if isValidTypeTuple(t) {
-        return t;
-      } else if isValidSQLiteType(t) {
-        return t;
-      } else {
-        compilerError("Unsupported SQLite type: ", t:string);
+    proc bind(map) where isArray(map) && isAssociativeArr(map) {
+      for (key, val) in zip(map.domain, map) {
+        const idx = sqlite3_bind_paramter_index(stmt, key.c_str());
+        bind(val, idx);
       }
     }
 
-    proc _bind(binds ...?k) {
-      if isValidTypeTuple(binds.type) == false then
-        compilerError("Invalid tuple passed to _bind: ", binds.type:string);
+    proc bind(val, idx=1) where isValidSQLiteType(val.type) {
+      const _idx = idx:c_int;
+      if isIntegralType(val.type) {
+        sqlite3_bind_int64(stmt, _idx, val);
+      } else if isString(val.type) {
+        sqlite3_bind_text(stmt, _idx, val);
+      } else if isReal(val.type) {
+        sqlite3_bind_double(stmt, _idx, val);
+      } else {
+        compilerError("Unhandled type: ", val.type:string);
+      }
+    }
+
+    proc bind(vals ...?k) where k > 1{
+      if isValidTypeTuple(vals.type) == false then
+        compilerError("Invalid tuple passed to _bind: ", vals.type:string);
 
       for param i in 1..k {
+        bind(vals(i), i);
       }
     }
 
     // Optionally bind on a step
     proc step() throws {
+      var ret : retType;
+
+      const err = sqlite3_step(stmt);
+      if err == SQLITE_ROW {
+        for param i in 1..ret.size {
+          ret(i) = getColumn(stmt, i-1, ret(i).type);
+        }
+      } else if err == SQLITE_DONE {
+        _sawDone = true;
+      } else {
+        checkResult(err, db);
+      }
+
+      return ret;
     }
     proc step(vals ...?k) throws {
-      _bind(vals);
-      step();
+      bind(vals);
+      return step();
     }
 
     // Have we seen SQLITE_DONE yet?
