@@ -221,7 +221,14 @@ module SQLite3 {
     }
   }
 
-  // TODO: accept associative array as 'binds'
+  // TODO: it would be nice if we could accept associative arrays from string -> unions
+  // for bind().
+  //
+  // Usage of 'step' is kinda weird. Let's step() in the initializer and cache
+  // the result and error. then during the next step we can check the error,
+  // step again, and return the old result. this should allow for more natural
+  // usage of Statement.done:
+  // while !stmt.done do stmt.step();
   record Statement {
     type retType;
     var db : c_ptr(sqlite3);
@@ -260,24 +267,25 @@ module SQLite3 {
       checkResult(err, db);
     }
 
-    proc bind(map) where isArray(map) && isAssociativeArr(map) {
-      for (key, val) in zip(map.domain, map) {
-        const idx = sqlite3_bind_paramter_index(stmt, key.c_str());
-        bind(val, idx);
-      }
+    // TODO: should we allow users to omit ?,$,@ prefixes?
+    proc bindName(name : string, val) {
+      const idx = sqlite3_bind_parameter_index(stmt, name.c_str());
+      bind(val, idx);
     }
 
     proc bind(val, idx=1) where isValidSQLiteType(val.type) {
       const _idx = idx:c_int;
+      var err : c_int;
       if isIntegralType(val.type) {
-        sqlite3_bind_int64(stmt, _idx, val);
+        err = sqlite3_bind_int64(stmt, _idx, val);
       } else if isString(val.type) {
-        sqlite3_bind_text(stmt, _idx, val);
+        err = sqlite3_bind_text(stmt, _idx, val);
       } else if isReal(val.type) {
-        sqlite3_bind_double(stmt, _idx, val);
+        err = sqlite3_bind_double(stmt, _idx, val);
       } else {
         compilerError("Unhandled type: ", val.type:string);
       }
+      checkResult(err, db);
     }
 
     proc bind(vals ...?k) where k > 1{
