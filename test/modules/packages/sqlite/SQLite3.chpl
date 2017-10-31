@@ -80,14 +80,32 @@ module SQLite3 {
 
   private proc getColumn(stmt : c_ptr(sqlite3_stmt), idx : int, type t) {
     const i = idx:c_int;
+    const numCols = sqlite3_column_count(stmt);
+    if idx < 0 || idx > numCols then
+      halt("idx out of bounds: [0, ", numCols, "]");
+
+    const colType = sqlite3_column_type(stmt, i);
+    proc checkType(const expected...) {
+      var fail = true;
+      for e in expected {
+        if colType == e then
+          fail = false;
+      }
+      if fail then halt("type mismatch!");
+    }
+
     if isIntegralType(t) {
+      checkType(SQLITE_INTEGER);
       return sqlite3_column_int(stmt, i).safeCast(t);
     } else if isReal(t) {
+      checkType(SQLITE_FLOAT);
       return sqlite3_column_double(stmt, i):t;
     } else if isString(t) {
+      checkType(SQLITE_TEXT);
       const ptr = sqlite3_column_text(stmt, i);
       return new string(ptr);
     } else if t : c_ptr || t == c_void_ptr {
+      checkType(SQLITE_BLOB, SQLITE_NULL);
       halt("Unable to handle blobs");
       return c_nil; // BLOB, NULL?
     }
@@ -109,6 +127,20 @@ module SQLite3 {
       checkResult(err, chan, "Failed to close connection.");
     }
 
+    // Note: binds useful for performance, no need to recompile
+    proc prepare(sql : string) {
+      return new Statement(chan, sql);
+    }
+    proc prepare(sql : string, binds ...?k) {
+      return new Statement(chan, sql, binds);
+    }
+    proc prepare(sql : string, binds ...?k, type typeTuple ...?z) {
+      return new Statement(chan, sql, binds, typeTuple);
+    }
+    proc prepare(sql : string, type typeTuple ...?z) {
+      return new Statement(chan, sql, typeTuple);
+    }
+
     // execute(string, optional-vals) // execute arbitrary statement, bind with vals
     proc exec(in sql : string) {
       sql = prepString(sql);
@@ -127,7 +159,14 @@ module SQLite3 {
 
     // Do we need some kind of 'Row' and 'Value' type? Should users always know
     // what the resulting type is?
-    // rows(string, type-tuple) // iter over sql statement
+
+    // rows(string, [bound-vals]) : Row;
+    // rows(string, [bound-vals], type t) : t; (int/float/text/blog/null, or record)
+    // rows(string, [bound-vals], type t...) : t;
+    //
+    // Match subset of record fields, error if column in result is uncaught.
+    // Should we try to do anything with column names?
+
     iter rows(in sql : string, type t ...) where t.size > 1 {
       for r in rows(sql, t) do
         yield r;
@@ -170,16 +209,101 @@ module SQLite3 {
     //
     // close()
     // prepare(string, type-tuple) // returns Statement for manual stepping
-    // first(string, type-tuple) // returns first column in first row
+    // parallel iterators? probably want a separate iterator name
+    //   https://stackoverflow.com/a/24029046/6814354
   }
 
-  // TODO: need 'bind' things as well...
+  // TODO: accept associative array as 'binds'
   record Statement {
-    proc step(type args ...?k) throws {
+    type retType;
+    var db : c_ptr(sqlite3);
+    var stmt : c_ptr(sqlite3_stmt);
+    var _sawDone : bool;
+    var sql : string;
+
+    proc init(chan : c_ptr(sqlite3), sql : string) {
+      retType = Row;
+
+      super.init();
+
+      _common(chan, sql);
+    }
+    proc init(chan : c_ptr(sqlite3), sql : string, binds ...?k) {
+      retType = Row;
+      initialBinds = binds;
+
+      super.init();
+      _common(chan, sql);
+      _bind(initialBinds);
+    }
+    proc init(chan : c_ptr(sqlite3), sql : string, binds ...?k, type typeTuple ...?z) {
+      retType = _getRetType(typeTuple);
+
+      super.init();
+
+      _common(chan, sql);
+      _bind(binds);
+    }
+    proc init(chan : c_ptr(sqlite3), sql : string, type typeTuple ...?z) {
+      retType = _getRetType(typeTuple);
+
+      super.init();
+
+      _common(chan, sql);
     }
 
-    iter rows(type args ...?k) {
+    proc _common(chan : c_ptr(sqlite3), sql : string) {
+      this.db = chan;
+      // TODO: do we *really* need to do this??
+      this.sql = if sql.endsWith(";") then sql else sql + ";";
+      this._sawDone = false;
+      var err = sqlite3_prepare_v2(db, this.sql.c_str(), -1, this.stmt, nil);
+      checkResult(err, db);
     }
+
+    proc _getRetType(type t) type {
+      // For now, disallow records
+      if isValidTypeTuple(t) {
+        return t;
+      } else if isValidSQLiteType(t) {
+        return t;
+      } else {
+        compilerError("Unsupported SQLite type: ", t:string);
+      }
+    }
+
+    proc _bind(binds ...?k) {
+      if isValidTypeTuple(binds.type) == false then
+        compilerError("Invalid tuple passed to _bind: ", binds.type:string);
+
+      for param i in 1..k {
+      }
+    }
+
+    // Optionally bind on a step
+    proc step() throws {
+    }
+    proc step(vals ...?k) throws {
+      _bind(vals);
+      step();
+    }
+
+    // Have we seen SQLITE_DONE yet?
+    proc done const {
+      return _sawDone;
+    }
+
+    // walk through anything else
+    proc finish() { }
+
+    proc deinit() {
+      // TODO: error checking?
+      sqlite3_finalize(stmt);
+    }
+  }
+
+  // stores type-less data
+  record Row {
   }
 
   private module _Sys {
@@ -352,7 +476,7 @@ module SQLite3 {
     extern const SQLITE_FLOAT : int;
     extern const SQLITE_BLOB : int;
     extern const SQLITE_NULL : int;
-    extern const SQLITE3_TEXT : int;
+    extern const SQLITE_TEXT : int;
     extern const SQLITE_UTF8 : int;
     extern const SQLITE_UTF16LE : int;
     extern const SQLITE_UTF16BE : int;
