@@ -1,6 +1,7 @@
 
 module SQLite3 {
   use _Sys;
+  use OwnedObject;
 
   private proc isValidSQLiteType(type t) param : bool {
     proc isCPtr(type x) param where x:c_ptr return true;
@@ -111,8 +112,12 @@ module SQLite3 {
     }
   }
 
-  record Connection {
+  class Connection {
     var chan : c_ptr(sqlite3);
+
+    proc type open(db : string, flags = OpenFlags.ReadOnly) {
+      return new Owned(new Connection(db, flags));
+    }
 
     proc init(db : string, flags = OpenFlags.ReadOnly) {
       // No VFS support for now.
@@ -127,15 +132,14 @@ module SQLite3 {
       checkResult(err, chan, "Failed to close connection.");
     }
 
-    // Note: binds useful for performance, no need to recompile
     proc prepare(sql : string) {
-      return new Statement(chan, sql);
+      return new Owned(new Statement(chan, sql));
     }
     proc prepare(sql : string, type tup) where isTuple(tup) {
-      return new Statement(chan, sql, tup);
+      return new Owned(new Statement(chan, sql, tup));
     }
     proc prepare(sql : string, type typeTuple ...?z) {
-      return new Statement(chan, sql, typeTuple);
+      return new Owned(new Statement(chan, sql, typeTuple));
     }
 
     // execute(string, optional-vals) // execute arbitrary statement, bind with vals
@@ -229,7 +233,7 @@ module SQLite3 {
   // step again, and return the old result. this should allow for more natural
   // usage of Statement.done:
   // while !stmt.done do stmt.step();
-  record Statement {
+  class Statement {
     type retType;
     var db : c_ptr(sqlite3);
     var stmt : c_ptr(sqlite3_stmt);
@@ -334,7 +338,7 @@ module SQLite3 {
   }
 
   // stores type-less data
-  record Row {
+  class Row {
   }
 
   private module _Sys {
