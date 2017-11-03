@@ -45,6 +45,16 @@ module SQLite3 {
     return true;
   }
 
+  class SqliteError : Error {
+    var msg : string;
+    proc SqliteError(m : string) {
+      msg = m;
+    }
+    proc message() {
+      return msg;
+    }
+  }
+
   record OpenFlags {
     proc type ReadOnly     return SQLITE_OPEN_READONLY;
     proc type ReadWrite    return SQLITE_OPEN_READWRITE;
@@ -302,8 +312,11 @@ module SQLite3 {
     }
 
     // Optionally bind on a step
+    // TODO: make sure 'void' is a valid retType, and that step() can handle it.
     proc step() throws {
       var ret : retType;
+
+      if _sawDone then throw new SqliteError("Called step() after Statement is exhausted");
 
       const err = sqlite3_step(stmt);
       if err == SQLITE_ROW {
@@ -323,9 +336,26 @@ module SQLite3 {
       return step();
     }
 
+    iter rows() throws {
+      while done == false {
+        const ret = step();
+        if done == false then yield ret;
+      }
+    }
+
+    // Should rows reset the statement?
+    iter rows(vals ...?k) throws {
+      bind(vals);
+      for r in rows() do yield r;
+    }
+
     // Have we seen SQLITE_DONE yet?
     proc done const {
       return _sawDone;
+    }
+
+    proc reset() {
+      sqlite3_reset(stmt);
     }
 
     // walk through anything else
@@ -339,6 +369,43 @@ module SQLite3 {
 
   // stores type-less data
   class Row {
+  }
+
+  record SqliteValue {
+    enum kind {
+      INT, BOOL, TEXT, BLOB, NULL
+    }
+    const k : kind;
+
+    var val_int : int;
+    var val_bool : bool;
+    var val_text : string;
+    var val_blob : c_void_ptr;
+
+    proc init() {
+      k = kind.NULL;
+      super.init();
+    }
+    proc init(i : int) {
+      k = kind.INT;
+      val_int = i;
+      super.init();
+    }
+    proc init(b : bool) {
+      k = kind.BOOL;
+      val_bool = b;
+      super.init();
+    }
+    proc init(s : string) {
+      k = kind.TEXT;
+      val_text = s;
+      super.init();
+    }
+    proc init(b : c_void_ptr) {
+      k = kind.BLOB;
+      val_blob = b;
+      super.init();
+    }
   }
 
   private module _Sys {
