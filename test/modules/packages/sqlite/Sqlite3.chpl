@@ -6,23 +6,32 @@
 //   Should we match fields and columns by name?
 // - are we copying strings too much?
 // - private initializers? I want users to use "Connection.open"
+// - For now, disallow "[:@$]VVV" named bindings. We don't really have a good
+//   way of passing an associative array right now, and "?" and ":NNN" seem to
+//   be sufficient.
+// - FTS support
+// - Request: support for two varargs: vals..., type t...
+// - query-building functions, like diesel or sqlite.swift
 //
 // TODO:
+// - Consider disallowing type varargs, would make api easier
+// - Should all these types have a 'Sqlite' prefix?
+// - standard module request: isCPtr
+// - should --no-checks disable column idx bounds checks?
+// - get meta info (#columns, header) from Statement
+// - what should happen if we re-assign a statement?
+//
+// TESTING:
+// - how can we check for memory leaks? valgrind?
+// - parallel safety?
+// - multilocale?
+// - in-memory database
 // - Test possible type constraints:
 //   - single type
 //   - tuple of types
 //   - varargs of types
 //   - single SqliteRow
 //   - tuple/varargs of SqliteValue?
-// - Should all these types have a 'Sqlite' prefix?
-// - standard module request: isCPtr
-// - should --no-checks disable column idx bounds checks?
-// - get meta info (#columns, header) from Statement
-//
-// TESTING:
-// - how can we check for memory leaks? valgrind?
-// - parallel safety?
-// - multilocale?
 //
 
 module Sqlite3 {
@@ -32,7 +41,7 @@ module Sqlite3 {
   private proc isCPtr(type x) param where x:c_ptr return true;
   private proc isCPtr(type x) param return false;
 
-  private proc isValidSQLiteType(type t) param : bool {
+  proc isValidSQLiteType(type t) param : bool {
     if isIntegralType(t) {
       return true; // INT
     } else if isReal(t) {
@@ -133,14 +142,19 @@ module Sqlite3 {
       checkResult(err, chan, msg);
     }
 
-    proc deinit() {
+    proc close() {
       // Check if all statements, handles, etc are finalized?
       const err = sqlite3_close_v2(chan);
       checkResult(err, chan, "Failed to close connection.");
+      chan = nil;
+    }
+
+    proc deinit() {
+      close();
     }
 
     proc prepare(sql : string) {
-      return new Owned(new Statement(chan, sql));
+      return new Owned(new Statement(chan, sql, SqliteRow));
     }
     proc prepare(sql : string, type tup) {
       return new Owned(new Statement(chan, sql, tup));
@@ -150,42 +164,44 @@ module Sqlite3 {
     }
 
     // execute(string, optional-vals) // execute arbitrary statement, bind with vals
-    proc exec(in sql : string) {
-      prepare(sql).finish();
+    proc exec(sql : string) {
+      prepare(sql).run();
     }
     proc exec(sql : string, vals...) {
       var s = prepare(sql);
       s.bind(vals);
-      s.finish();
+      s.run();
     }
 
+    // TODO: binds?
     iter rows(sql : string) {
       for r in rows(sql, SqliteRow) do
         yield r;
     }
-    iter rows(in sql : string, type t ...) where t.size > 1 {
+    iter rows(sql : string, type t ...) where t.size > 1 {
       for r in rows(sql, t) do
         yield r;
     }
-
-    // This is the real deal, others are just convenient wrappers
-    iter rows(in sql : string, type t) {
+    iter rows(sql : string, type t) {
       var s = prepare(sql, t);
-      for r in s.rows() {
+      for r in s {
         yield r;
       }
-      assert(s.done);
     }
-
-    // meta stuff:
-    // - list tables
-    // - list columns in table
-    // - 
-    //
-    // close()
-    // prepare(string, type-tuple) // returns Statement for manual stepping
-    // parallel iterators? probably want a separate iterator name
-    //   https://stackoverflow.com/a/24029046/6814354
+    iter rows(sql : string, vals...?z) where z > 1 {
+      for r in rows(sql, vals, SqliteRow) do yield r;
+    }
+    iter rows(sql : string, vals...?z, type t) where z > 1 {
+      for r in rows(sql, vals, t) do yield r;
+    }
+    iter rows(sql : string, val) {
+      for r in rows(sql, val, SqliteRow) do yield r;
+    }
+    iter rows(sql : string, vals, type t) {
+      var stmt = prepare(sql, t);
+      stmt.bind(vals);
+      for r in stmt do yield r;
+    }
   }
 
   private proc _getRetType(type t) type {
@@ -211,16 +227,8 @@ module Sqlite3 {
     type retType;
     var db : c_ptr(sqlite3);
     var stmt : c_ptr(sqlite3_stmt);
-    var _sawDone : bool;
     var sql : string;
 
-    proc init(chan : c_ptr(sqlite3), sql : string) {
-      retType = SqliteRow;
-
-      super.init();
-
-      _common(chan, sql);
-    }
     proc init(chan : c_ptr(sqlite3), sql : string, type tup) {
       retType = _getRetType(tup);
 
@@ -228,7 +236,7 @@ module Sqlite3 {
 
       _common(chan, sql);
     }
-    proc init(chan : c_ptr(sqlite3), sql : string, type typeTuple ...) where typeTuple.size > 1 {
+    proc init(chan : c_ptr(sqlite3), sql : string, type typeTuple ...?z) where z > 1 {
       retType = _getRetType(typeTuple);
 
       super.init();
@@ -238,24 +246,24 @@ module Sqlite3 {
 
     proc _common(chan : c_ptr(sqlite3), sql : string) {
       this.db = chan;
-      // TODO: do we *really* need to do this??
-      this.sql = if sql.endsWith(";") then sql else sql + ";";
-      this._sawDone = false;
+      this.sql = sql;
       var err = sqlite3_prepare_v2(db, this.sql.c_str(), -1, this.stmt, nil);
       checkResult(err, db);
+
+      const numBinds = sqlite3_bind_parameter_count(stmt):int;
+      for i in 1..numBinds {
+        var name = sqlite3_bind_parameter_name(stmt, i:c_int):string;
+        if name != "" && name.startsWith("?") == false {
+          halt("Named parameters are not supported: '", name, "'");
+        }
+      }
     }
 
     proc numColumns() {
       return sqlite3_column_count(stmt):int;
     }
 
-    // TODO: should we allow users to omit ?,$,@ prefixes?
-    proc bindName(name : string, val) {
-      const idx = sqlite3_bind_parameter_index(stmt, name.c_str());
-      bind(val, idx);
-    }
-
-    proc bind(val, idx=1) where isValidSQLiteType(val.type) {
+    proc _internal_bind(val, idx) where isValidSQLiteType(val.type) {
       const _idx = idx:c_int;
       var err : c_int;
       if isIntegralType(val.type) {
@@ -269,14 +277,23 @@ module Sqlite3 {
       }
       checkResult(err, db);
     }
+    proc bind(val) where !isTuple(val) {
+      _internal_bind(val, 1);
+      return this;
+    }
 
-    proc bind(vals ...?k) where k > 1{
-      if isValidTypeTuple(vals.type) == false then
-        compilerError("Invalid tuple passed to _bind: ", vals.type:string);
+    proc bind(vals) where isTuple(vals) {
+      const actuals = if isTuple(vals(1)) then vals(1) else vals;
+      if isValidTypeTuple(actuals.type) == false then
+        compilerError("Invalid tuple passed to bind: ", actuals.type:string);
 
-      for param i in 1..k {
-        bind(vals(i), i);
+      for param i in 1..actuals.size {
+        _internal_bind(actuals(i), i);
       }
+      return this;
+    }
+    proc bind(vals ...?k) where k > 1 {
+      return bind(vals);
     }
 
     proc _fillResult(ref ret) throws where isTuple(ret) {
@@ -285,6 +302,7 @@ module Sqlite3 {
       }
     }
     proc _fillResult(ref ret : SqliteRow) throws {
+      ret.clear();
       for i in 1..numColumns() {
         ret.append(getColumn(stmt, i-1));
       }
@@ -293,54 +311,55 @@ module Sqlite3 {
       compilerError("Sqlite.Statement: Cannot populate result for type '", ret.type:string, "'");
     }
 
-    // Optionally bind on a step
-    // TODO: make sure 'void' is a valid retType, and that step() can handle it.
-    proc step() throws {
-      var ret : retType;
-
-      if _sawDone then throw new SqliteError("Called step() after Statement is exhausted");
-
-      const err = sqlite3_step(stmt);
-      if err == SQLITE_ROW {
-        _fillResult(ret);
-      } else if err == SQLITE_DONE {
-        _sawDone = true;
-      } else {
-        checkResult(err, db);
+    // Step until statement is complete
+    proc run() throws {
+      var done = false;
+      while done == false {
+        const err = sqlite3_step(stmt);
+        if err == SQLITE_DONE {
+          done = true;
+        } else if err != SQLITE_ROW {
+          checkResult(err, db);
+        }
       }
-
-      return ret;
+      reset(false);
     }
-    proc step(vals ...?k) throws {
+    proc run(vals ...?k) throws {
       bind(vals);
-      return step();
+      run();
     }
+
+    // TODO: some compiler issue with these(vals...). What if 'bind' returned
+    // a Statement? for r in stmt.bind(...) do ...
 
     // TODO: too much copying here?
-    iter rows() throws {
+    iter these() throws {
+      var done = false;
+      var ret : retType;
       while done == false {
-        const ret = step();
-        if done == false then yield ret;
+        const err = sqlite3_step(stmt);
+        if err == SQLITE_ROW {
+          _fillResult(ret);
+          yield ret;
+        } else if err == SQLITE_DONE {
+          done = true;
+        } else {
+          checkResult(err, db);
+        }
       }
+      reset(false);
     }
 
-    // Should rows reset the statement?
-    iter rows(vals ...?k) throws {
-      bind(vals);
-      for r in rows() do yield r;
+    proc clearBindings() {
+      const err = sqlite3_clear_bindings(stmt);
+      checkResult(err, db);
     }
 
-    // Have we seen SQLITE_DONE yet?
-    proc done const {
-      return _sawDone;
+    proc reset(bindings = false) {
+      const err = sqlite3_reset(stmt);
+      checkResult(err, db);
+      if bindings then clearBindings();
     }
-
-    proc reset() {
-      sqlite3_reset(stmt);
-    }
-
-    // walk through anything else
-    proc finish() { }
 
     proc deinit() {
       // TODO: error checking?
@@ -352,6 +371,9 @@ module Sqlite3 {
   record SqliteRow {
     var _valDom : domain(1);
     var _values : [_valDom] SqliteValue;
+    proc clear() {
+      _values.clear();
+    }
     proc append(s : SqliteValue) {
       _values.push_back(s);
     }
@@ -814,6 +836,7 @@ module Sqlite3 {
     extern record sqlite3_stmt {};
 
     extern proc sqlite3_step(arg0 : c_ptr(sqlite3_stmt)) : c_int;
+    extern proc sqlite3_reset(arg0 : c_ptr(sqlite3_stmt)) : c_int;
 
     extern proc sqlite3_data_count(pStmt : c_ptr(sqlite3_stmt)) : c_int;
     extern proc sqlite3_column_count(pStmt : c_ptr(sqlite3_stmt)) : c_int;
