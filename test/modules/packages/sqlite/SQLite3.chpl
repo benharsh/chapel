@@ -1,11 +1,30 @@
 
-module SQLite3 {
+//
+// Future work:
+// - Should we support arbitrary records as return-types from Statement.step() ?
+//   What should happen if the number of fields and columns don't match?
+//   Should we match fields and columns by name?
+//
+// TODO:
+// - Test possible type constraints:
+//   - single type
+//   - tuple of types
+//   - varargs of types
+//   - single SqliteRow
+//   - tuple/varargs of SqliteValue?
+// - Should all these types have a 'Sqlite' prefix?
+// - standard module request: isCPtr
+// - private initializers? I want users to use "Connection.open"
+//
+
+module Sqlite3 {
   use _Sys;
   use OwnedObject;
 
+  private proc isCPtr(type x) param where x:c_ptr return true;
+  private proc isCPtr(type x) param return false;
+
   private proc isValidSQLiteType(type t) param : bool {
-    proc isCPtr(type x) param where x:c_ptr return true;
-    proc isCPtr(type x) param return false;
     if isIntegralType(t) {
       return true; // INT
     } else if isReal(t) {
@@ -20,29 +39,15 @@ module SQLite3 {
   }
 
   private proc isValidTypeTuple(type t) param : bool {
-    if isTuple(t) == false then return false;
-
-    var dummy : t;
-    for param i in 1..dummy.size {
-      if isValidSQLiteType(t(i)) == false then return false;
-    }
-
-    return true;
-  }
-
-  private proc isValidRecord(type t) param : bool {
-    use Reflection;
-    if isRecordType(t) == false then return false;
-
-    var temp : t;
-    for param i in 1..numFields(t) {
-      if isParam(getField(temp, i)) == false && isType(getField(temp, i) == false) {
-        if isValidSQLiteType(getField(temp, i).type) == false then
-          return false;
+    if isTuple(t) {
+      var dummy : t;
+      for param i in 1..dummy.size {
+        if isValidSQLiteType(t(i)) == false then return false;
       }
+      return true;
+    } else {
+      return false;
     }
-
-    return true;
   }
 
   class SqliteError : Error {
@@ -53,19 +58,6 @@ module SQLite3 {
     proc message() {
       return msg;
     }
-  }
-
-  record OpenFlags {
-    proc type ReadOnly     return SQLITE_OPEN_READONLY;
-    proc type ReadWrite    return SQLITE_OPEN_READWRITE;
-    proc type RWCreate     return SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-
-    // Optional:
-    proc type NoMutex      return SQLITE_OPEN_NOMUTEX;
-    proc type FullMutex    return SQLITE_OPEN_FULLMUTEX;
-    proc type SharedCache  return SQLITE_OPEN_SHAREDCACHE;
-    proc type PrivateCache return SQLITE_OPEN_PRIVATECACHE;
-    proc type URI          return SQLITE_OPEN_URI;
   }
 
   private proc checkResult(err : c_int, chan : c_ptr(sqlite3), msg = "") {
@@ -79,14 +71,6 @@ module SQLite3 {
   private proc nilString {
     var temp : c_string = _nullString;
     return temp;
-  }
-
-  private proc prepString(sql : string) {
-    var ret = sql;
-
-    if ret.endsWith(";") == false then ret += ";";
-
-    return ret;
   }
 
   private proc getColumn(stmt : c_ptr(sqlite3_stmt), idx : int, type t) throws {
@@ -124,13 +108,19 @@ module SQLite3 {
   class Connection {
     var chan : c_ptr(sqlite3);
 
-    proc type open(db : string, flags = OpenFlags.ReadOnly) {
+    proc type open(db : string, flags = iomode.r) {
       return new Owned(new Connection(db, flags));
     }
 
-    proc init(db : string, flags = OpenFlags.ReadOnly) {
+    proc init(db : string, flags:iomode) {
+      var c_flags : int;
+      if flags == iomode.r then c_flags = SQLITE_OPEN_READONLY;
+      else if flags == iomode.rw then c_flags = SQLITE_OPEN_READWRITE;
+      else if flags == iomode.cw then c_flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+      else if flags == iomode.cwr then c_flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+
       // No VFS support for now.
-      const err = sqlite3_open_v2(db.c_str(), chan, flags:c_int, nilString);
+      const err = sqlite3_open_v2(db.c_str(), chan, c_flags:c_int, nilString);
       const msg = "Unable to open database '" + db + "'.";
       checkResult(err, chan, msg);
     }
@@ -144,48 +134,39 @@ module SQLite3 {
     proc prepare(sql : string) {
       return new Owned(new Statement(chan, sql));
     }
-    proc prepare(sql : string, type tup) where isTuple(tup) {
+    proc prepare(sql : string, type tup) {
       return new Owned(new Statement(chan, sql, tup));
     }
-    proc prepare(sql : string, type typeTuple ...?z) {
+    proc prepare(sql : string, type typeTuple ...?z) where z > 1 {
       return new Owned(new Statement(chan, sql, typeTuple));
     }
 
     // execute(string, optional-vals) // execute arbitrary statement, bind with vals
     proc exec(in sql : string) {
-      sql = prepString(sql);
-      var stmt : c_ptr(sqlite3_stmt);
-      var err = sqlite3_prepare_v2(chan, sql.c_str(), -1, stmt, nil);
-      checkResult(err, chan);
-
-      do {
-        err = sqlite3_step(stmt);
-        if err != SQLITE_ROW && err != SQLITE_DONE then
-          checkResult(err, chan);
-      } while err != SQLITE_DONE;
-
-      sqlite3_finalize(stmt);
+      prepare(sql).finish();
+    }
+    proc exec(sql : string, vals...) {
+      var s = prepare(sql);
+      s.bind(vals);
+      s.finish();
     }
 
-    // Do we need some kind of 'Row' and 'Value' type? Should users always know
-    // what the resulting type is?
-
-    // rows(string, [bound-vals]) : Row;
-    // rows(string, [bound-vals], type t) : t; (int/float/text/blog/null, or record)
-    // rows(string, [bound-vals], type t...) : t;
-    //
-    // Match subset of record fields, error if column in result is uncaught.
-    // Should we try to do anything with column names?
-
+    iter rows(sql : string) {
+      for r in rows(sql, SqliteRow) do
+        yield r;
+    }
     iter rows(in sql : string, type t ...) where t.size > 1 {
       for r in rows(sql, t) do
         yield r;
     }
-    iter rows(in sql : string, type t) where isTuple(t) == false {
-      for r in rows(sql, (t,)) do
+
+    // This is the real deal, others are just convenient wrappers
+    iter rows(in sql : string, type t) {
+      var s = prepare(sql, t);
+      for r in s.rows() {
         yield r;
-    }
-    iter rows(in sql : string, type t) where isTuple(t) {
+      }
+      assert(s.done);
     }
 
     // meta stuff:
@@ -201,9 +182,7 @@ module SQLite3 {
 
   private proc _getRetType(type t) type {
     // For now, disallow records
-    if isValidTypeTuple(t) {
-      return t;
-    } else if isValidSQLiteType(t) {
+    if isValidTypeTuple(t) || isValidSQLiteType(t) || t == SqliteRow {
       return t;
     } else {
       compilerError("Unsupported SQLite type: ", t:string);
@@ -234,14 +213,14 @@ module SQLite3 {
 
       _common(chan, sql);
     }
-    proc init(chan : c_ptr(sqlite3), sql : string, type tup) where isTuple(tup) {
+    proc init(chan : c_ptr(sqlite3), sql : string, type tup) {
       retType = _getRetType(tup);
 
       super.init();
 
       _common(chan, sql);
     }
-    proc init(chan : c_ptr(sqlite3), sql : string, type typeTuple ...) {
+    proc init(chan : c_ptr(sqlite3), sql : string, type typeTuple ...) where typeTuple.size > 1 {
       retType = _getRetType(typeTuple);
 
       super.init();
@@ -368,6 +347,15 @@ module SQLite3 {
     proc append(s : SqliteValue) {
       _values.push_back(s);
     }
+    proc this(i) {
+      return _values[i];
+    }
+    proc this(i, type t) {
+      return _values[i].get(t);
+    }
+    iter these() {
+      for v in _values do yield v;
+    }
     proc writeThis(f) {
       try! {
         if _values.size == 0 {
@@ -397,7 +385,6 @@ module SQLite3 {
   }
 
   // Tagged unions, please!
-  // TODO: proc-equals?
   record SqliteValue {
     var k : SqliteType;
 
@@ -417,7 +404,7 @@ module SQLite3 {
         return k == SqliteType.FLOAT;
       else if isStringType(t) then
         return k == SqliteType.TEXT;
-      else if t == c_void_ptr then
+      else if isCPtr(t) || t == c_void_ptr then
         return k == SqliteType.BLOB; 
       else if isVoidType(t) then
         return k == SqliteType.NULL;
@@ -436,7 +423,7 @@ module SQLite3 {
         ret = val_float;
       else if isStringType(t) then
         ret = val_text;
-      else if t == c_void_ptr then
+      else if isCPtr(t) || t == c_void_ptr then
         ret = val_blob;
       // else: NULL/void
 
@@ -445,28 +432,28 @@ module SQLite3 {
 
     proc init() {
       k = SqliteType.NULL;
-      super.init();
     }
     proc init(i : int) {
       k = SqliteType.INT;
       val_int = i;
-      super.init();
     }
     proc init(r : real) {
       k = SqliteType.FLOAT;
       val_float = r;
-      super.init();
     }
     proc init(s : string) {
       k = SqliteType.TEXT;
       val_text = s;
-      super.init();
     }
     proc init(b : c_void_ptr) {
       k = SqliteType.BLOB;
       val_blob = b;
-      super.init();
     }
+    proc init(b : c_ptr) {
+      k = SqliteType.BLOB;
+      val_blob = b:c_void_ptr;
+    }
+
     proc writeThis(f) {
       try! {
         if k == SqliteType.INT then
@@ -779,11 +766,6 @@ module SQLite3 {
     extern proc sqlite3_close_v2(arg0 : c_ptr(sqlite3)) : c_int;
 
     extern proc sqlite3_exec(arg0 : c_ptr(sqlite3), sql : c_string, ref callback : c_fn_ptr, arg3 : c_void_ptr, ref errmsg : c_string) : c_int;
-
-    extern proc sqlite3_initialize() : c_int;
-    extern proc sqlite3_shutdown()   : c_int;
-    extern proc sqlite3_os_init()    : c_int;
-    extern proc sqlite3_os_end()     : c_int;
 
     extern proc sqlite3_config(arg0 : c_int, c__varargs ...) : c_int;
     extern proc sqlite3_config(arg0 : c_int) : c_int;

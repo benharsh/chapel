@@ -1,10 +1,11 @@
-use SQLite3;
+use Sqlite3;
 
 config const sql = "SELECT * FROM Customers";
 
-var con = Connection.open("test.db", OpenFlags.ReadWrite);
-var stmt = con.prepare("SELECT * FROM Customers");
-
-for r in stmt.rows() {
-  writeln(r);
-}
+var con = Connection.open("test.db", iomode.rw);
+for r in con.rows(sql) do writeln(r);
+//var stmt = con.prepare(sql);
+//
+//for r in stmt.rows() {
+//  writeln(r);
+//}
