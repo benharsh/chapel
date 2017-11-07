@@ -4,6 +4,8 @@
 // - Should we support arbitrary records as return-types from Statement.step() ?
 //   What should happen if the number of fields and columns don't match?
 //   Should we match fields and columns by name?
+// - are we copying strings too much?
+// - private initializers? I want users to use "Connection.open"
 //
 // TODO:
 // - Test possible type constraints:
@@ -14,7 +16,13 @@
 //   - tuple/varargs of SqliteValue?
 // - Should all these types have a 'Sqlite' prefix?
 // - standard module request: isCPtr
-// - private initializers? I want users to use "Connection.open"
+// - should --no-checks disable column idx bounds checks?
+// - get meta info (#columns, header) from Statement
+//
+// TESTING:
+// - how can we check for memory leaks? valgrind?
+// - parallel safety?
+// - multilocale?
 //
 
 module Sqlite3 {
