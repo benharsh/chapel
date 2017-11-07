@@ -89,36 +89,35 @@ module SQLite3 {
     return ret;
   }
 
-  private proc getColumn(stmt : c_ptr(sqlite3_stmt), idx : int, type t) {
+  private proc getColumn(stmt : c_ptr(sqlite3_stmt), idx : int, type t) throws {
+    return getColumn(stmt, idx).get(t);
+  }
+
+  private proc getColumn(stmt : c_ptr(sqlite3_stmt), idx : int) throws {
     const i = idx:c_int;
     const numCols = sqlite3_column_count(stmt);
     if idx < 0 || idx > numCols then
       halt("idx out of bounds: [0, ", numCols, "]");
-
     const colType = sqlite3_column_type(stmt, i);
-    proc checkType(const expected...) {
-      var fail = true;
-      for e in expected {
-        if colType == e then
-          fail = false;
-      }
-      if fail then halt("type mismatch!");
-    }
-
-    if isIntegralType(t) {
-      checkType(SQLITE_INTEGER);
-      return sqlite3_column_int(stmt, i).safeCast(t);
-    } else if isReal(t) {
-      checkType(SQLITE_FLOAT);
-      return sqlite3_column_double(stmt, i):t;
-    } else if isString(t) {
-      checkType(SQLITE_TEXT);
+    if colType == SQLITE_INTEGER {
+      return new SqliteValue(sqlite3_column_int(stmt, i):int);
+    } else if colType == SQLITE_FLOAT {
+      return new SqliteValue(sqlite3_column_double(stmt, i):real);
+    } else if colType == SQLITE_TEXT {
       const ptr = sqlite3_column_text(stmt, i);
-      return new string(ptr);
-    } else if t : c_ptr || t == c_void_ptr {
-      checkType(SQLITE_BLOB, SQLITE_NULL);
-      halt("Unable to handle blobs");
-      return c_nil; // BLOB, NULL?
+      return new SqliteValue(new string(ptr));
+    } else if colType == SQLITE_BLOB {
+      // TODO: This sqlite3 function returns 'const void *'. The backend
+      // compiler will complain that we can't assign to c_void_ptr (void*).
+      //
+      //return new SqliteValue(sqlite3_column_blob(stmt, i));
+      throw new SqliteError("Cannot handle BLOBs");
+      return new SqliteValue();
+    } else if colType == SQLITE_NULL {
+      return new SqliteValue();
+    } else {
+      throw new SqliteError("Unhandled result from sqlite3_column_type");
+      return new SqliteValue();
     }
   }
 
@@ -187,30 +186,6 @@ module SQLite3 {
         yield r;
     }
     iter rows(in sql : string, type t) where isTuple(t) {
-      if isValidTypeTuple(t) == false {
-        compilerError("Invalid type tuple: ", t:string);
-      }
-
-      sql = prepString(sql);
-      var stmt : c_ptr(sqlite3_stmt);
-      var err = sqlite3_prepare_v2(chan, sql.c_str(), -1, stmt, nil);
-      checkResult(err, chan);
-
-      var ret : t;
-
-      do {
-        err = sqlite3_step(stmt);
-        if err != SQLITE_ROW && err != SQLITE_DONE then
-          checkResult(err, chan);
-        if err == SQLITE_ROW {
-          for param i in 1..ret.size {
-            ret(i) = getColumn(stmt, i-1, ret(i).type);
-          }
-          yield ret;
-        }
-      } while err != SQLITE_DONE;
-
-      sqlite3_finalize(stmt);
     }
 
     // meta stuff:
@@ -243,6 +218,8 @@ module SQLite3 {
   // step again, and return the old result. this should allow for more natural
   // usage of Statement.done:
   // while !stmt.done do stmt.step();
+  //
+  // TODO: meta-information: #columns, column types, print header
   class Statement {
     type retType;
     var db : c_ptr(sqlite3);
@@ -251,7 +228,7 @@ module SQLite3 {
     var sql : string;
 
     proc init(chan : c_ptr(sqlite3), sql : string) {
-      retType = Row;
+      retType = SqliteRow;
 
       super.init();
 
@@ -279,6 +256,10 @@ module SQLite3 {
       this._sawDone = false;
       var err = sqlite3_prepare_v2(db, this.sql.c_str(), -1, this.stmt, nil);
       checkResult(err, db);
+    }
+
+    proc numColumns() {
+      return sqlite3_column_count(stmt):int;
     }
 
     // TODO: should we allow users to omit ?,$,@ prefixes?
@@ -311,6 +292,20 @@ module SQLite3 {
       }
     }
 
+    proc _fillResult(ref ret) throws where isTuple(ret) {
+      for param i in 1..ret.size {
+        ret(i) = getColumn(stmt, i-1, ret(i).type);
+      }
+    }
+    proc _fillResult(ref ret : SqliteRow) throws {
+      for i in 1..numColumns() {
+        ret.append(getColumn(stmt, i-1));
+      }
+    }
+    proc _fillResult(ref ret) throws {
+      compilerError("Sqlite.Statement: Cannot populate result for type '", ret.type:string, "'");
+    }
+
     // Optionally bind on a step
     // TODO: make sure 'void' is a valid retType, and that step() can handle it.
     proc step() throws {
@@ -320,9 +315,7 @@ module SQLite3 {
 
       const err = sqlite3_step(stmt);
       if err == SQLITE_ROW {
-        for param i in 1..ret.size {
-          ret(i) = getColumn(stmt, i-1, ret(i).type);
-        }
+        _fillResult(ret);
       } else if err == SQLITE_DONE {
         _sawDone = true;
       } else {
@@ -336,6 +329,7 @@ module SQLite3 {
       return step();
     }
 
+    // TODO: too much copying here?
     iter rows() throws {
       while done == false {
         const ret = step();
@@ -368,43 +362,124 @@ module SQLite3 {
   }
 
   // stores type-less data
-  class Row {
+  record SqliteRow {
+    var _valDom : domain(1);
+    var _values : [_valDom] SqliteValue;
+    proc append(s : SqliteValue) {
+      _values.push_back(s);
+    }
+    proc writeThis(f) {
+      try! {
+        if _values.size == 0 {
+          f.write("(<empty row>)");
+        } else {
+          f.write("(");
+          var first = true;
+          for v in _values {
+            if first then first = false;
+            else f.write(", ");
+            f.write(v);
+          }
+          f.write(")");
+        }
+      }
+    }
+  }
+  proc =(ref A : SqliteRow, const ref B : SqliteRow) {
+    serial {
+      A._valDom = B._valDom;
+      A._values = B._values;
+    }
   }
 
+  enum SqliteType {
+    INT, FLOAT, TEXT, BLOB, NULL
+  }
+
+  // Tagged unions, please!
+  // TODO: proc-equals?
   record SqliteValue {
-    enum kind {
-      INT, BOOL, TEXT, BLOB, NULL
-    }
-    const k : kind;
+    var k : SqliteType;
 
     var val_int : int;
-    var val_bool : bool;
+    var val_float : real;
     var val_text : string;
     var val_blob : c_void_ptr;
 
+    proc getType() {
+      return k;
+    }
+
+    proc is(type t) {
+      if isIntegralType(t) then
+        return k == SqliteType.INT;
+      else if isRealType(t) then
+        return k == SqliteType.FLOAT;
+      else if isStringType(t) then
+        return k == SqliteType.TEXT;
+      else if t == c_void_ptr then
+        return k == SqliteType.BLOB; 
+      else if isVoidType(t) then
+        return k == SqliteType.NULL;
+      else
+        compilerError("Invalid type, expecting: integral, real, string, c_ptr, void");
+    }
+
+    proc get(type t) throws {
+      if is(t) == false then
+        throw new SqliteError("Requested incorrect type, '" + t:string + "', from " + k:string);
+
+      var ret : t;
+      if isIntegralType(t) then
+        ret = val_int.safeCast(t);
+      else if isRealType(t) then
+        ret = val_float;
+      else if isStringType(t) then
+        ret = val_text;
+      else if t == c_void_ptr then
+        ret = val_blob;
+      // else: NULL/void
+
+      return ret;
+    }
+
     proc init() {
-      k = kind.NULL;
+      k = SqliteType.NULL;
       super.init();
     }
     proc init(i : int) {
-      k = kind.INT;
+      k = SqliteType.INT;
       val_int = i;
       super.init();
     }
-    proc init(b : bool) {
-      k = kind.BOOL;
-      val_bool = b;
+    proc init(r : real) {
+      k = SqliteType.FLOAT;
+      val_float = r;
       super.init();
     }
     proc init(s : string) {
-      k = kind.TEXT;
+      k = SqliteType.TEXT;
       val_text = s;
       super.init();
     }
     proc init(b : c_void_ptr) {
-      k = kind.BLOB;
+      k = SqliteType.BLOB;
       val_blob = b;
       super.init();
+    }
+    proc writeThis(f) {
+      try! {
+        if k == SqliteType.INT then
+          f.write(val_int);
+        else if k == SqliteType.FLOAT then
+          f.write(val_float);
+        else if k == SqliteType.TEXT then
+          f.write(val_text);
+        else if k == SqliteType.BLOB then
+          f.write(val_blob);
+        else if k == SqliteType.NULL then
+          f.write("NULL");
+      }
     }
   }
 
