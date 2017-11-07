@@ -12,14 +12,17 @@
 // - FTS support
 // - Request: support for two varargs: vals..., type t...
 // - query-building functions, like diesel or sqlite.swift
+// - meta-info: table names, column names/types
 //
 // TODO:
+// - Owned doesn't seem to forward errors...
 // - Consider disallowing type varargs, would make api easier
 // - Should all these types have a 'Sqlite' prefix?
 // - standard module request: isCPtr
 // - should --no-checks disable column idx bounds checks?
-// - get meta info (#columns, header) from Statement
 // - what should happen if we re-assign a statement?
+// - Row["colName"], Row["n", type]
+// - URI and other open flags
 //
 // TESTING:
 // - how can we check for memory leaks? valgrind?
@@ -124,6 +127,7 @@ module Sqlite3 {
 
   class Connection {
     var chan : c_ptr(sqlite3);
+    var _closed = false;
 
     proc type open(db : string, flags = iomode.r) {
       return new Owned(new Connection(db, flags));
@@ -142,67 +146,85 @@ module Sqlite3 {
       checkResult(err, chan, msg);
     }
 
+    proc _verify() throws {
+      if _closed then throw new SqliteError("Attempted operation on closed Connection");
+    }
+
     proc close() {
-      // Check if all statements, handles, etc are finalized?
-      const err = sqlite3_close_v2(chan);
-      checkResult(err, chan, "Failed to close connection.");
-      chan = nil;
+      if _closed == false {
+        _closed = true;
+        // Check if all statements, handles, etc are finalized?
+        const err = sqlite3_close_v2(chan);
+        checkResult(err, chan, "Failed to close connection.");
+        chan = nil;
+      }
     }
 
     proc deinit() {
       close();
     }
 
-    proc prepare(sql : string) {
+    proc prepare(sql : string) throws {
+      _verify();
       return new Owned(new Statement(chan, sql, SqliteRow));
     }
-    proc prepare(sql : string, type tup) {
+    proc prepare(sql : string, type tup) throws {
+      _verify();
       return new Owned(new Statement(chan, sql, tup));
     }
-    proc prepare(sql : string, type typeTuple ...?z) where z > 1 {
+    proc prepare(sql : string, type typeTuple ...?z) throws where z > 1 {
+      _verify();
       return new Owned(new Statement(chan, sql, typeTuple));
     }
 
     // execute(string, optional-vals) // execute arbitrary statement, bind with vals
-    proc exec(sql : string) {
+    proc exec(sql : string) throws {
+      _verify();
       prepare(sql).run();
     }
-    proc exec(sql : string, vals...) {
+    proc exec(sql : string, vals...) throws {
+      _verify();
       var s = prepare(sql);
       s.bind(vals);
       s.run();
     }
 
     // TODO: binds?
-    iter rows(sql : string) {
+    iter rows(sql : string) throws {
+      _verify();
       for r in rows(sql, SqliteRow) do
         yield r;
     }
-    iter rows(sql : string, type t ...) where t.size > 1 {
+    iter rows(sql : string, type t ...) throws where t.size > 1 {
+      _verify();
       for r in rows(sql, t) do
         yield r;
     }
-    iter rows(sql : string, type t) {
+    iter rows(sql : string, type t) throws {
       var s = prepare(sql, t);
       for r in s {
         yield r;
       }
     }
-    iter rows(sql : string, vals...?z) where z > 1 {
+    iter rows(sql : string, vals...?z) throws where z > 1 {
+      _verify();
       for r in rows(sql, vals, SqliteRow) do yield r;
     }
-    iter rows(sql : string, vals...?z, type t) where z > 1 {
+    iter rows(sql : string, vals...?z, type t) throws where z > 1 {
+      _verify();
       for r in rows(sql, vals, t) do yield r;
     }
-    iter rows(sql : string, val) {
+    iter rows(sql : string, val) throws {
+      _verify();
       for r in rows(sql, val, SqliteRow) do yield r;
     }
-    iter rows(sql : string, vals, type t) {
+    iter rows(sql : string, vals, type t) throws {
+      _verify();
       var stmt = prepare(sql, t);
       stmt.bind(vals);
       for r in stmt do yield r;
     }
-  }
+  } // Connection
 
   private proc _getRetType(type t) type {
     // For now, disallow records
@@ -213,8 +235,6 @@ module Sqlite3 {
     }
   }
 
-  // TODO: it would be nice if we could accept associative arrays from string -> unions
-  // for bind().
   //
   // Usage of 'step' is kinda weird. Let's step() in the initializer and cache
   // the result and error. then during the next step we can check the error,
@@ -223,11 +243,13 @@ module Sqlite3 {
   // while !stmt.done do stmt.step();
   //
   // TODO: meta-information: #columns, column types, print header
+  //
   class Statement {
     type retType;
     var db : c_ptr(sqlite3);
     var stmt : c_ptr(sqlite3_stmt);
     var sql : string;
+    var _numCols:int;
 
     proc init(chan : c_ptr(sqlite3), sql : string, type tup) {
       retType = _getRetType(tup);
@@ -247,6 +269,7 @@ module Sqlite3 {
     proc _common(chan : c_ptr(sqlite3), sql : string) {
       this.db = chan;
       this.sql = sql;
+      this._numCols = -1;
       var err = sqlite3_prepare_v2(db, this.sql.c_str(), -1, this.stmt, nil);
       checkResult(err, db);
 
@@ -260,7 +283,20 @@ module Sqlite3 {
     }
 
     proc numColumns() {
-      return sqlite3_column_count(stmt):int;
+      if _numCols == -1 then
+        _numCols = sqlite3_column_count(stmt):int;
+      return _numCols;
+    }
+
+    proc _checkBind(n : int) throws {
+      const numBinds = sqlite3_bind_parameter_count(stmt):int;
+      if n != numBinds {
+        const msg = "Expecting " + numBinds + ", got " + n;
+        if n < numBinds then
+          throw new SqliteError("Too few arguments passed to bind. " + msg);
+        else
+          throw new SqliteError("Too many arguments passeed to bind. " + msg);
+      }
     }
 
     proc _internal_bind(val, idx) where isValidSQLiteType(val.type) {
@@ -277,22 +313,27 @@ module Sqlite3 {
       }
       checkResult(err, db);
     }
-    proc bind(val) where !isTuple(val) {
+
+    proc bind(val) throws where !isTuple(val) {
+      _checkBind(1);
       _internal_bind(val, 1);
       return this;
     }
 
-    proc bind(vals) where isTuple(vals) {
+    proc bind(vals) throws where isTuple(vals) {
+      // TODO: do we need this anymore?
       const actuals = if isTuple(vals(1)) then vals(1) else vals;
       if isValidTypeTuple(actuals.type) == false then
         compilerError("Invalid tuple passed to bind: ", actuals.type:string);
+
+      _checkBind(actuals.size);
 
       for param i in 1..actuals.size {
         _internal_bind(actuals(i), i);
       }
       return this;
     }
-    proc bind(vals ...?k) where k > 1 {
+    proc bind(vals ...?k) throws where k > 1 {
       return bind(vals);
     }
 

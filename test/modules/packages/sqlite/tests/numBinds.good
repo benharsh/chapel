@@ -1,0 +1,1 @@
+uncaught SqliteError: Too many arguments passeed to bind. Expecting 2, got 3
