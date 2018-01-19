@@ -2541,6 +2541,25 @@ static void generateCopyInitErrorMsg() {
   }
 }
 
+static bool shouldPrintCandidate(CallInfo& info, FnSymbol* fn) {
+  bool    retval = true;
+  CallExpr* call = info.call;
+
+  // Only print initializers if the 'this' actual/formal types match
+  if (strcmp(fn->name, "init") == 0) {
+    SymExpr* thisActual = toSymExpr(call->get(2));
+    if (thisActual == NULL) {
+      INT_ASSERT(isNamedExpr(call->get(2)));
+      thisActual = toSymExpr(toNamedExpr(call->get(2))->actual);
+    }
+    if (thisActual->getValType() != fn->_this->getValType()) {
+      retval = false;
+    }
+  }
+
+  return retval;
+}
+
 void printResolutionErrorAmbiguous(CallInfo&                  info,
                                    Vec<ResolutionCandidate*>& candidates) {
   CallExpr* call       = userCall(info.call);
@@ -2585,6 +2604,9 @@ void printResolutionErrorAmbiguous(CallInfo&                  info,
   }
 
   forv_Vec(ResolutionCandidate, cand, candidates) {
+    if (shouldPrintCandidate(info, cand->fn) == false) {
+      continue;
+    }
     if (printedOne == false) {
       USR_PRINT(cand->fn, "candidates are: %s", toString(cand->fn));
       printedOne = true;
@@ -2647,6 +2669,9 @@ static void generateMsg(CallInfo& info, Vec<FnSymbol*>& visibleFns) {
     }
 
     forv_Vec(FnSymbol, fn, visibleFns) {
+      if (shouldPrintCandidate(info, fn) == false) {
+        continue;
+      }
       if (printedOne == false) {
         USR_PRINT(fn, "candidates are: %s", toString(fn));
         printedOne = true;
