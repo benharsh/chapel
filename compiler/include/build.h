@@ -60,6 +60,8 @@ Expr* buildDotExpr(const char* base, const char* member);
 BlockStmt* buildChapelStmt(Expr* expr = NULL);
 BlockStmt* buildErrorStandin();
 
+CallExpr*  buildCompleteStmt();
+
 BlockStmt* buildUseStmt(CallExpr* modules);
 BlockStmt* buildUseStmt(Expr* mod, std::vector<OnlyRename*>* names, bool except);
 bool processStringInRequireStmt(const char* str, bool parseTime);

@@ -819,22 +819,8 @@ static bool isUnresolvedSymbol(Expr* expr, const char* name) {
 bool isInitDone(CallExpr* callExpr) {
   bool retval = false;
 
-  if (callExpr->numActuals() == 0) {
-    if (UnresolvedSymExpr* usym = toUnresolvedSymExpr(callExpr->baseExpr)) {
-      if (strcmp(usym->unresolved, "initDone") == 0) {
-        retval = true;
-      }
-
-    } else if (CallExpr* subCall = toCallExpr(callExpr->baseExpr)) {
-      if (subCall->numActuals()                        ==    2 &&
-          subCall->isNamedAstr(astrSdot)               == true &&
-          isStringLiteral(subCall->get(2), "initDone") == true) {
-
-        if (isSymbolThis(subCall->get(1)) == true) {
-          retval = true;
-        }
-      }
-    }
+  if (callExpr->isPrimitive(PRIM_COMPLETE)) {
+    retval = true;
   }
 
   return retval;

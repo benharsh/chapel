@@ -8660,6 +8660,9 @@ static void removeRandomPrimitive(CallExpr* call) {
     case PRIM_NOOP:
       call->remove();
       break;
+    case PRIM_COMPLETE:
+      call->remove();
+      break;
 
     case PRIM_TYPEOF:
     {

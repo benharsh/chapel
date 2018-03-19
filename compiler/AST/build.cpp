@@ -3160,3 +3160,7 @@ Expr* convertAssignmentAndWarn(Expr* a, const char* op, Expr* b)
   // Either way, continue compiling with ==
   return new CallExpr("==", a, b);
 }
+
+CallExpr* buildCompleteStmt() {
+  return new CallExpr(PRIM_COMPLETE);
+}

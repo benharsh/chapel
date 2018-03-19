@@ -97,6 +97,7 @@ enum PrimitiveTag {
   PRIM_GET_MEMBER_VALUE,
   PRIM_SET_MEMBER,
   PRIM_CHECK_NIL,
+  PRIM_COMPLETE,            // complete keyword
   PRIM_NEW,                 // new keyword
   PRIM_GET_REAL,            // get complex real component
   PRIM_GET_IMAG,            // get complex imag component

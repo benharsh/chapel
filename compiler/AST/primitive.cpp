@@ -572,6 +572,7 @@ initPrimitive() {
   prim_def(PRIM_SET_MEMBER, ".=", returnInfoVoid, true, true);
 
   prim_def(PRIM_CHECK_NIL, "_check_nil", returnInfoVoid, true, true);
+  prim_def(PRIM_COMPLETE, "complete", returnInfoVoid);
   prim_def(PRIM_NEW, "new", returnInfoFirst);
   prim_def(PRIM_GET_REAL, "complex_get_real", returnInfoComplexField);
   prim_def(PRIM_GET_IMAG, "complex_get_imag", returnInfoComplexField);
