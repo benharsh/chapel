@@ -171,7 +171,7 @@ module ChapelError {
       var cur:Error = group._head;
       group._head = nil;
       _head = nil;
-      this.initDone();
+      complete;
 
       // Flatten nested TaskErrors
 
