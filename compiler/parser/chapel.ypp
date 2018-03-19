@@ -290,7 +290,7 @@
 // keywords (alphabetical)
 //
 %token TALIGN TAS TATOMIC TBEGIN TBREAK TBY TCATCH
-%token TCLASS TCOBEGIN TCOFORALL TCONFIG TCONST TCONTINUE
+%token TCLASS TCOBEGIN TCOFORALL TCONFIG TCONST TCONTINUE TCOMPLETE
 %token TDEFER TDELETE TDMAPPED TDO TDOMAIN
 %token TELSE TENUM TEXCEPT TEXPORT TEXTERN
 %token TFOR TFORALL TFORWARDING
@@ -482,6 +482,7 @@ stmt:
 | TBREAK opt_ident TSEMI               { $$ = buildGotoStmt(GOTO_BREAK, $2); }
 | TCOBEGIN opt_task_intent_ls block_stmt { $$ = buildCobeginStmt($2, $3);  }
 | TCONTINUE opt_ident TSEMI            { $$ = buildGotoStmt(GOTO_CONTINUE, $2); }
+| TCOMPLETE TSEMI                      { $$ = buildChapelStmt(buildCompleteStmt()); }
 | TDELETE simple_expr_ls TSEMI         { $$ = buildDeleteStmt($2); }
 | TLABEL ident stmt                    { $$ = buildLabelStmt($2, $3); }
 | TLOCAL expr do_stmt                  { $$ = buildLocalStmt($2, $3); }

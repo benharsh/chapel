@@ -127,6 +127,7 @@ coforall         return processToken(yyscanner, TCOFORALL);
 config           return processToken(yyscanner, TCONFIG);
 const            return processToken(yyscanner, TCONST);
 continue         return processToken(yyscanner, TCONTINUE);
+complete         return processToken(yyscanner, TCOMPLETE);
 defer            return processToken(yyscanner, TDEFER);
 delete           return processToken(yyscanner, TDELETE);
 dmapped          return processToken(yyscanner, TDMAPPED);
