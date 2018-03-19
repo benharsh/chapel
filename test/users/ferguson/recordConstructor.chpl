@@ -6,7 +6,7 @@ proc doit():int {
 record R {
   var x:int = doit();
   proc init() {
-    this.initDone();
+    complete;
     writeln("R constructor");
     x = 15;
   }

@@ -3,7 +3,7 @@ class C {
   var x: t;
   proc init(type t) {
     this.t = t;
-    this.initDone();
+    complete;
     writeln("In C.init()");
   }
 }

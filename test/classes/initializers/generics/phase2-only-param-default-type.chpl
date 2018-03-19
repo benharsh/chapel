@@ -5,7 +5,7 @@ class Foo {
   param p: int;
 
   proc init() {
-    this.initDone();
+    complete;
     p = 4; // This should fail
   }
 }

@@ -9,7 +9,7 @@ record C {
 
   proc init() {
     printer(x, y, this, this.foo());
-    this.initDone();
+    complete;
   }
   
   proc foo() {

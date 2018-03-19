@@ -2,7 +2,7 @@ class Foo {
   var x: int;
 
   proc init(val) {
-    this.initDone();
+    complete;
     badCall(this, val=val);
   }
 }

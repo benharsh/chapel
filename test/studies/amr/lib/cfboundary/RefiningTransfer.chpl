@@ -41,7 +41,7 @@ class GridCFGhostRegion {
   {
         
     this.grid = grid;
-    this.initDone();
+    complete;
     
     
     //==== Calculate refinement ratio ====

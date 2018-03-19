@@ -7,7 +7,7 @@ record R {
 
   proc init(ref src: R) {
     this.x = src.x;
-    this.initDone();
+    complete;
     src.x = 0;
   }
 }
