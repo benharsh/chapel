@@ -1739,8 +1739,13 @@ static Expr* dropUnnecessaryCast(CallExpr* call) {
           Type* newType = sym->symbol()->type->getValType();
 
           if (newType == oldType) {
-            result = new SymExpr(var);
-            call->replace(result);
+            if (var->isParameter()) {
+              result = new SymExpr(var);
+              call->replace(result);
+            } else {
+              result = new CallExpr("chpl__initCopy", var);
+              call->replace(result);
+            }
           }
         }
       }
