@@ -1776,7 +1776,9 @@ void AggregateType::fieldToArg(FnSymbol*              fn,
           typeExpr->insertAtTail(new CallExpr(PRIM_TYPEOF, tmp));
 
           arg->typeExpr    = typeExpr;
-          arg->type        = dtAny;
+          if (arg->hasFlag(FLAG_TYPE_VARIABLE)) {
+            arg->type = dtAny;
+          }
 
           // set up the ArgSymbol appropriately for the type
           // and initialization from the field declaration.
