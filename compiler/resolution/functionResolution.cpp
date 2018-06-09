@@ -2111,6 +2111,9 @@ static bool isGenericRecordInit(CallExpr* call) {
 
   return retval;
 }
+#include "timer.h"
+
+static std::map<FnSymbol*, double> fnMap;
 
 static FnSymbol* resolveNormalCall(CallInfo& info, bool checkOnly) {
   Vec<FnSymbol*>            visibleFns;
@@ -2123,6 +2126,8 @@ static FnSymbol* resolveNormalCall(CallInfo& info, bool checkOnly) {
   int                       numMatches = 0;
 
   FnSymbol*                 retval     = NULL;
+  Timer timer;
+  timer.start();
 
   findVisibleFunctionsAndCandidates(info, visibleFns, candidates);
 
@@ -2169,6 +2174,10 @@ static FnSymbol* resolveNormalCall(CallInfo& info, bool checkOnly) {
 
   forv_Vec(ResolutionCandidate*, candidate, candidates) {
     delete candidate;
+  }
+  timer.stop();
+  if (retval != NULL) {
+    fnMap[retval] += timer.elapsedSecs();
   }
 
   return retval;
@@ -7563,6 +7572,33 @@ void resolve() {
   }
 
   resolved = true;
+
+  std::map<const char*, std::set<FnSymbol*>> fnSet;
+  for (std::map<FnSymbol*,double>::iterator it = fnMap.begin(); it != fnMap.end(); it++) {
+    std::set<FnSymbol*>& s = fnSet[it->first->name];
+    s.insert(it->first);
+  }
+
+
+  for (std::map<const char*, std::set<FnSymbol*>>::iterator it = fnSet.begin(); it != fnSet.end(); it++) {
+    double sum = 0.0;
+    for_set(FnSymbol, fn, it->second) { sum += fnMap[fn]; }
+    printf("FN %s - %2.5f:\n", it->first, sum);
+    for_set(FnSymbol, fn, it->second) {
+      printf("  %s[%d](", fn->name, fn->id);
+      double second = fnMap[fn];
+      bool first = true;
+      for_formals(form, fn) {
+        if (first) {
+          printf("%s", form->getValType()->symbol->name);
+        } else {
+          printf(", %s", form->getValType()->symbol->name);
+        }
+        first = false;
+      }
+      printf(") : %s @ %2.5f\n", fn->retType->getValType()->symbol->name, second);
+    }
+  }
 }
 
 /************************************* | **************************************

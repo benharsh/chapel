@@ -217,11 +217,23 @@ static BlockStmt* getVisibleFunctions(const char*           name,
       if (Vec<FnSymbol*>* fns = vfb->visibleFunctions.get(name)) {
         forv_Vec(FnSymbol, fn, *fns) {
           if (fn->isVisible(call) == true) {
+            bool shouldAdd = true;
+            if (call->numActuals() >= 2 && call->isNamed("init")) {
+              if (SymExpr* se = toSymExpr(call->get(1))) {
+                if (se->symbol() == gMethodToken && fn->hasFlag(FLAG_METHOD)) {
+                  AggregateType* at = toAggregateType(call->get(2)->getValType())->getRootInstantiation();
+                  if (at != toAggregateType(fn->_this->getValType())->getRootInstantiation()) {
+                    shouldAdd = false;
+                  }
+                }
+              }
+            }
             // isVisible checks if the function is private to its defining
             // module (and in that case, if we are under its defining module)
             // This ensures that private functions will not be used outside
             // of their proper scope.
-            visibleFns.add(fn);
+            if (shouldAdd)
+              visibleFns.add(fn);
           }
         }
       }

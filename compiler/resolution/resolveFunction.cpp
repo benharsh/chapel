@@ -1627,6 +1627,27 @@ void insertAndResolveCasts(FnSymbol* fn) {
   }
 }
 
+static bool isPrimitiveType(Type* t) {
+  return is_bool_type(t) ||
+         is_int_type(t) ||
+         is_uint_type(t) ||
+         is_real_type(t);
+}
+
+CallExpr* makeCast(BaseAST* src, BaseAST* dest) {
+  Type* to = dest->getValType();
+  Type* from = src->getValType();
+  if (from == dtNil && isClass(canonicalClassType(to))) {
+    return new CallExpr(PRIM_CAST, to->symbol, src);
+  } else if (isPrimitiveType(from) && isPrimitiveType(to)) {
+    return new CallExpr(PRIM_CAST, to->symbol, src);
+  } else if (isArrayImplType(from) && isArrayImplType(to)) {
+    return new CallExpr(PRIM_CAST, to->symbol, src);
+  } else {
+    return createCast(src, dest);
+  }
+}
+
 static void insertCasts(BaseAST* ast, FnSymbol* fn, Vec<CallExpr*>& casts) {
   if (CallExpr* call = toCallExpr(ast)) {
     if (call->parentSymbol == fn) {
@@ -1783,7 +1804,7 @@ static void insertCasts(BaseAST* ast, FnSymbol* fn, Vec<CallExpr*>& casts) {
                 // see comment about this above in assignment case
                 from->addFlag(FLAG_INSERT_AUTO_DESTROY);
 
-                CallExpr* cast = createCast(tmp, lhsType->symbol);
+                CallExpr* cast = makeCast(tmp, lhsType->symbol);
 
                 call->insertAtTail(cast);
                 casts.add(cast);

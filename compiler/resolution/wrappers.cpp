@@ -1703,7 +1703,7 @@ static void addArgCoercion(FnSymbol*  fn,
 
   if (castCall == NULL && !addedCast) {
     // the common case
-    castCall = createCast(prevActual, fts);
+    castCall = makeCast(prevActual, fts);
 
     if (isString(fts)) {
       castTemp->addFlag(FLAG_INSERT_AUTO_DESTROY);

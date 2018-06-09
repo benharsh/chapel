@@ -1781,6 +1781,13 @@ static AggregateType* createOrFindFunTypeFromAnnotation(AList&     argList,
 //
 //
 
+static bool isPrimitiveCastType(BaseAST* base) {
+  return is_bool_type(base->getValType()) ||
+         is_int_type(base->getValType()) ||
+         is_uint_type(base->getValType()) ||
+         is_real_type(base->getValType());
+}
+
 static Expr* dropUnnecessaryCast(CallExpr* call) {
   // Check for and remove casts to the original type and size
   Expr* result = call;
@@ -1804,6 +1811,12 @@ static Expr* dropUnnecessaryCast(CallExpr* call) {
               result = new SymExpr(var);
               call->replace(result);
             }
+          } else if (var->isImmediate() == false) {
+            if (isPrimitiveCastType(call->castTo()) && isPrimitiveCastType(call->castFrom())) {
+              result = new CallExpr(PRIM_CAST, call->get(1)->remove(), call->get(1)->remove());
+              if (result->id == 813347) gdbShouldBreakHere();
+              call->replace(result);
+            }
           }
         }
       }
@@ -1816,6 +1829,9 @@ static Expr* dropUnnecessaryCast(CallExpr* call) {
           call->replace(result);
         }
       }
+    } else if (isPrimitiveCastType(call->castTo()) && isPrimitiveCastType(call->castFrom())) {
+      result = new CallExpr(PRIM_CAST, call->get(1)->remove(), call->get(1)->remove());
+      call->replace(result);
     }
   }
   return result;

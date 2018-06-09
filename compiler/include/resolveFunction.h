@@ -23,6 +23,9 @@
 class AggregateType;
 class FnSymbol;
 class Type;
+class CallExpr;
+class Symbol;
+class BaseAST;
 
 void  resolveSignatureAndFunction(FnSymbol* fn);
 
@@ -43,5 +46,7 @@ void  resolveSpecifiedReturnType(FnSymbol* fn);
 
 Type* getReturnedTupleType(FnSymbol*      fn,
                            AggregateType* retType);
+
+CallExpr* makeCast(BaseAST* src, BaseAST* dest);
 
 #endif
