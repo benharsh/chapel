@@ -2234,111 +2234,8 @@ static void normVarTypeInference(DefExpr* defExpr) {
   Symbol* var      = defExpr->sym;
   Expr*   initExpr = defExpr->init->remove();
 
-  // BHARSH INIT TODO: Many of these branches can and should be merged.
-  //
-  // Do not complain here.  Put this stub in to the AST and let
-  // checkUseBeforeDefs() generate a consistent error message.
-  if (isUnresolvedSymExpr(initExpr) == true) {
-    defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr));
-
-  // e.g.
-  //   var x = <immediate>;
-  //   var y = <identifier>;
-  } else if (SymExpr* initSym = toSymExpr(initExpr)) {
-    Type* type = initSym->symbol()->type;
-
-    if (isPrimitiveScalar(type) == true) {
-      defExpr->insertAfter(new CallExpr(PRIM_MOVE,     var, initExpr));
-
-      var->type = type;
-    } else {
-      defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr));
-    }
-
-  // e.g.
-  //   var x = f(...);
-  //   var y = new MyRecord(...);
-  } else if (CallExpr* initCall = toCallExpr(initExpr)) {
-    if (initCall->isPrimitive(PRIM_NEW) == true) {
-      AggregateType* type = typeForNewExpr(initCall);
-
-      if (type != NULL) {
-        if (type->isGeneric()                     == false ||
-            isGenericRecordWithInitializers(type) == true) {
-          var->type = type;
-        }
-      }
-
-      if (isRecordWithInitializers(type) == true) {
-        Expr*     arg1     = initCall->get(1)->remove();
-        CallExpr* argExpr  = toCallExpr(arg1);
-        SymExpr*  modToken = NULL;
-        SymExpr*  modValue = NULL;
-
-        if (argExpr->numActuals() >= 2) {
-          if (SymExpr* se = toSymExpr(argExpr->get(1))) {
-            if (se->symbol() == gModuleToken) {
-              modValue = toSymExpr(argExpr->get(2)->remove());
-              modToken = toSymExpr(se->remove());
-            }
-          }
-        }
-
-        // Insert the arg portion of the initExpr back into tree
-        defExpr->insertAfter(argExpr);
-
-        // Convert it in to a use of the init method
-        argExpr->baseExpr->replace(new UnresolvedSymExpr("init"));
-
-        // Add _mt and _this (insert at head in reverse order)
-        if (isGenericRecord(type) == true) {
-          // We need the actual for the "this" argument to be named in the
-          // generic record case ...
-          argExpr->insertAtHead(new NamedExpr("this", new SymExpr(var)));
-
-          var->addFlag(FLAG_DELAY_GENERIC_EXPANSION);
-
-        } else {
-          // ... but not in the non-generic record case
-          argExpr->insertAtHead(var);
-        }
-
-        argExpr->insertAtHead(gMethodToken);
-
-        if (modToken != NULL) {
-          argExpr->insertAtHead(modValue);
-          argExpr->insertAtHead(modToken);
-        }
-
-        // Add a call to postinit() if present
-        insertPostInit(var, argExpr);
-
-        // BHARSH 2018-07-11: This NamedExpr was originally removed to fix a
-        // test for --force-initializers, but PR #10171 was merged first and
-        // somehow fixed that test. The test in question was:
-        //   test/classes/delete-free/owned/owned-raw-ignored-record.chpl
-        if (NamedExpr* ne = toNamedExpr(argExpr->argList.tail)) {
-          if (ne->name == astr_chpl_manager) {
-            ne->remove();
-          }
-        }
-
-      } else {
-        defExpr->insertAfter(new CallExpr(PRIM_MOVE, var, initExpr));
-      }
-
-    } else {
-      defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr));
-    }
-  } else if (IfExpr* ife = toIfExpr(initExpr)) {
-    defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, ife));
-
-  } else if (LoopExpr* fe = toLoopExpr(initExpr)) {
-    defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, fe));
-
-  } else {
-    INT_ASSERT(false);
-  }
+  defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr));
+  return;
 }
 
 //
@@ -2374,45 +2271,12 @@ static void normVarTypeWoutInit(DefExpr* defExpr) {
 
     defExpr->insertAfter(block);
 
-  } else if (isPrimitiveScalar(type) == true) {
-    CallExpr* defVal = new CallExpr("_defaultOf", type->symbol);
-
-    defExpr->insertAfter(new CallExpr(PRIM_MOVE, var, defVal));
-
-    var->type = type;
-
-  } else if (isNonGenericClass(type) == true) {
-    CallExpr* defVal = new CallExpr("_defaultOf", type->symbol);
-
-    defExpr->insertAfter(new CallExpr(PRIM_MOVE, var, defVal));
-
-    var->type = type;
-
-  } else if (isNonGenericRecordWithInitializers(type) == true &&
-             needsGenericRecordInitializer(type)      == false) {
-    CallExpr* init = new CallExpr("init", gMethodToken, var);
-
-    var->type = type;
-
-    defExpr->insertAfter(init);
-
-    // Add a call to postinit() if present
-    insertPostInit(var, init);
-
   } else {
-    VarSymbol* typeTemp = newTemp("type_tmp");
-    DefExpr*   typeDefn = new DefExpr(typeTemp);
-    CallExpr*  initCall = new CallExpr(PRIM_INIT, typeExpr);
-    CallExpr*  initMove = new CallExpr(PRIM_MOVE, typeTemp, initCall);
-
-    if (var->hasFlag(FLAG_PARAM) == true) {
-      typeTemp->addFlag(FLAG_PARAM);
-    }
-
-    defExpr ->insertAfter(typeDefn);
-    typeDefn->insertAfter(initMove);
-    initMove->insertAfter(new CallExpr(PRIM_MOVE, var, typeTemp));
+    if (type) var->type = type;
+    // TODO: does this need a temp?
+    defExpr->insertAfter(new CallExpr(PRIM_MOVE, var, new CallExpr(PRIM_INIT, typeExpr)));
   }
+  return;
 }
 
 static void normVarTypeWithInit(DefExpr* defExpr) {
@@ -2430,117 +2294,7 @@ static void normVarTypeWithInit(DefExpr* defExpr) {
   //
   //      var   x : MyCls   = new MyCls(1, 2);
   //
-  if (isPrimitiveScalar(type) == true ||
-      isNonGenericClass(type) == true) {
-    defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr, type->symbol));
-    var->type = type;
-
-  } else if (isNonGenericRecordWithInitializers(type) == true) {
-    var->type = type;
-
-    if        (isSymExpr(initExpr) == true) {
-      CallExpr* initCall = new CallExpr("init", gMethodToken, var, initExpr);
-
-      defExpr->insertAfter(initCall);
-
-      // Add a call to postinit() if present
-      insertPostInit(var, initCall);
-
-    } else if (isNewExpr(initExpr) == false) {
-      defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr, type->symbol));
-
-    } else {
-      Expr*     arg     = toCallExpr(initExpr)->get(1)->remove();
-      CallExpr* argExpr = toCallExpr(arg);
-      SymExpr*  modToken = NULL;
-      SymExpr*  modValue = NULL;
-
-      if (argExpr->numActuals() >= 2) {
-        if (SymExpr* se = toSymExpr(argExpr->get(1))) {
-          if (se->symbol() == gModuleToken) {
-            modValue = toSymExpr(argExpr->get(2)->remove());
-            modToken = toSymExpr(se->remove());
-          }
-        }
-      }
-
-      // This call must be in tree before extending argExpr
-      defExpr->insertAfter(argExpr);
-
-      // Convert it to a use of the init method
-      argExpr->baseExpr->replace(new UnresolvedSymExpr("init"));
-
-      // Add _mt and _this (insert at head in reverse order)
-      argExpr->insertAtHead(var);
-      argExpr->insertAtHead(gMethodToken);
-
-      if (modToken != NULL) {
-        argExpr->insertAtHead(modValue);
-        argExpr->insertAtHead(modToken);
-      }
-
-      // Add a call to postinit() if present
-      insertPostInit(var, argExpr);
-
-      // BHARSH 2018-07-11: This NamedExpr was originally removed to fix a
-      // test for --force-initializers, but PR #10171 was merged first and
-      // somehow fixed that test. The test in question was:
-      //   test/classes/delete-free/owned/owned-raw-ignored-record.chpl
-      if (NamedExpr* ne = toNamedExpr(argExpr->argList.tail)) {
-        if (ne->name == astr_chpl_manager) {
-          ne->remove();
-        }
-      }
-    }
-
-  } else if (isNewExpr(initExpr) == true) {
-    // This check is necessary because the "typeForTypeSpecifier"
-    // call will not obtain a type if the typeExpr is a CallExpr,
-    // as it is for generic records and classes
-
-    CallExpr*      origCall = toCallExpr(initExpr);
-    AggregateType* rhsType  = typeForNewExpr(origCall);
-
-    if (isGenericRecordWithInitializers(rhsType)) {
-      // Create a temporary to hold the result of the rhs "new" call
-      VarSymbol* initExprTemp = newTemp("init_tmp", rhsType);
-      DefExpr*   initExprDefn = new DefExpr(initExprTemp);
-      Expr*      arg          = origCall->get(1)->remove();
-      CallExpr*  argExpr      = toCallExpr(arg);
-
-      defExpr->insertAfter(initExprDefn);
-      initExprDefn->insertAfter(argExpr);
-
-      // Modify the "new" call so that it is in the appropriate form for
-      // types with initializers
-      argExpr->baseExpr->replace(new UnresolvedSymExpr("init"));
-      argExpr->insertAtHead(new NamedExpr("this", new SymExpr(initExprTemp)));
-      argExpr->insertAtHead(gMethodToken);
-
-      // Add a call to postinit() if present
-      insertPostInit(initExprTemp, argExpr);
-
-      // BHARSH 2018-07-11: This NamedExpr was originally removed to fix a
-      // test for --force-initializers, but PR #10171 was merged first and
-      // somehow fixed that test. The test in question was:
-      //   test/classes/delete-free/owned/owned-raw-ignored-record.chpl
-      if (NamedExpr* ne = toNamedExpr(argExpr->argList.tail)) {
-        if (ne->name == astr_chpl_manager) {
-          ne->remove();
-        }
-      }
-
-      initExprTemp->addFlag(FLAG_DELAY_GENERIC_EXPANSION);
-
-      argExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExprTemp, typeExpr));
-
-    } else {
-      defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr, typeExpr));
-    }
-
-  } else {
-    defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr, typeExpr));
-  }
+  defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr, typeExpr));
 }
 
 static bool isNewExpr(Expr* expr) {

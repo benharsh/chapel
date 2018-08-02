@@ -311,10 +311,17 @@ hasUserAssign(Type* type) {
   // (instead of causing a compile error).
   if( type->symbol->hasFlag(FLAG_TUPLE) ) return false;
 
+
   SET_LINENO(type->symbol);
   Symbol* tmp = newTemp(type);
   chpl_gen_main->insertAtHead(new DefExpr(tmp));
   CallExpr* call = new CallExpr("=", tmp, tmp);
+
+  // Use defPoint of root instantiation, where the compiler-generated = would
+  // live.
+  if (AggregateType* at = toAggregateType(type)) {
+    type = at->getRootInstantiation();
+  }
   FnSymbol* fn = resolveUninsertedCall(type, call);
   // Don't think we need to resolve the whole function
   // since we're just looking for a flag.
@@ -6296,6 +6303,15 @@ static void resolveNewHandleNonGenericClass(CallExpr* newExpr, Type* manager) {
 static void resolveNewHandleNonGenericRecord(CallExpr* newExpr) {
   AggregateType* at     = resolveNewFindType(newExpr);
   VarSymbol*     newTmp = newTemp("new_temp", at);
+  Expr* modToken = NULL;
+  Expr* modValue = NULL;
+
+  if (SymExpr* se = toSymExpr(newExpr->get(1))) {
+    if (se->symbol() == gModuleToken) {
+      modValue = newExpr->get(2)->remove();
+      modToken = newExpr->get(1)->remove();
+    }
+  }
 
   resolveNewRecordPrologue(newExpr, newTmp);
 
@@ -6304,6 +6320,11 @@ static void resolveNewHandleNonGenericRecord(CallExpr* newExpr) {
 
   newExpr->insertAtHead(new SymExpr(newTmp));
   newExpr->insertAtHead(new SymExpr(gMethodToken));
+
+  if (modToken != NULL) {
+    newExpr->insertAtHead(modValue);
+    newExpr->insertAtHead(modToken);
+  }
 
   resolveCall(newExpr);
 
@@ -6336,7 +6357,7 @@ static void resolveNewHandleGenericClass(CallExpr* newExpr, Type* manager) {
   moveStmt->insertAfter(initCall);
   moveStmt->insertAfter(new DefExpr(initTemp));
 
-  for (int i = newExpr->numActuals(); i > 1; i--) {
+  for (int i = newExpr->numActuals(); i > 0; i--) {
     initCall->insertAtHead(newExpr->get(i)->remove());
   }
 
@@ -6358,7 +6379,8 @@ static void resolveNewHandleGenericClass(CallExpr* newExpr, Type* manager) {
   moveStmt->get(1)->replace(new SymExpr(sizeTmp));
 
   newExpr->primitive = primitives[PRIM_SIZEOF];
-  newExpr->get(1)->replace(new SymExpr(typeSym));
+  //newExpr->get(1)->replace(new SymExpr(typeSym));
+  newExpr->insertAtHead(new SymExpr(typeSym));
 
   moveDst->symbol()->type = initTmp->type;
 
@@ -6402,7 +6424,7 @@ static void resolveNewHandleGenericRecord(CallExpr* newExpr) {
   resolveNewRecordPrologue(newExpr, initTemp);
 
   newExpr->setUnresolvedFunction("init");
-  newExpr->get(1)->remove();
+  //newExpr->get(1)->remove();
 
   resolveNewGenericInit(newExpr, at, initTemp);
 
@@ -6435,11 +6457,27 @@ static void resolveNewGenericInit(CallExpr*      newExpr,
                                   AggregateType* at,
                                   VarSymbol*     initTmp) {
   FnSymbol* initFn = NULL;
+  Expr* modToken = NULL;
+  Expr* modValue = NULL;
+
+  if (SymExpr* se = toSymExpr(newExpr->get(1))) {
+    if (se->symbol() == gModuleToken) {
+      modValue = newExpr->get(2)->remove();
+      modToken = newExpr->get(1)->remove();
+    }
+  }
+
+  newExpr->get(1)->remove(); // Type symbol
 
   initTmp->addFlag(FLAG_DELAY_GENERIC_EXPANSION);
 
   newExpr->insertAtHead(new NamedExpr("this", new SymExpr(initTmp)));
   newExpr->insertAtHead(new SymExpr(gMethodToken));
+
+  if (modToken) {
+    newExpr->insertAtHead(modValue);
+    newExpr->insertAtHead(modToken);
+  }
 
   temporaryInitializerFixup(newExpr);
 

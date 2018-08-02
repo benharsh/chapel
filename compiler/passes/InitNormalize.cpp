@@ -423,6 +423,7 @@ void InitNormalize::genericFieldInitTypeWoutInit(Expr*    insertBefore,
     insertBefore->insertBefore(fieldSet);
 
   } else if (isNonGenericRecordWithInitializers(type) == true) {
+    // should field initialization use init=?
     VarSymbol* tmp      = newTemp("tmp", type);
     DefExpr*   tmpDefn  = new DefExpr(tmp);
     CallExpr*  tmpInit  = new CallExpr("init", gMethodToken, tmp);
@@ -663,6 +664,7 @@ void InitNormalize::genericFieldInitTypeInference(Expr*    insertBefore,
 
   } else if (isUnresolvedSymExpr(initExpr)) {
     // Don't worry too much about it, resolution will handle this.
+    // TODO: add comment with example of this case
     Symbol*   _this    = mFn->_this;
     Symbol*   name     = new_CStringSymbol(field->sym->name);
     CallExpr* fieldSet = new CallExpr(PRIM_INIT_FIELD, _this, name, initExpr);
