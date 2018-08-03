@@ -405,61 +405,26 @@ void InitNormalize::genericFieldInitTypeWoutInit(Expr*    insertBefore,
 
   Type* type = field->sym->type;
 
-  if (isPrimitiveScalar(type) == true ||
-      isNonGenericClass(type) == true) {
-    VarSymbol* tmp      = newTemp("tmp", type);
-    DefExpr*   tmpDefn  = new DefExpr(tmp);
-    CallExpr*  tmpExpr  = new CallExpr("_defaultOf", type->symbol);
-    CallExpr*  tmpInit  = new CallExpr(PRIM_MOVE, tmp, tmpExpr);
+  VarSymbol* tmp      = newTemp("tmp", type);
+  DefExpr*   tmpDefn  = new DefExpr(tmp);
+  CallExpr*  tmpExpr  = new CallExpr(PRIM_INIT, field->exprType->copy());
+  CallExpr*  tmpInit  = new CallExpr(PRIM_MOVE, tmp, tmpExpr);
 
-    tmp->addFlag(FLAG_PARAM);
+  tmp->addFlag(FLAG_PARAM);
 
-    Symbol*    name     = new_CStringSymbol(field->sym->name);
-    Symbol*    _this    = mFn->_this;
-    CallExpr*  fieldSet = new CallExpr(PRIM_INIT_FIELD, _this, name, tmp);
+  Symbol*    _this    = mFn->_this;
+  Symbol*    name     = new_CStringSymbol(field->sym->name);
+  CallExpr*  fieldSet = new CallExpr(PRIM_INIT_FIELD, _this, name, tmp);
 
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-  } else if (isNonGenericRecordWithInitializers(type) == true) {
-    // should field initialization use init=?
-    VarSymbol* tmp      = newTemp("tmp", type);
-    DefExpr*   tmpDefn  = new DefExpr(tmp);
-    CallExpr*  tmpInit  = new CallExpr("init", gMethodToken, tmp);
-
-    tmp->addFlag(FLAG_PARAM);
-
-    Symbol*    name     = new_CStringSymbol(field->sym->name);
-    Symbol*    _this    = mFn->_this;
-    CallExpr*  fieldSet = new CallExpr(PRIM_INIT_FIELD, _this, name, tmp);
-
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-  } else {
-    VarSymbol* tmp      = newTemp("tmp", type);
-    DefExpr*   tmpDefn  = new DefExpr(tmp);
-    CallExpr*  tmpExpr  = new CallExpr(PRIM_INIT, field->exprType->copy());
-    CallExpr*  tmpInit  = new CallExpr(PRIM_MOVE, tmp, tmpExpr);
-
-    tmp->addFlag(FLAG_PARAM);
-
-    Symbol*    _this    = mFn->_this;
-    Symbol*    name     = new_CStringSymbol(field->sym->name);
-    CallExpr*  fieldSet = new CallExpr(PRIM_INIT_FIELD, _this, name, tmp);
-
-    if (isFieldAccessible(tmpExpr) == false) {
-      INT_ASSERT(false);
-    }
-
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-    updateFieldsMember(tmpExpr);
+  if (isFieldAccessible(tmpExpr) == false) {
+    INT_ASSERT(false);
   }
+
+  insertBefore->insertBefore(tmpDefn);
+  insertBefore->insertBefore(tmpInit);
+  insertBefore->insertBefore(fieldSet);
+
+  updateFieldsMember(tmpExpr);
 }
 
 /************************************* | **************************************
@@ -467,8 +432,6 @@ void InitNormalize::genericFieldInitTypeWoutInit(Expr*    insertBefore,
 *                                                                             *
 *                                                                             *
 ************************************** | *************************************/
-
-static bool isNewExpr(Expr* expr);
 
 void InitNormalize::genericFieldInitTypeWithInit(Expr*    insertBefore,
                                                  DefExpr* field,
@@ -716,54 +679,24 @@ void InitNormalize::fieldInitTypeWoutInit(Expr*    insertBefore,
 
   Type* type = field->sym->type;
 
-  if (isPrimitiveScalar(type) == true ||
-      isNonGenericClass(type) == true) {
-    VarSymbol* tmp      = newTemp("tmp", type);
-    DefExpr*   tmpDefn  = new DefExpr(tmp);
-    CallExpr*  tmpExpr  = new CallExpr("_defaultOf", type->symbol);
-    CallExpr*  tmpInit  = new CallExpr(PRIM_MOVE, tmp, tmpExpr);
+  VarSymbol* tmp      = newTemp("tmp", type);
+  DefExpr*   tmpDefn  = new DefExpr(tmp);
+  CallExpr*  tmpExpr  = new CallExpr(PRIM_INIT, field->exprType->copy());
+  CallExpr*  tmpInit  = new CallExpr(PRIM_MOVE, tmp, tmpExpr);
 
-    Symbol*    name     = new_CStringSymbol(field->sym->name);
-    Symbol*    _this    = mFn->_this;
-    CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
+  Symbol*    _this    = mFn->_this;
+  Symbol*    name     = new_CStringSymbol(field->sym->name);
+  CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
 
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-  } else if (isNonGenericRecordWithInitializers(type) == true) {
-    VarSymbol* tmp      = newTemp("tmp", type);
-    DefExpr*   tmpDefn  = new DefExpr(tmp);
-    CallExpr*  tmpInit  = new CallExpr("init", gMethodToken, tmp);
-
-    Symbol*    name     = new_CStringSymbol(field->sym->name);
-    Symbol*    _this    = mFn->_this;
-    CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
-
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-  } else {
-    VarSymbol* tmp      = newTemp("tmp", type);
-    DefExpr*   tmpDefn  = new DefExpr(tmp);
-    CallExpr*  tmpExpr  = new CallExpr(PRIM_INIT, field->exprType->copy());
-    CallExpr*  tmpInit  = new CallExpr(PRIM_MOVE, tmp, tmpExpr);
-
-    Symbol*    _this    = mFn->_this;
-    Symbol*    name     = new_CStringSymbol(field->sym->name);
-    CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
-
-    if (isFieldAccessible(tmpExpr) == false) {
-      INT_ASSERT(false);
-    }
-
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-    updateFieldsMember(tmpExpr);
+  if (isFieldAccessible(tmpExpr) == false) {
+    INT_ASSERT(false);
   }
+
+  insertBefore->insertBefore(tmpDefn);
+  insertBefore->insertBefore(tmpInit);
+  insertBefore->insertBefore(fieldSet);
+
+  updateFieldsMember(tmpExpr);
 }
 
 /************************************* | **************************************
@@ -815,57 +748,20 @@ void InitNormalize::fieldInitTypeWithInit(Expr*    insertBefore,
     updateFieldsMember(initExpr);
 
   } else if (isNonGenericRecordWithInitializers(type) == true) {
-    if (isNewExpr(initExpr) == true) {
-      VarSymbol* tmp      = newTemp("tmp", type);
-      DefExpr*   tmpDefn  = new DefExpr(tmp);
-
-      Expr*      arg      = toCallExpr(initExpr)->get(1)->remove();
-      CallExpr*  argExpr  = toCallExpr(arg);
-
-      Symbol*    name     = new_CStringSymbol(field->sym->name);
-      Symbol*    _this    = mFn->_this;
-      CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
-
+      VarSymbol* tmp = newTemp("tmp", type);
+      DefExpr* tmpDefn = new DefExpr(tmp);
       insertBefore->insertBefore(tmpDefn);
-
-      // This call must be in tree before extending argExpr
-      insertBefore->insertBefore(argExpr);
-
-      // Convert it in to a use of the init method
-      argExpr->baseExpr->replace(new UnresolvedSymExpr("init"));
-
-      // Add _mt and _this (insert at head in reverse order)
-      argExpr->insertAtHead(tmp);
-      argExpr->insertAtHead(gMethodToken);
-
-      if (isFieldAccessible(argExpr) == false) {
-        INT_ASSERT(false);
-      }
-
-      insertBefore->insertBefore(fieldSet);
-
-      updateFieldsMember(argExpr);
-
-    } else {
-      VarSymbol* tmp      = newTemp("tmp", type);
-      DefExpr*   tmpDefn  = new DefExpr(tmp);
-      CallExpr*  tmpInit  = new CallExpr("init", gMethodToken, tmp, initExpr);
+      insertBefore->insertBefore(new CallExpr(PRIM_INIT_VAR, tmp, initExpr, new SymExpr(type->symbol)));
 
       Symbol*    name     = new_CStringSymbol(field->sym->name);
       Symbol*    _this    = mFn->_this;
-      CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
+      insertBefore->insertBefore(new CallExpr(PRIM_SET_MEMBER, _this, name, tmp));
 
       if (isFieldAccessible(initExpr) == false) {
         INT_ASSERT(false);
       }
 
-      insertBefore->insertBefore(tmpDefn);
-      insertBefore->insertBefore(tmpInit);
-      insertBefore->insertBefore(fieldSet);
-
       updateFieldsMember(initExpr);
-    }
-
   } else if (theFn()->hasFlag(FLAG_COMPILER_GENERATED) == true &&
              field->init                               == NULL &&
              mightBeSyncSingleExpr(field)              == true) {
@@ -892,35 +788,20 @@ void InitNormalize::fieldInitTypeWithInit(Expr*    insertBefore,
 
     updateFieldsMember(initExpr);
 
-  } else if (field->exprType == NULL) {
+  } else {
     VarSymbol* tmp       = newTemp("tmp", type);
     DefExpr*   tmpDefn   = new DefExpr(tmp);
+    Expr*      checkType = NULL;
+
+    if (field->exprType == NULL) {
+      checkType = new SymExpr(type->symbol);
+    } else {
+      checkType = field->exprType->copy();
+    }
 
     // Set the value for TMP
     CallExpr*  tmpInit = new CallExpr(PRIM_INIT_VAR,
-                                      tmp,  initExpr, type->symbol);
-
-    Symbol*    _this     = mFn->_this;
-    Symbol*    name      = new_CStringSymbol(field->sym->name);
-    CallExpr*  fieldSet  = new CallExpr(PRIM_INIT_FIELD, _this, name, tmp);
-
-    if (isFieldAccessible(initExpr) == false) {
-      INT_ASSERT(false);
-    }
-
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-    updateFieldsMember(initExpr);
-
-  } else {
-
-    VarSymbol* tmp       = newTemp("tmp");
-    DefExpr*   tmpDefn   = new DefExpr(tmp);
-    // Applies a type to TMP and sets its value
-    CallExpr*  tmpInit   = new CallExpr(PRIM_INIT_VAR,
-                                        tmp, initExpr, field->exprType->copy());
+                                      tmp,  initExpr, checkType);
 
     Symbol*    _this     = mFn->_this;
     Symbol*    name      = new_CStringSymbol(field->sym->name);
@@ -938,17 +819,8 @@ void InitNormalize::fieldInitTypeWithInit(Expr*    insertBefore,
     insertBefore->insertBefore(fieldSet);
 
     updateFieldsMember(tmpInit);
+
   }
-}
-
-static bool isNewExpr(Expr* expr) {
-  bool retval = false;
-
-  if (CallExpr* callExpr = toCallExpr(expr)) {
-    retval = callExpr->isPrimitive(PRIM_NEW);
-  }
-
-  return retval;
 }
 
 /************************************* | **************************************
@@ -969,7 +841,6 @@ void InitNormalize::fieldInitTypeInference(Expr*    insertBefore,
   //   var x = <immediate>;
   //   var y = <identifier>;
   if (SymExpr* initSym = toSymExpr(initExpr)) {
-    Type* type = initSym->symbol()->type;
 
     if (mFn->isDefaultInit()) {
       Symbol* _this = mFn->_this;
@@ -979,24 +850,6 @@ void InitNormalize::fieldInitTypeInference(Expr*    insertBefore,
       isFieldAccessible(initExpr);
 
       insertBefore->insertBefore(fieldSet);
-      updateFieldsMember(initExpr);
-    } else if (isPrimitiveScalar(type) == true) {
-      VarSymbol*  tmp       = newTemp("tmp", type);
-      DefExpr*    tmpDefn   = new DefExpr(tmp);
-      CallExpr*   tmpInit   = new CallExpr(PRIM_MOVE, tmp, initExpr);
-
-      Symbol*     name      = new_CStringSymbol(field->sym->name);
-      Symbol*     _this     = mFn->_this;
-      CallExpr*   fieldSet  = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
-
-      if (isFieldAccessible(initExpr) == false) {
-        INT_ASSERT(false);
-      }
-
-      insertBefore->insertBefore(tmpDefn);
-      insertBefore->insertBefore(tmpInit);
-      insertBefore->insertBefore(fieldSet);
-
       updateFieldsMember(initExpr);
 
     } else {
@@ -1022,46 +875,25 @@ void InitNormalize::fieldInitTypeInference(Expr*    insertBefore,
   // e.g.
   //   var x = f(...);
   //   var y = new MyRecord(...);
-  } else if (isCallExpr(initExpr) == true) {
-    VarSymbol* tmp      = newTemp("tmp");
-    DefExpr*   tmpDefn  = new DefExpr(tmp);
-    CallExpr*  tmpInit  = new CallExpr(PRIM_INIT_VAR, tmp, initExpr);
-
-    Symbol*    _this    = mFn->_this;
-    Symbol*    name     = new_CStringSymbol(field->sym->name);
-    CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
-
-    if (isFieldAccessible(initExpr) == false) {
-      INT_ASSERT(false);
-    }
-
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-    updateFieldsMember(initExpr);
-
-  } else if (isIfExpr(initExpr) || isLoopExpr(initExpr)) {
-    VarSymbol* tmp      = newTemp("tmp");
-    DefExpr*   tmpDefn  = new DefExpr(tmp);
-    CallExpr*  tmpInit  = new CallExpr(PRIM_INIT_VAR, tmp, initExpr);
-
-    Symbol*    _this    = mFn->_this;
-    Symbol*    name     = new_CStringSymbol(field->sym->name);
-    CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
-
-    if (isFieldAccessible(initExpr) == false) {
-      INT_ASSERT(false);
-    }
-
-    insertBefore->insertBefore(tmpDefn);
-    insertBefore->insertBefore(tmpInit);
-    insertBefore->insertBefore(fieldSet);
-
-    updateFieldsMember(initExpr);
-
   } else {
-    INT_ASSERT(false);
+    VarSymbol* tmp      = newTemp("tmp");
+    DefExpr*   tmpDefn  = new DefExpr(tmp);
+    CallExpr*  tmpInit  = new CallExpr(PRIM_INIT_VAR, tmp, initExpr);
+
+    Symbol*    _this    = mFn->_this;
+    Symbol*    name     = new_CStringSymbol(field->sym->name);
+    CallExpr*  fieldSet = new CallExpr(PRIM_SET_MEMBER, _this, name, tmp);
+
+    if (isFieldAccessible(initExpr) == false) {
+      INT_ASSERT(false);
+    }
+
+    insertBefore->insertBefore(tmpDefn);
+    insertBefore->insertBefore(tmpInit);
+    insertBefore->insertBefore(fieldSet);
+
+    updateFieldsMember(initExpr);
+
   }
 }
 

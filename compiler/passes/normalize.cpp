@@ -123,8 +123,6 @@ static void        init_noinit_var(VarSymbol* var,
 
 static bool        moduleHonorsNoinit(Symbol* var, Expr* init);
 
-static void        insertPostInit(Symbol* var, CallExpr* anchor);
-
 static void        updateVariableAutoDestroy(DefExpr* defExpr);
 
 static TypeSymbol* expandTypeAlias(SymExpr* se);
@@ -2123,9 +2121,6 @@ static void           normVarTypeWoutInit(DefExpr* expr);
 static void           normVarTypeWithInit(DefExpr* expr);
 static void           normVarNoinit(DefExpr* defExpr);
 
-static bool           isNewExpr(Expr* expr);
-static AggregateType* typeForNewExpr(CallExpr* expr);
-
 static Expr* prepareShadowVarForNormalize(DefExpr* def, VarSymbol* var);
 static void  restoreShadowVarForNormalize(DefExpr* def, Expr* svarMark);
 
@@ -2283,7 +2278,7 @@ static void normVarTypeWithInit(DefExpr* defExpr) {
   Symbol* var      = defExpr->sym;
   Expr*   typeExpr = defExpr->exprType->remove();
   Expr*   initExpr = defExpr->init->remove();
-  Type*   type     = typeForTypeSpecifier(typeExpr, false);
+  //Type*   type     = typeForTypeSpecifier(typeExpr, false);
 
   // Note: the above line will not obtain a type if the typeExpr is a CallExpr
   // for a generic record or class, as that is a more complicated set of AST.
@@ -2295,43 +2290,6 @@ static void normVarTypeWithInit(DefExpr* defExpr) {
   //      var   x : MyCls   = new MyCls(1, 2);
   //
   defExpr->insertAfter(new CallExpr(PRIM_INIT_VAR, var, initExpr, typeExpr));
-}
-
-static bool isNewExpr(Expr* expr) {
-  bool retval = false;
-
-  if (CallExpr* callExpr = toCallExpr(expr)) {
-    retval = callExpr->isPrimitive(PRIM_NEW);
-  }
-
-  return retval;
-}
-
-static AggregateType* typeForNewExpr(CallExpr* newExpr) {
-
-  if (CallExpr* constructor = toCallExpr(newExpr->get(1))) {
-
-    // Avoid normalize-time type inference for managed new
-    for_actuals(actual, constructor) {
-      if (NamedExpr* ne = toNamedExpr(actual))
-        if (ne->name == astr_chpl_manager)
-          if (SymExpr* se = toSymExpr(ne->actual))
-            if (isTypeSymbol(se->symbol()))
-              return NULL;
-    }
-
-    if (SymExpr* baseExpr = toSymExpr(constructor->baseExpr)) {
-      if (TypeSymbol* sym = toTypeSymbol(baseExpr->symbol())) {
-        if (AggregateType* type = toAggregateType(sym->type)) {
-          if (isClass(type) == true || isRecord(type) == true) {
-            return type;
-          }
-        }
-      }
-    }
-  }
-
-  return NULL;
 }
 
 // Internal and Standard modules always honor no-init
@@ -2424,14 +2382,6 @@ static void  restoreShadowVarForNormalize(DefExpr* def, Expr* svarMark) {
 *                                                                             *
 *                                                                             *
 ************************************** | *************************************/
-
-static void insertPostInit(Symbol* var, CallExpr* anchor) {
-  AggregateType* at = toAggregateType(var->type);
-
-  if (at->hasPostInitializer() == true) {
-    anchor->insertAfter(new CallExpr("postinit", gMethodToken, var));
-  }
-}
 
 /************************************* | **************************************
 *                                                                             *

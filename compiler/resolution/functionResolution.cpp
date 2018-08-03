@@ -317,18 +317,21 @@ hasUserAssign(Type* type) {
   chpl_gen_main->insertAtHead(new DefExpr(tmp));
   CallExpr* call = new CallExpr("=", tmp, tmp);
 
-  // Use defPoint of root instantiation, where the compiler-generated = would
-  // live.
-  if (AggregateType* at = toAggregateType(type)) {
-    type = at->getRootInstantiation();
-  }
-  FnSymbol* fn = resolveUninsertedCall(type, call);
+  // Permit not finding an assignment function at all. This may happen if
+  // the type was instantiated in a scope where its module wasn't used. E.g.:
+  //   var x = new A.R(int);
+  //
+  FnSymbol* fn = resolveUninsertedCall(type, call, false);
   // Don't think we need to resolve the whole function
   // since we're just looking for a flag.
   //resolveFunction(fn);
   tmp->defPoint->remove();
-  bool compilerAssign = fn->hasFlag(FLAG_COMPILER_GENERATED);
-  return !compilerAssign;
+
+  if (fn == NULL) {
+    return false;
+  } else {
+    return !fn->hasFlag(FLAG_COMPILER_GENERATED);
+  }
 }
 
 /************************************* | **************************************
@@ -5050,11 +5053,13 @@ static void resolveInitVar(CallExpr* call) {
     call->primitive = primitives[PRIM_MOVE];
     resolveMove(call);
 
-  } else if (isRecordWithInitializers(srcType) == true &&
+  } else if (isRecord(srcType) == true &&
              isParamString == false &&
              isSyncType(srcType) == false &&
              isSingleType(srcType) == false &&
-             isRecordWrappedType(srcType) == false)  {
+             isRecordWrappedType(srcType) == false &&
+             srcType->symbol->hasFlag(FLAG_TUPLE) == false &&
+             srcType->symbol->hasFlag(FLAG_ITERATOR_RECORD) == false)  {
     AggregateType* ct  = toAggregateType(srcType);
     SymExpr*       rhs = toSymExpr(call->get(2));
 
@@ -5077,6 +5082,15 @@ static void resolveInitVar(CallExpr* call) {
 
       call->primitive = primitives[PRIM_MOVE];
 
+      resolveMove(call);
+    } else if (isRecordWithInitializers(srcType) == false) {
+      Expr*     initExpr = srcExpr->remove();
+      CallExpr* initCopy = new CallExpr("chpl__initCopy", initExpr);
+
+      call->insertAtTail(initCopy);
+      call->primitive = primitives[PRIM_MOVE];
+
+      resolveExpr(initCopy);
       resolveMove(call);
 
     } else if (findCopyInit(ct) != NULL) {
