@@ -5531,8 +5531,10 @@ static void resolveMoveForRhsCallExpr(CallExpr* call) {
     moveFinalize(call);
     Symbol* LHS = toSymExpr(call->get(1))->symbol();
 
+    // Skip for runtime types, otherwise we would print this message twice...
     if (LHS->hasFlag(FLAG_PARAM) &&
-        isLegalParamType(rhs->typeInfo()) == false) {
+        isLegalParamType(rhs->typeInfo()) == false &&
+        rhs->getValType()->symbol->hasFlag(FLAG_HAS_RUNTIME_TYPE) == false) {
       USR_FATAL_CONT(LHS, "'%s' is not of a supported param type", LHS->name);
     }
 
