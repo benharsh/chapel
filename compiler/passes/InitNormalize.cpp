@@ -789,7 +789,8 @@ void InitNormalize::fieldInitTypeWithInit(Expr*    insertBefore,
     updateFieldsMember(initExpr);
 
   } else {
-    VarSymbol* tmp       = newTemp("tmp", type);
+    // Do not set type of 'tmp' so that resolution will infer it later
+    VarSymbol* tmp       = newTemp("tmp");
     DefExpr*   tmpDefn   = new DefExpr(tmp);
     Expr*      checkType = NULL;
 

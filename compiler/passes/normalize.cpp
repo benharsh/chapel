@@ -2244,7 +2244,6 @@ static void normVarTypeInference(DefExpr* defExpr) {
 static void normVarTypeWoutInit(DefExpr* defExpr) {
   Symbol* var      = defExpr->sym;
   Expr*   typeExpr = defExpr->exprType->remove();
-  Type*   type     = typeForTypeSpecifier(typeExpr, false);
 
   // Noakes 2016/02/02
   // The code for resolving the type of an extern variable
@@ -2267,9 +2266,20 @@ static void normVarTypeWoutInit(DefExpr* defExpr) {
     defExpr->insertAfter(block);
 
   } else {
-    if (type) var->type = type;
-    // TODO: does this need a temp?
+    // The type of 'var' should usually be 'unknown' so that resolution will
+    // correctly infer the type from PRIM_INIT
     defExpr->insertAfter(new CallExpr(PRIM_MOVE, var, new CallExpr(PRIM_INIT, typeExpr)));
+
+    // TODO: For a snippet like 'catch e : T', the error handling
+    // implementation expects this block to set the type of 'e'. We should
+    // really be evaluating 'T' during resolution.
+    Expr* parent = defExpr->parentExpr;
+    Expr* gparent = parent ? parent->parentExpr : NULL;
+    if (isCatchStmt(gparent)) {
+      if (Type* type = typeForTypeSpecifier(typeExpr, false)) {
+        var->type = type;
+      }
+    }
   }
   return;
 }

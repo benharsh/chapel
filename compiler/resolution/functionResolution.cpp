@@ -2814,7 +2814,7 @@ void trimVisibleCandidates(CallInfo&       info,
   bool maybeCopyInit = isInit && call->numActuals() == 3 &&
                        call->get(2)->getValType() == call->get(3)->getValType();
 
-  if (!(isInit || isNew || isDeinit)) {
+  if (!(isInit || isNew || isDeinit) || info.call->isResolved()) {
     mostApplicable = visibleFns;
   } else {
     forv_Vec(FnSymbol, fn, visibleFns) {
@@ -5011,7 +5011,7 @@ static void resolveInitVar(CallExpr* call) {
 
     // Ignore the target type if it's the same & not a runtime type
     // and not sync/single (since sync/single initCopy returns a different type)
-    if (targetType == srcType &&
+    if (targetType->getValType() == srcType->getValType() &&
         !targetType->symbol->hasFlag(FLAG_HAS_RUNTIME_TYPE) &&
         !isSyncType(srcType) &&
         !isSingleType(srcType)) {
@@ -5529,6 +5529,12 @@ static void resolveMoveForRhsCallExpr(CallExpr* call) {
 
   } else if (rhs->isPrimitive(PRIM_INIT) == true) {
     moveFinalize(call);
+    Symbol* LHS = toSymExpr(call->get(1))->symbol();
+
+    if (LHS->hasFlag(FLAG_PARAM) &&
+        isLegalParamType(rhs->typeInfo()) == false) {
+      USR_FATAL_CONT(LHS, "'%s' is not of a supported param type", LHS->name);
+    }
 
     if (SymExpr* se = toSymExpr(rhs->get(1))) {
       Type* seType = se->symbol()->getValType();
