@@ -4610,6 +4610,7 @@ static void resolveMaybeSyncSingleField(CallExpr* call) {
   if (t == dtUnknown)
     INT_FATAL(call, "Unable to resolve field type");
 
+  // Note: intentionally skips this branch for refs to sync vars
   if (isSyncType(t) || isSingleType(t)) {
     // Sync and single fields should be initialized with just a PRIM_SET_MEMBER
     // using the original initial expression.
@@ -5013,8 +5014,8 @@ static void resolveInitVar(CallExpr* call) {
     // and not sync/single (since sync/single initCopy returns a different type)
     if (targetType->getValType() == srcType->getValType() &&
         !targetType->symbol->hasFlag(FLAG_HAS_RUNTIME_TYPE) &&
-        !isSyncType(srcType) &&
-        !isSingleType(srcType)) {
+        !isSyncType(srcType->getValType()) &&
+        !isSingleType(srcType->getValType())) {
       targetType = srcType;
       targetTypeExpr = NULL;
     }
@@ -5533,6 +5534,7 @@ static void resolveMoveForRhsCallExpr(CallExpr* call) {
 
     // Skip for runtime types, otherwise we would print this message twice...
     if (LHS->hasFlag(FLAG_PARAM) &&
+        LHS->hasFlag(FLAG_TEMP) == false &&
         isLegalParamType(rhs->typeInfo()) == false &&
         rhs->getValType()->symbol->hasFlag(FLAG_HAS_RUNTIME_TYPE) == false) {
       USR_FATAL_CONT(LHS, "'%s' is not of a supported param type", LHS->name);
