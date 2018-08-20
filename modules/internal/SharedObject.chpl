@@ -123,7 +123,7 @@ module SharedObject {
 
        :arg p: the class instance to manage. Must be of class type.
      */
-    proc init(p) {
+    proc init(p : unmanaged) {
       this.t = _to_borrowed(p.type);
 
       // Boost version default-initializes px and pn

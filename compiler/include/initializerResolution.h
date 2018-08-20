@@ -28,10 +28,13 @@
 // and want to utilize Phase 1 of the initializer body to determine
 //  the generic instantiation of it.
 
+#include "baseAST.h"
+
 class CallExpr;
 class FnSymbol;
+class Type;
 
 FnSymbol* resolveInitializer(CallExpr* call);
-FnSymbol* resolveNewInitializer(CallExpr* call);
+FnSymbol* resolveNewInitializer(CallExpr* call, Type* manager = NULL);
 
 #endif

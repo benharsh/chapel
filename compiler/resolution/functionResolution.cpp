@@ -5795,15 +5795,8 @@ static void           resolveNewWithInitializer(CallExpr* newExpr,
 static void           resolveNewHandleNonGenericClass(CallExpr* newExpr,
                                                       Type* manager);
 
-static void           resolveNewHandleNonGenericRecord(CallExpr* newExpr);
-
 static void           resolveNewHandleGenericClass(CallExpr* newExpr,
                                                    Type* manager);
-
-static void           resolveNewHandleGenericRecord(CallExpr* newExpr);
-
-static void           resolveNewRecordPrologue(CallExpr*  newExpr,
-                                               VarSymbol* newTmp);
 
 static void           resolveNewGenericInit(CallExpr*      newExpr,
                                             AggregateType* at,
@@ -6336,19 +6329,19 @@ static void resolveNewWithInitializer(CallExpr* newExpr, Type* manager) {
 
   } else {
     // For record case, manager is ignored.
-
-    if (resolveNewIsNonGeneric(newExpr) == true) {
-      resolveNewHandleNonGenericRecord(newExpr);
-
-    } else {
-      resolveNewHandleGenericRecord(newExpr);
-    }
+    resolveNewInitializer(newExpr);
   }
 }
 
 static void resolveNewHandleNonGenericClass(CallExpr* newExpr, Type* manager) {
   AggregateType* at = resolveNewFindType(newExpr);
   CallExpr* moveStmt = toCallExpr(newExpr->parentExpr);
+
+  if (newExpr->getModule()->modTag == MOD_USER &&
+      at->symbol->defPoint->getModule()->modTag == MOD_USER) {
+    resolveNewInitializer(newExpr, manager);
+    return;
+  }
 
   Expr* last = newExpr;
   newExpr->setUnresolvedFunction("_new");
@@ -6369,45 +6362,6 @@ static void resolveNewHandleNonGenericClass(CallExpr* newExpr, Type* manager) {
     AggregateType* resultingType = toAggregateType(_new->retType);
 
     resolveNewManaged(moveStmt, newExpr, last, resultingType, manager);
-  }
-}
-
-static void resolveNewHandleNonGenericRecord(CallExpr* newExpr) {
-  AggregateType* at     = resolveNewFindType(newExpr);
-
-  if (newExpr->getModule()->modTag == MOD_USER) {
-    resolveNewInitializer(newExpr);
-    return;
-  }
-
-  VarSymbol*     newTmp = newTemp("new_temp", at);
-  Expr* modToken = NULL;
-  Expr* modValue = NULL;
-
-  if (SymExpr* se = toSymExpr(newExpr->get(1))) {
-    if (se->symbol() == gModuleToken) {
-      modValue = newExpr->get(2)->remove();
-      modToken = newExpr->get(1)->remove();
-    }
-  }
-
-  resolveNewRecordPrologue(newExpr, newTmp);
-
-  newExpr->setUnresolvedFunction("init");
-  newExpr->get(1)->remove();
-
-  newExpr->insertAtHead(new SymExpr(newTmp));
-  newExpr->insertAtHead(new SymExpr(gMethodToken));
-
-  if (modToken != NULL) {
-    newExpr->insertAtHead(modValue);
-    newExpr->insertAtHead(modToken);
-  }
-
-  resolveCall(newExpr);
-
-  if (at->hasPostInitializer() == true) {
-    newExpr->insertAfter(new CallExpr("postinit", gMethodToken, newTmp));
   }
 }
 
@@ -6490,47 +6444,6 @@ static void resolveNewHandleGenericClass(CallExpr* newExpr, Type* manager) {
     AggregateType* initType = toAggregateType(init->_this->type);
 
     resolveNewManaged(finalMove, initCall, last, initType, manager);
-  }
-}
-
-static void resolveNewHandleGenericRecord(CallExpr* newExpr) {
-  if (newExpr->getModule()->modTag == MOD_USER) {
-    resolveNewInitializer(newExpr);
-    return;
-  }
-  AggregateType* at       = resolveNewFindType(newExpr);
-  AggregateType* rootType = at->getRootInstantiation();
-  VarSymbol*     initTemp = newTemp("initTemp", rootType);
-
-  resolveNewRecordPrologue(newExpr, initTemp);
-
-  newExpr->setUnresolvedFunction("init");
-
-  resolveNewGenericInit(newExpr, at, initTemp);
-
-  if (at->hasPostInitializer() == true) {
-    newExpr->insertAfter(new CallExpr("postinit", gMethodToken, initTemp));
-  }
-}
-
-static void resolveNewRecordPrologue(CallExpr* newExpr, VarSymbol* newTmp) {
-  DefExpr* def = new DefExpr(newTmp);
-
-  if (CallExpr* moveStmt = toCallExpr(newExpr->parentExpr)) {
-    moveStmt->insertBefore(def);
-    moveStmt->insertBefore(newExpr->remove());
-    moveStmt->insertAtTail(newTmp);
-
-  } else {
-    gdbShouldBreakHere();
-    // The parent is a BlockStmt
-    newExpr->insertBefore(def);
-
-    if (isArgSymbol(newExpr->parentSymbol) == true) {
-      if (toBlockStmt(newExpr->parentExpr)->body.tail == newExpr) {
-        newExpr->insertAfter(new SymExpr(newTmp));
-      }
-    }
   }
 }
 

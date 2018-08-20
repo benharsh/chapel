@@ -33,8 +33,10 @@
 #include "stmt.h"
 #include "stringutil.h"
 #include "symbol.h"
+#include "UnmanagedClassType.h"
 #include "view.h"
 #include "visibleFunctions.h"
+#include "wellknown.h"
 #include "wrappers.h"
 
 static void resolveInitCall(CallExpr* call);
@@ -108,6 +110,7 @@ FnSymbol* resolveInitializer(CallExpr* call) {
   return retval;
 }
 
+// The '_new' wrapper for classes always returns unmanaged
 static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   AggregateType* type = toAggregateType(initFn->_this->getValType());
   //if (newWrapperMap.find(initFn) != newWrapperMap.end()) {
@@ -149,8 +152,10 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
 
   //CallExpr* allocCall = callChplHereAlloc(type);
   body->insertAtTail(new DefExpr(initTemp));
-  //body->insertAtTail(new CallExpr(PRIM_MOVE, initTemp, allocCall));
-  //body->insertAtTail(new CallExpr(PRIM_SETCID, initTemp));
+  if (isClass(type)) {
+    body->insertAtTail(new CallExpr(PRIM_MOVE, initTemp, callChplHereAlloc(type)));
+    body->insertAtTail(new CallExpr(PRIM_SETCID, initTemp));
+  }
   body->insertAtTail(innerInit);
 
   if (type->hasPostInitializer() == true) {
@@ -158,7 +163,14 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   }
 
   VarSymbol* result = newTemp();
-  CallExpr* finalMove = new CallExpr(PRIM_MOVE, result, initTemp);
+  Expr* resultExpr = NULL;
+  if (isClass(type)) {
+    UnmanagedClassType* uct = type->getUnmanagedClass();
+    resultExpr = new CallExpr(PRIM_CAST, uct->symbol, initTemp);
+  } else {
+    resultExpr = new SymExpr(initTemp);
+  }
+  CallExpr* finalMove = new CallExpr(PRIM_MOVE, result, resultExpr);
   body->insertAtTail(new DefExpr(result));
   body->insertAtTail(finalMove);
 
@@ -175,6 +187,7 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
 
   return fn;
 }
+
 //
 // Records:
 //   move x, new R(...);
@@ -193,9 +206,10 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
 //       def initTemp;
 //       move initTemp, _new(R, ...);
 //       move x, initTemp;
-FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
+FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
   AggregateType* at = resolveNewFindType(newExpr);
+  if (isClass(at)) gdbShouldBreakHere();
 
   Expr* modToken = NULL;
   Expr* modValue = NULL;
@@ -239,7 +253,7 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
 
   makeActualsVector(info, actualIdxToFormal);
 
-  if (isPromotionRequired(call->resolvedFunction(), info, actualIdxToFormal)) {
+  if (isClass(at) || isPromotionRequired(call->resolvedFunction(), info, actualIdxToFormal)) {
     FnSymbol* newWrapper = buildNewWrapper(call->resolvedFunction());
     TypeSymbol* ts = call->resolvedFunction()->_this->getValType()->symbol;
     call->setResolvedFunction(newWrapper);
@@ -247,29 +261,71 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
     call->get(1)->remove(); // '_mt'
     call->insertAtHead(new SymExpr(ts));
 
-    VarSymbol* new_temp = newTemp("new_temp");
-    if (stmt == newExpr) {
-      newExpr->insertAfter(new SymExpr(new_temp));
-    } else {
-      newExpr->replace(new SymExpr(new_temp));
-      stmt->insertBefore(newExpr);
+    bool getBorrow = false;
+    if (manager == dtBorrowed) {
+      manager = dtOwned;
+      getBorrow = true;
     }
-    CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove()); 
-    stmt->insertBefore(new DefExpr(new_temp));
-    stmt->insertBefore(newMove);
-    resolveCall(call);
-    newExpr->convertToNoop();
-    resolveFunction(call->resolvedFunction());
-    resolveCall(newMove);
-    tmp->defPoint->remove(); // only used for 'init' call
 
-    if (stmt == newExpr) {
-      // For new-exprs in a formal's typeExpr we need to insert an initCopy
-      BlockStmt* block = toBlockStmt(stmt->parentExpr);
-      SymExpr* se = toSymExpr(block->body.tail);
-      INT_ASSERT(se->symbol() == new_temp);
-      se->replace(new CallExpr("chpl__initCopy", new SymExpr(new_temp)));
+    if (isRecord(at) || isManagedPtrType(manager) == false) {
+      VarSymbol* new_temp = newTemp("new_temp");
+      if (stmt == newExpr) {
+        newExpr->insertAfter(new SymExpr(new_temp));
+      } else {
+        newExpr->replace(new SymExpr(new_temp));
+        stmt->insertBefore(newExpr);
+      }
+
+      CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove()); 
+      stmt->insertBefore(new DefExpr(new_temp));
+      stmt->insertBefore(newMove);
+      resolveCall(call);
+      resolveFunction(call->resolvedFunction());
+      resolveCall(newMove);
+    } else {
+      VarSymbol* new_temp = newTemp("new_temp");
+      CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove()); 
+      stmt->insertBefore(new DefExpr(new_temp));
+      stmt->insertBefore(newMove);
+      resolveCall(call);
+      resolveFunction(call->resolvedFunction());
+      resolveCall(newMove);
+
+      CallExpr* newM = new CallExpr(PRIM_NEW, manager->symbol, new_temp);
+      Expr* cast = newM;
+      if (getBorrow) {
+        VarSymbol* tmpM = newTemp("new_tmp_m");
+        tmpM->addFlag(FLAG_INSERT_AUTO_DESTROY);
+        stmt->insertBefore(new DefExpr(tmpM));
+        // Use init-var in case of promotion, in which 'borrow' will occur
+        // within the loop body and the 'owned' thing will be destroyed after
+        // borrowing.
+        CallExpr* moveM = new CallExpr(PRIM_INIT_VAR, tmpM, newM);
+        stmt->insertBefore(moveM);
+        resolveCall(newM);
+        resolveCall(moveM);
+        cast = new CallExpr("borrow", gMethodToken, tmpM);
+      }
+
+      if (stmt == newExpr) {
+        newExpr->insertAfter(cast);
+      } else {
+        newExpr->replace(cast);
+        stmt->insertBefore(newExpr);
+      }
+      resolveExpr(cast);
     }
+
+    //CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove()); 
+    //stmt->insertBefore(new DefExpr(new_temp));
+    //stmt->insertBefore(newMove);
+    //resolveCall(call);
+    //resolveFunction(call->resolvedFunction());
+    //resolveCall(newMove);
+
+    tmp->defPoint->insertAfter(newExpr->remove());
+    tmp->defPoint->remove(); // only used for 'init' call
+    newExpr->convertToNoop();
   } else {
     AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
     //newExpr->setResolvedFunction(call->resolvedFunction());
@@ -285,12 +341,21 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
       newExpr->replace(new SymExpr(tmp));
       stmt->insertBefore(newExpr);
     }
+
     if (at->hasPostInitializer()) {
       stmt->insertBefore(new CallExpr("postinit", gMethodToken, tmp));
     }
+
     //call->remove();
     newExpr->convertToNoop();
     tmp->type = call->resolvedFunction()->_this->getValType();
+  }
+
+  if (stmt == newExpr && call->resolvedFunction()->hasFlag(FLAG_PROMOTION_WRAPPER)) {
+    // For new-exprs in a formal's typeExpr we need to insert an initCopy
+    BlockStmt* block = toBlockStmt(stmt->parentExpr);
+    SymExpr* se = toSymExpr(block->body.tail);
+    se->replace(new CallExpr("chpl__initCopy", new SymExpr(se->symbol())));
   }
 
 //  wrap = wrapAndCleanUpActuals(call->resolvedFunction(),
@@ -487,16 +552,17 @@ static void resolveInitializerMatch(FnSymbol* fn) {
       resolveInitializerBody(fn);
 
     } else if (at->isClass() == true) {
-      AggregateType* parent = at->dispatchParents.v[0];
+      //AggregateType* parent = at->dispatchParents.v[0];
 
-      if (parent->isGeneric() == false) {
-        if (at->setFirstGenericField() == false) {
-          INT_ASSERT(false);
-        }
+      //if (parent->isGeneric() == false) {
+      //  if (at->setFirstGenericField() == false) {
+      //    INT_ASSERT(false);
+      //  }
 
-      } else {
-        at->setFirstGenericField();
-      }
+      //} else {
+      //  at->setFirstGenericField();
+      //}
+      at->setFirstGenericField();
 
       resolveInitializerBody(fn);
 
