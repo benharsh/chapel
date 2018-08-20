@@ -209,7 +209,7 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
 FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
   AggregateType* at = resolveNewFindType(newExpr);
-  if (isClass(at)) gdbShouldBreakHere();
+  //if (isClass(at)) gdbShouldBreakHere();
 
   Expr* modToken = NULL;
   Expr* modValue = NULL;
@@ -267,6 +267,8 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
       getBorrow = true;
     }
 
+    bool inBlockStmt = stmt == newExpr;
+
     if (isRecord(at) || isManagedPtrType(manager) == false) {
       VarSymbol* new_temp = newTemp("new_temp");
       if (stmt == newExpr) {
@@ -323,9 +325,25 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     //resolveFunction(call->resolvedFunction());
     //resolveCall(newMove);
 
+
     tmp->defPoint->insertAfter(newExpr->remove());
     tmp->defPoint->remove(); // only used for 'init' call
     newExpr->convertToNoop();
+
+    if (inBlockStmt) {
+      // For new-exprs in a formal's typeExpr we need to insert an initCopy
+      BlockStmt* block = toBlockStmt(newExpr->parentExpr);
+      Expr* tail = block->body.tail;
+      if (tail->typeInfo()->symbol->hasFlag(FLAG_ITERATOR_RECORD)) {
+        VarSymbol* ir_temp = newTemp("ir_temp");
+        CallExpr* tempMove = new CallExpr(PRIM_MOVE, ir_temp, new CallExpr("chpl__initCopy", tail->copy())); 
+        tail->insertBefore(tempMove);
+        normalize(tempMove);
+        tail->replace(new SymExpr(ir_temp));
+      }
+      //SymExpr* se = toSymExpr(block->body.tail);
+      //se->replace(new CallExpr("chpl__initCopy", new SymExpr(se->symbol())));
+    }
   } else {
     AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
     //newExpr->setResolvedFunction(call->resolvedFunction());
@@ -349,13 +367,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     //call->remove();
     newExpr->convertToNoop();
     tmp->type = call->resolvedFunction()->_this->getValType();
-  }
-
-  if (stmt == newExpr && call->resolvedFunction()->hasFlag(FLAG_PROMOTION_WRAPPER)) {
-    // For new-exprs in a formal's typeExpr we need to insert an initCopy
-    BlockStmt* block = toBlockStmt(stmt->parentExpr);
-    SymExpr* se = toSymExpr(block->body.tail);
-    se->replace(new CallExpr("chpl__initCopy", new SymExpr(se->symbol())));
   }
 
 //  wrap = wrapAndCleanUpActuals(call->resolvedFunction(),

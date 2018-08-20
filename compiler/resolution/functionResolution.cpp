@@ -6296,7 +6296,7 @@ static void resolveNewWithInitializer(CallExpr* newExpr, Type* manager) {
   }
 
   if (at->isClass() == true) {
-    if (isBlockStmt(newExpr->parentExpr) == true) {
+    if (isBlockStmt(newExpr->parentExpr) == true && newExpr->getModule()->modTag != MOD_USER) {
       //
       // The parent is currently a blockStmt
       //
@@ -6367,6 +6367,12 @@ static void resolveNewHandleNonGenericClass(CallExpr* newExpr, Type* manager) {
 
 static void resolveNewHandleGenericClass(CallExpr* newExpr, Type* manager) {
   AggregateType* at       = resolveNewFindType(newExpr);
+
+  if (newExpr->getModule()->modTag == MOD_USER &&
+      at->symbol->defPoint->getModule()->modTag == MOD_USER) {
+    resolveNewInitializer(newExpr, manager);
+    return;
+  }
 
   CallExpr*      moveStmt = toCallExpr(newExpr->parentExpr);
   AggregateType* rootType = at->getRootInstantiation();
