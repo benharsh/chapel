@@ -241,17 +241,25 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
     stmt->insertBefore(new CallExpr(PRIM_MOVE, new_temp, newExpr));
     resolveCall(newExpr);
     call->remove();
+    tmp->defPoint->remove(); // only used for 'init' call
   } else {
     AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
     newExpr->setResolvedFunction(call->resolvedFunction());
     newExpr->insertAtHead(new SymExpr(tmp));
     newExpr->insertAtHead(new SymExpr(gMethodToken));
+    if (newExpr->numActuals() != newExpr->resolvedFunction()->numFormals()) {
+      CallInfo info;
+      info.isWellFormed(newExpr);
+      wrapAndCleanUpActuals(newExpr->resolvedFunction(), info, actualIdxToFormal, false);
+    }
+
     newExpr->replace(new SymExpr(tmp));
     stmt->insertBefore(newExpr);
     if (at->hasPostInitializer()) {
       stmt->insertBefore(new CallExpr("postinit", gMethodToken, tmp));
     }
     call->remove();
+    tmp->type = newExpr->resolvedFunction()->_this->getValType();
   }
 
   if (isCallExpr(stmt) && toCallExpr(stmt)->isPrimitive(PRIM_NOOP)) {
