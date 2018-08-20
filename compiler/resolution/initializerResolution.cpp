@@ -200,11 +200,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
   newExpr->get(1)->remove();
 
   Expr* stmt = newExpr->getStmtExpr();
-  if (isBlockStmt(newExpr->parentExpr)) {
-    Expr* noop = new CallExpr(PRIM_NOOP);
-    stmt->insertAfter(noop);
-    stmt = noop;
-  }
   VarSymbol* tmp = newTemp("initTemp", at);
   CallExpr* call = new CallExpr("init", gMethodToken, new NamedExpr("this", new SymExpr(tmp)));
   for (int i = 0; i < newExpr->numActuals(); i++) {
@@ -233,37 +228,56 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
 
   if (isPromotionRequired(call->resolvedFunction(), info, actualIdxToFormal)) {
     FnSymbol* newWrapper = buildNewWrapper(call->resolvedFunction());
-    newExpr->setResolvedFunction(newWrapper);
-    newExpr->insertAtHead(new SymExpr(call->resolvedFunction()->_this->getValType()->symbol));
+    TypeSymbol* ts = call->resolvedFunction()->_this->getValType()->symbol;
+    call->setResolvedFunction(newWrapper);
+    call->get(2)->remove(); // 'this'
+    call->get(1)->remove(); // '_mt'
+    call->insertAtHead(new SymExpr(ts));
+
     VarSymbol* new_temp = newTemp("new_temp");
-    newExpr->replace(new SymExpr(new_temp));
+    if (stmt == newExpr) {
+      newExpr->insertAfter(new SymExpr(new_temp));
+    } else {
+      newExpr->replace(new SymExpr(new_temp));
+      stmt->insertBefore(newExpr);
+    }
+    CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove()); 
     stmt->insertBefore(new DefExpr(new_temp));
-    stmt->insertBefore(new CallExpr(PRIM_MOVE, new_temp, newExpr));
-    resolveCall(newExpr);
-    call->remove();
+    stmt->insertBefore(newMove);
+    resolveCall(call);
+    newExpr->convertToNoop();
+    resolveFunction(call->resolvedFunction());
+    resolveCall(newMove);
     tmp->defPoint->remove(); // only used for 'init' call
+
+    if (stmt == newExpr) {
+      // For new-exprs in a formal's typeExpr we need to insert an initCopy
+      BlockStmt* block = toBlockStmt(stmt->parentExpr);
+      SymExpr* se = toSymExpr(block->body.tail);
+      INT_ASSERT(se->symbol() == new_temp);
+      se->replace(new CallExpr("chpl__initCopy", new SymExpr(new_temp)));
+    }
   } else {
     AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
-    newExpr->setResolvedFunction(call->resolvedFunction());
-    newExpr->insertAtHead(new SymExpr(tmp));
-    newExpr->insertAtHead(new SymExpr(gMethodToken));
-    if (newExpr->numActuals() != newExpr->resolvedFunction()->numFormals()) {
-      CallInfo info;
-      info.isWellFormed(newExpr);
-      wrapAndCleanUpActuals(newExpr->resolvedFunction(), info, actualIdxToFormal, false);
+    //newExpr->setResolvedFunction(call->resolvedFunction());
+    //newExpr->insertAtHead(new SymExpr(tmp));
+    //newExpr->insertAtHead(new SymExpr(gMethodToken));
+    if (call->numActuals() != call->resolvedFunction()->numFormals()) {
+      wrapAndCleanUpActuals(call->resolvedFunction(), info, actualIdxToFormal, false);
     }
 
-    newExpr->replace(new SymExpr(tmp));
-    stmt->insertBefore(newExpr);
+    if (stmt == newExpr) {
+      newExpr->insertAfter(new SymExpr(tmp));
+    } else {
+      newExpr->replace(new SymExpr(tmp));
+      stmt->insertBefore(newExpr);
+    }
     if (at->hasPostInitializer()) {
       stmt->insertBefore(new CallExpr("postinit", gMethodToken, tmp));
     }
-    call->remove();
-    tmp->type = newExpr->resolvedFunction()->_this->getValType();
-  }
-
-  if (isCallExpr(stmt) && toCallExpr(stmt)->isPrimitive(PRIM_NOOP)) {
-    stmt->remove();
+    //call->remove();
+    newExpr->convertToNoop();
+    tmp->type = call->resolvedFunction()->_this->getValType();
   }
 
 //  wrap = wrapAndCleanUpActuals(call->resolvedFunction(),
