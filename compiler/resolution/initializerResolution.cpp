@@ -195,21 +195,34 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
 //       move x, initTemp;
 FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
   INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
-
   AggregateType* at = resolveNewFindType(newExpr);
+
+  Expr* modToken = NULL;
+  Expr* modValue = NULL;
+  if (SymExpr* se = toSymExpr(newExpr->get(1))) {
+    if (se->symbol() == gModuleToken) {
+      modValue = newExpr->get(2)->remove();
+      modToken = newExpr->get(1)->remove();
+    }
+  }
+
   newExpr->get(1)->remove();
 
   Expr* stmt = newExpr->getStmtExpr();
   VarSymbol* tmp = newTemp("initTemp", at);
   CallExpr* call = new CallExpr("init", gMethodToken, new NamedExpr("this", new SymExpr(tmp)));
-  for (int i = 0; i < newExpr->numActuals(); i++) {
-    call->insertAtTail(newExpr->get(1)->copy());
+  for (int i = 1; i <= newExpr->numActuals(); i++) {
+    call->insertAtTail(newExpr->get(i)->copy());
   }
   stmt->insertBefore(new DefExpr(tmp));
   stmt->insertBefore(call);
 
+  if (modToken != NULL) {
+    call->insertAtHead(modValue);
+    call->insertAtHead(modToken);
+  }
+
   if (isRecord(at) && at->isGeneric()) {
-    gdbShouldBreakHere();
     tmp->addFlag(FLAG_DELAY_GENERIC_EXPANSION);
     //resolveGenericActuals(call);
   }
