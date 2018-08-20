@@ -31,4 +31,8 @@ FnSymbol* wrapAndCleanUpActuals(FnSymbol*               fn,
                                 std::vector<ArgSymbol*> actualIdxToFormal,
                                 bool                    fastFollowerChecks);
 
+bool isPromotionRequired(FnSymbol* fn,
+                         CallInfo& info, 
+                         std::vector<ArgSymbol*>& actualIdxToFormal);
+
 #endif

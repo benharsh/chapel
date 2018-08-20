@@ -47,6 +47,13 @@ static void resolveInitializerMatch(FnSymbol* fn);
 
 static void makeRecordInitWrappers(CallExpr* call);
 
+static void makeActualsVector(const CallInfo&          info,
+                              std::vector<ArgSymbol*>& actualIdxToFormal);
+
+static AggregateType* resolveNewFindType(CallExpr* newExpr);
+
+static SymExpr* resolveNewFindTypeExpr(CallExpr* newExpr);
+
 /************************************* | **************************************
 *                                                                             *
 *                                                                             *
@@ -67,7 +74,7 @@ FnSymbol* resolveInitializer(CallExpr* call) {
 
     resolveInitializerMatch(call->resolvedFunction());
 
-    if (isGenericRecord(call->get(2)->typeInfo())) {
+    if (isGenericRecord(call->get(2)->typeInfo()) && call->getModule()->modTag != MOD_USER) {
       SymExpr* namedSe = NULL;
 
       // There are two cases for generic records
@@ -99,6 +106,168 @@ FnSymbol* resolveInitializer(CallExpr* call) {
   callStack.pop();
 
   return retval;
+}
+
+static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
+  AggregateType* type = toAggregateType(initFn->_this->getValType());
+  //if (newWrapperMap.find(initFn) != newWrapperMap.end()) {
+  //  return newWrapperMap[initFn];
+  //}
+
+  FnSymbol* fn = new FnSymbol(astrNew);
+  BlockStmt* body = fn->body;
+  VarSymbol* initTemp = newTemp("initTemp", type);
+  CallExpr* innerInit = new CallExpr(initFn, gMethodToken, initTemp);
+  ArgSymbol* chpl_t = new ArgSymbol(INTENT_BLANK, "chpl_t", type);
+
+  chpl_t->addFlag(FLAG_TYPE_VARIABLE);
+
+  fn->addFlag(FLAG_NEW_WRAPPER);
+  fn->addFlag(FLAG_COMPILER_GENERATED);
+  fn->addFlag(FLAG_LAST_RESORT);
+  fn->addFlag(FLAG_INSERT_LINE_FILE_INFO);
+  fn->addFlag(FLAG_ALWAYS_PROPAGATE_LINE_FILE_INFO);
+
+  if (initFn->hasFlag(FLAG_SUPPRESS_LVALUE_ERRORS)) {
+    fn->addFlag(FLAG_SUPPRESS_LVALUE_ERRORS);
+  }
+
+  fn->insertFormalAtTail(chpl_t);
+
+  for_formals(formal, initFn) {
+    if (formal != initFn->_this && formal->type != dtMethodToken) {
+      ArgSymbol* newArg = formal->copy();
+      fn->insertFormalAtTail(newArg);
+      
+      if (newArg->variableExpr != NULL) {
+        innerInit->insertAtTail(new CallExpr(PRIM_TUPLE_EXPAND, newArg));
+      } else {
+        innerInit->insertAtTail(new SymExpr(newArg));
+      }
+    }
+  }
+
+  //CallExpr* allocCall = callChplHereAlloc(type);
+  body->insertAtTail(new DefExpr(initTemp));
+  //body->insertAtTail(new CallExpr(PRIM_MOVE, initTemp, allocCall));
+  //body->insertAtTail(new CallExpr(PRIM_SETCID, initTemp));
+  body->insertAtTail(innerInit);
+
+  if (type->hasPostInitializer() == true) {
+    body->insertAtTail(new CallExpr("postinit", gMethodToken, initTemp));
+  }
+
+  VarSymbol* result = newTemp();
+  CallExpr* finalMove = new CallExpr(PRIM_MOVE, result, initTemp);
+  body->insertAtTail(new DefExpr(result));
+  body->insertAtTail(finalMove);
+
+  //Expr* last = body->body.tail;
+  body->insertAtTail(new CallExpr(PRIM_RETURN, result));
+
+  type->symbol->defPoint->insertBefore(new DefExpr(fn));
+  
+  //resolveNewManaged(finalMove, innerInit, last, type, dtUnmanaged);
+
+  normalize(fn);
+
+  //newWrapperMap[initFn] = fn;
+
+  return fn;
+}
+//
+// Records:
+//   move x, new R(...);
+//     normally:
+//       def initTemp : R;
+//       init(initTemp, ...);
+//       postinit(initTemp);
+//       move x, initTemp
+//     promotion:
+//       fn _new(chpl_t:R, ...) {
+//         def tmp : chpl_t;
+//         init(tmp, ...);
+//         postinit(tmp);
+//         return tmp;
+//       }
+//       def initTemp;
+//       move initTemp, _new(R, ...);
+//       move x, initTemp;
+FnSymbol* resolveNewInitializer(CallExpr* newExpr) {
+  INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
+
+  AggregateType* at = resolveNewFindType(newExpr);
+  newExpr->get(1)->remove();
+
+  Expr* stmt = newExpr->getStmtExpr();
+  if (isBlockStmt(newExpr->parentExpr)) {
+    Expr* noop = new CallExpr(PRIM_NOOP);
+    stmt->insertAfter(noop);
+    stmt = noop;
+  }
+  VarSymbol* tmp = newTemp("initTemp", at);
+  CallExpr* call = new CallExpr("init", gMethodToken, new NamedExpr("this", new SymExpr(tmp)));
+  for (int i = 0; i < newExpr->numActuals(); i++) {
+    call->insertAtTail(newExpr->get(1)->copy());
+  }
+  stmt->insertBefore(new DefExpr(tmp));
+  stmt->insertBefore(call);
+
+  if (isRecord(at) && at->isGeneric()) {
+    gdbShouldBreakHere();
+    tmp->addFlag(FLAG_DELAY_GENERIC_EXPANSION);
+    //resolveGenericActuals(call);
+  }
+
+  // Find the correct 'init' function without wrapping/promoting
+  resolveInitializer(call);
+
+  CallInfo info;
+  if (info.isWellFormed(call) == false) {
+    info.haltNotWellFormed();
+  }
+
+  std::vector<ArgSymbol*> actualIdxToFormal;
+
+  makeActualsVector(info, actualIdxToFormal);
+
+  if (isPromotionRequired(call->resolvedFunction(), info, actualIdxToFormal)) {
+    FnSymbol* newWrapper = buildNewWrapper(call->resolvedFunction());
+    newExpr->setResolvedFunction(newWrapper);
+    newExpr->insertAtHead(new SymExpr(call->resolvedFunction()->_this->getValType()->symbol));
+    VarSymbol* new_temp = newTemp("new_temp");
+    newExpr->replace(new SymExpr(new_temp));
+    stmt->insertBefore(new DefExpr(new_temp));
+    stmt->insertBefore(new CallExpr(PRIM_MOVE, new_temp, newExpr));
+    resolveCall(newExpr);
+    call->remove();
+  } else {
+    AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
+    newExpr->setResolvedFunction(call->resolvedFunction());
+    newExpr->insertAtHead(new SymExpr(tmp));
+    newExpr->insertAtHead(new SymExpr(gMethodToken));
+    newExpr->replace(new SymExpr(tmp));
+    stmt->insertBefore(newExpr);
+    if (at->hasPostInitializer()) {
+      stmt->insertBefore(new CallExpr("postinit", gMethodToken, tmp));
+    }
+    call->remove();
+  }
+
+  if (isCallExpr(stmt) && toCallExpr(stmt)->isPrimitive(PRIM_NOOP)) {
+    stmt->remove();
+  }
+
+//  wrap = wrapAndCleanUpActuals(call->resolvedFunction(),
+//                               info,
+//                               actualIdxToFormal,
+//                               true);
+//
+//  call->baseExpr->replace(new SymExpr(wrap));
+//
+//  resolveFunction(wrap);
+//
+  return NULL;
 }
 
 /************************************* | **************************************
@@ -267,7 +436,7 @@ static bool resolveInitializerBody(FnSymbol* fn);
 
 static void resolveInitializerMatch(FnSymbol* fn) {
   if (fn->isResolved() == false) {
-    AggregateType* at = toAggregateType(fn->_this->type);
+    AggregateType* at = toAggregateType(fn->_this->getValType());
 
     if (fn->id == breakOnResolveID) {
       printf("breaking on resolve fn %s[%d] (%d args)\n",
@@ -343,9 +512,6 @@ static bool resolveInitializerBody(FnSymbol* fn) {
 * will be created for it, so we don't need to wrap the initializer itself.    *
 *                                                                             *
 ************************************** | *************************************/
-
-static void makeActualsVector(const CallInfo&          info,
-                              std::vector<ArgSymbol*>& actualIdxToFormal);
 
 static void makeRecordInitWrappers(CallExpr* call) {
   CallInfo info;
@@ -466,3 +632,33 @@ static void makeActualsVector(const CallInfo&          info,
   }
 }
 
+static AggregateType* resolveNewFindType(CallExpr* newExpr) {
+  SymExpr* typeExpr = resolveNewFindTypeExpr(newExpr);
+  Type*    type     = resolveTypeAlias(typeExpr);
+
+  return toAggregateType(type);
+}
+
+// Find the SymExpr for the type.
+//   1) Common case  :- primNew(Type, arg1, ...);
+//   2) Module scope :- primNew(module=, moduleName, Type, arg1, ...);
+//   3) Nested call  :- primNew(Inner(_mt, this), arg1, ...);
+static SymExpr* resolveNewFindTypeExpr(CallExpr* newExpr) {
+  SymExpr* retval = NULL;
+
+  if (SymExpr* se = toSymExpr(newExpr->get(1))) {
+    if (se->symbol() != gModuleToken) {
+      retval = se;
+
+    } else {
+      retval = toSymExpr(newExpr->get(3));
+    }
+
+  } else if (CallExpr* partial = toCallExpr(newExpr->get(1))) {
+    if (SymExpr* se = toSymExpr(partial->baseExpr)) {
+      retval = partial->partialTag ? se : NULL;
+    }
+  }
+
+  return retval;
+}

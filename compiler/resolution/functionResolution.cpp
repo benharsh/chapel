@@ -6374,6 +6374,12 @@ static void resolveNewHandleNonGenericClass(CallExpr* newExpr, Type* manager) {
 
 static void resolveNewHandleNonGenericRecord(CallExpr* newExpr) {
   AggregateType* at     = resolveNewFindType(newExpr);
+
+  if (newExpr->getModule()->modTag == MOD_USER) {
+    resolveNewInitializer(newExpr);
+    return;
+  }
+
   VarSymbol*     newTmp = newTemp("new_temp", at);
   Expr* modToken = NULL;
   Expr* modValue = NULL;
@@ -6488,6 +6494,10 @@ static void resolveNewHandleGenericClass(CallExpr* newExpr, Type* manager) {
 }
 
 static void resolveNewHandleGenericRecord(CallExpr* newExpr) {
+  if (newExpr->getModule()->modTag == MOD_USER) {
+    resolveNewInitializer(newExpr);
+    return;
+  }
   AggregateType* at       = resolveNewFindType(newExpr);
   AggregateType* rootType = at->getRootInstantiation();
   VarSymbol*     initTemp = newTemp("initTemp", rootType);
@@ -6512,6 +6522,7 @@ static void resolveNewRecordPrologue(CallExpr* newExpr, VarSymbol* newTmp) {
     moveStmt->insertAtTail(newTmp);
 
   } else {
+    gdbShouldBreakHere();
     // The parent is a BlockStmt
     newExpr->insertBefore(def);
 
