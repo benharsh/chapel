@@ -178,6 +178,8 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   body->insertAtTail(new CallExpr(PRIM_RETURN, result));
 
   type->symbol->defPoint->insertBefore(new DefExpr(fn));
+
+  fn->setInstantiationPoint(initFn->instantiationPoint());
   
   //resolveNewManaged(finalMove, innerInit, last, type, dtUnmanaged);
 
