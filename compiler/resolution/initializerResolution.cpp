@@ -137,9 +137,11 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
 
   fn->insertFormalAtTail(chpl_t);
 
+  SymbolMap initToNewMap;
   for_formals(formal, initFn) {
     if (formal != initFn->_this && formal->type != dtMethodToken) {
       ArgSymbol* newArg = formal->copy();
+      initToNewMap.put(formal, newArg);
       fn->insertFormalAtTail(newArg);
       
       if (newArg->variableExpr != NULL) {
@@ -147,8 +149,14 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
       } else {
         innerInit->insertAtTail(new SymExpr(newArg));
       }
+
+      if (newArg->hasFlag(FLAG_INSTANTIATED_PARAM)) {
+        paramMap.put(newArg, paramMap.get(formal));
+      }
     }
   }
+
+  update_symbols(fn, &initToNewMap);
 
   //CallExpr* allocCall = callChplHereAlloc(type);
   body->insertAtTail(new DefExpr(initTemp));
@@ -211,6 +219,7 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
 FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
   AggregateType* at = resolveNewFindType(newExpr);
+  AggregateType* rootType = at->getRootInstantiation();
   //if (isClass(at)) gdbShouldBreakHere();
 
   Expr* modToken = NULL;
@@ -225,7 +234,7 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   newExpr->get(1)->remove();
 
   Expr* stmt = newExpr->getStmtExpr();
-  VarSymbol* tmp = newTemp("initTemp", at);
+  VarSymbol* tmp = newTemp("initTemp", rootType);
   CallExpr* call = new CallExpr("init", gMethodToken, new NamedExpr("this", new SymExpr(tmp)));
   for (int i = 1; i <= newExpr->numActuals(); i++) {
     call->insertAtTail(newExpr->get(i)->copy());
@@ -238,7 +247,7 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     call->insertAtHead(modToken);
   }
 
-  if (isRecord(at) && at->isGeneric()) {
+  if (rootType->isGeneric()) {
     tmp->addFlag(FLAG_DELAY_GENERIC_EXPANSION);
     //resolveGenericActuals(call);
   }
