@@ -1000,6 +1000,7 @@ static bool isCompoundAssignment(CallExpr* callExpr) {
 ************************************** | *************************************/
 
 FnSymbol* buildClassAllocator(FnSymbol* initMethod) {
+  return NULL;
   Symbol*        _this       = initMethod->_this;
   AggregateType* at          = toAggregateType(_this->type);
 
