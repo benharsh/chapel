@@ -76,7 +76,7 @@ FnSymbol* resolveInitializer(CallExpr* call) {
 
     resolveInitializerMatch(call->resolvedFunction());
 
-    if (isGenericRecord(call->get(2)->typeInfo()) && call->getModule()->modTag != MOD_USER) {
+    if (isGenericRecord(call->get(2)->typeInfo())) {
       SymExpr* namedSe = NULL;
 
       // There are two cases for generic records
@@ -253,7 +253,9 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   }
 
   // Find the correct 'init' function without wrapping/promoting
-  resolveInitializer(call);
+  resolveInitCall(call);
+  resolveInitializerMatch(call->resolvedFunction());
+  tmp->type = call->resolvedFunction()->_this->getValType();
 
   CallInfo info;
   if (info.isWellFormed(call) == false) {
@@ -360,9 +362,9 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     //newExpr->setResolvedFunction(call->resolvedFunction());
     //newExpr->insertAtHead(new SymExpr(tmp));
     //newExpr->insertAtHead(new SymExpr(gMethodToken));
-    if (call->numActuals() != call->resolvedFunction()->numFormals()) {
+    //if (call->numActuals() != call->resolvedFunction()->numFormals()) {
       wrapAndCleanUpActuals(call->resolvedFunction(), info, actualIdxToFormal, false);
-    }
+   // }
 
     if (stmt == newExpr) {
       newExpr->insertAfter(new SymExpr(tmp));
