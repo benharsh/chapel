@@ -249,13 +249,28 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
 
   if (rootType->isGeneric()) {
     tmp->addFlag(FLAG_DELAY_GENERIC_EXPANSION);
-    //resolveGenericActuals(call);
+    resolveGenericActuals(call);
   }
 
   // Find the correct 'init' function without wrapping/promoting
   resolveInitCall(call);
   resolveInitializerMatch(call->resolvedFunction());
   tmp->type = call->resolvedFunction()->_this->getValType();
+  resolveTypeWithInitializer(toAggregateType(tmp->type), call->resolvedFunction());
+
+  if (at->instantiatedFrom != NULL) {
+    if (tmp->type != at) {
+      USR_FATAL_CONT(newExpr,
+                     "Best initializer match doesn't work for generic "
+                     "instantiation %s",
+                     at->symbol->name);
+      USR_PRINT(call->resolvedFunction(),
+                "Best initializer match was defined here, and generated "
+                "instantiation %s",
+                tmp->type->symbol->name);
+      USR_STOP();
+    }
+  }
 
   CallInfo info;
   if (info.isWellFormed(call) == false) {
@@ -291,7 +306,19 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
         stmt->insertBefore(newExpr);
       }
 
-      CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove()); 
+      Expr* last = call->remove();
+      if (isClass(at) && manager == NULL && fLegacyNew == true && fDefaultUnmanaged == false) {
+        BlockStmt* temp = new BlockStmt(BLOCK_SCOPELESS);
+        VarSymbol* borrowTemp = newTemp("borrowTemp");
+        temp->insertAtTail(new DefExpr(borrowTemp));
+        temp->insertAtTail(new CallExpr(PRIM_MOVE, borrowTemp, new CallExpr(PRIM_TO_BORROWED_CLASS, last)));
+        stmt->insertBefore(temp);
+        normalize(temp);
+        resolveBlockStmt(temp);
+        last = new SymExpr(borrowTemp);
+      }
+
+      CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, last); 
       stmt->insertBefore(new DefExpr(new_temp));
       stmt->insertBefore(newMove);
       resolveCall(call);
@@ -374,7 +401,9 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     }
 
     if (at->hasPostInitializer()) {
-      stmt->insertBefore(new CallExpr("postinit", gMethodToken, tmp));
+      CallExpr* postinit = new CallExpr("postinit", gMethodToken, tmp);
+      stmt->insertBefore(postinit);
+      resolveCallAndCallee(postinit);
     }
 
     //call->remove();
@@ -570,7 +599,7 @@ static void resolveInitializerMatch(FnSymbol* fn) {
 
     insertFormalTemps(fn);
 
-    if (at->isRecord() == true) {
+    if (at->isRecord() || at->isUnion()) {
       at->setFirstGenericField();
 
       resolveInitializerBody(fn);

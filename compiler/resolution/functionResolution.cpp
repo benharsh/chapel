@@ -179,7 +179,6 @@ static void resolveMove(CallExpr* call);
 static void resolveNew(CallExpr* call);
 static void temporaryInitializerFixup(CallExpr* call);
 static void resolveCoerce(CallExpr* call);
-static void resolveGenericActuals(CallExpr* call);
 static void resolveAutoCopyEtc(AggregateType* at);
 
 static Expr* foldTryCond(Expr* expr);
@@ -5802,9 +5801,9 @@ static void resolveNewSetupManaged(CallExpr* newExpr, Type*& manager);
 
 static void resolveNewManaged(CallExpr* move, CallExpr* newExpr, Expr* last, AggregateType* at, Type* manager);
 
-static void handleUnstableNewError(CallExpr* newExpr);
+static void handleUnstableNewError(CallExpr* newExpr, Type* newType);
 
-static bool isUndecoratedClassNew(CallExpr* newExpr);
+static bool isUndecoratedClassNew(CallExpr* newExpr, Type* newType);
 
 static void resolveNew(CallExpr* newExpr) {
 
@@ -5895,7 +5894,7 @@ static void resolveNewSetupManaged(CallExpr* newExpr, Type*& manager) {
           manager = type;
         } else if (isUnmanagedClassType(type)) {
           manager = dtUnmanaged;
-        } else if (isClass(type) && isUndecoratedClassNew(newExpr)) {
+        } else if (isClass(type) && isUndecoratedClassNew(newExpr, type)) {
           if (fLegacyNew == false && fDefaultUnmanaged == false) {
             gdbShouldBreakHere();
             USR_WARN(newExpr, "result of new %s is now managed by default",
@@ -5948,7 +5947,7 @@ static void resolveNewSetupManaged(CallExpr* newExpr, Type*& manager) {
       }
       if (manager == NULL && fWarnUnstable)
         // Generate an error on 'new MyClass' with fWarnUnstable
-        handleUnstableNewError(newExpr);
+        handleUnstableNewError(newExpr, type);
     }
   }
 }
@@ -6086,9 +6085,8 @@ static void resolveNewManaged(CallExpr* move, CallExpr* newExpr, Expr* last,
   }
 }
 
-static void handleUnstableNewError(CallExpr* newExpr) {
-  Type* newType = newExpr->typeInfo();
-  if (isUndecoratedClassNew(newExpr)) {
+static void handleUnstableNewError(CallExpr* newExpr, Type* newType) {
+  if (isUndecoratedClassNew(newExpr, newType)) {
     USR_WARN(newExpr, "new %s is unstable", newType->symbol->name);
     USR_PRINT(newExpr, "use 'new unmanaged %s' "
                        "'new owned %s' "
@@ -6101,9 +6099,8 @@ static void handleUnstableNewError(CallExpr* newExpr) {
   }
 }
 
-static bool isUndecoratedClassNew(CallExpr* newExpr) {
+static bool isUndecoratedClassNew(CallExpr* newExpr, Type* newType) {
   INT_ASSERT(newExpr->parentSymbol);
-  Type* newType = newExpr->typeInfo();
   if (isClass(newType) &&
       !isReferenceType(newType) &&
       !newType->symbol->hasFlag(FLAG_DATA_CLASS) &&
@@ -6419,7 +6416,7 @@ Type* resolveDefaultGenericTypeSymExpr(SymExpr* se) {
   return resolveGenericActual(se);
 }
 
-static void resolveGenericActuals(CallExpr* call) {
+void resolveGenericActuals(CallExpr* call) {
   SET_LINENO(call);
 
   for_actuals(actual, call) {
@@ -8842,6 +8839,7 @@ static void removeUnusedFunctions() {
 static void removeUnusedTypes() {
   // Remove unused aggregate types.
   forv_Vec(TypeSymbol, type, gTypeSymbols) {
+    if (strcmp(type->name, "R") == 0) gdbShouldBreakHere();
     if (type->inTree()                                  &&
         type->hasFlag(FLAG_REF)                == false &&
         type->hasFlag(FLAG_RUNTIME_TYPE_VALUE) == false) {
