@@ -129,12 +129,19 @@ module OwnedObject {
 
        :arg p: the class instance to manage. Must be of class type.
      */
-    proc init(p:unmanaged) {
+    proc init(p:borrowed) {
       this.t = _to_borrowed(p.type);
 
       if !isClass(p) then
         compilerError("Owned only works with classes");
 
+      this.p = p;
+    }
+
+    proc init(p:?T) where isClass(T) == false && isSubtype(T, _owned) == false  &&
+                    isIterator(p) == false {
+      compilerError("Owned only works with classes");
+      this.t = T;
       this.p = p;
     }
 

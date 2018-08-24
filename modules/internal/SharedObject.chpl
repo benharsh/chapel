@@ -123,7 +123,7 @@ module SharedObject {
 
        :arg p: the class instance to manage. Must be of class type.
      */
-    proc init(p : unmanaged) {
+    proc init(p : borrowed) {
       this.t = _to_borrowed(p.type);
 
       // Boost version default-initializes px and pn
@@ -146,6 +146,13 @@ module SharedObject {
       // enable_shared_from_this to record a weak pointer back to the
       // shared pointer. That would need to be handled in a Phase 2
       // since it would refer to `this` as a whole here.
+    }
+
+    proc init(p: ?T) where isClass(T) == false && isSubtype(T, _shared) == false && 
+                     isIterator(p) == false {
+      compilerError("Shared only works with classes");
+      this.t = T;
+      this.p = p;
     }
 
     /*
