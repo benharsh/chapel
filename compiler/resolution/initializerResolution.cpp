@@ -374,7 +374,9 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     tmp->defPoint->insertAfter(newExpr->remove());
     tmp->defPoint->remove(); // only used for 'init' call
     newExpr->convertToNoop();
-    lastExpr->getStmtExpr()->insertBefore(newExpr->remove());
+    if (lastExpr != newExpr) {
+      lastExpr->getStmtExpr()->insertBefore(newExpr->remove());
+    }
 
     if (inBlockStmt) {
       // For new-exprs in a formal's typeExpr we need to insert an initCopy
