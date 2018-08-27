@@ -296,15 +296,18 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     }
 
     bool inBlockStmt = stmt == newExpr;
+    Expr* lastExpr = NULL;
 
     if (isRecord(at) || isManagedPtrType(manager) == false) {
       VarSymbol* new_temp = newTemp("new_temp");
+      SymExpr* tempSE = new SymExpr(new_temp);
       if (stmt == newExpr) {
-        newExpr->insertAfter(new SymExpr(new_temp));
+        newExpr->insertAfter(tempSE);
       } else {
-        newExpr->replace(new SymExpr(new_temp));
+        newExpr->replace(tempSE);
         stmt->insertBefore(newExpr);
       }
+      lastExpr = tempSE;
 
       Expr* last = call->remove();
       if (isClass(at) && manager == NULL && fLegacyNew == true && fDefaultUnmanaged == false) {
@@ -324,6 +327,7 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
       resolveCall(call);
       resolveFunction(call->resolvedFunction());
       resolveCall(newMove);
+      lastExpr = call->getStmtExpr()->next;
     } else {
       VarSymbol* new_temp = newTemp("new_temp");
       CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove()); 
@@ -355,6 +359,7 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
         newExpr->replace(cast);
         stmt->insertBefore(newExpr);
       }
+      lastExpr = call->getStmtExpr()->next;
       resolveExpr(cast);
     }
 
@@ -369,6 +374,7 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     tmp->defPoint->insertAfter(newExpr->remove());
     tmp->defPoint->remove(); // only used for 'init' call
     newExpr->convertToNoop();
+    lastExpr->getStmtExpr()->insertBefore(newExpr->remove());
 
     if (inBlockStmt) {
       // For new-exprs in a formal's typeExpr we need to insert an initCopy
