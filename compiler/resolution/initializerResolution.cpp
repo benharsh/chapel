@@ -110,12 +110,14 @@ FnSymbol* resolveInitializer(CallExpr* call) {
   return retval;
 }
 
+static std::map<FnSymbol*,FnSymbol*> newWrapperMap;
+
 // The '_new' wrapper for classes always returns unmanaged
 static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   AggregateType* type = toAggregateType(initFn->_this->getValType());
-  //if (newWrapperMap.find(initFn) != newWrapperMap.end()) {
-  //  return newWrapperMap[initFn];
-  //}
+  if (newWrapperMap.find(initFn) != newWrapperMap.end()) {
+    return newWrapperMap[initFn];
+  }
 
   FnSymbol* fn = new FnSymbol(astrNew);
   BlockStmt* body = fn->body;
@@ -158,7 +160,6 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
 
   update_symbols(fn, &initToNewMap);
 
-  //CallExpr* allocCall = callChplHereAlloc(type);
   body->insertAtTail(new DefExpr(initTemp));
   if (isClass(type)) {
     body->insertAtTail(new CallExpr(PRIM_MOVE, initTemp, callChplHereAlloc(type)));
@@ -182,40 +183,19 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   body->insertAtTail(new DefExpr(result));
   body->insertAtTail(finalMove);
 
-  //Expr* last = body->body.tail;
   body->insertAtTail(new CallExpr(PRIM_RETURN, result));
 
   type->symbol->defPoint->insertBefore(new DefExpr(fn));
 
   fn->setInstantiationPoint(initFn->instantiationPoint());
-  
-  //resolveNewManaged(finalMove, innerInit, last, type, dtUnmanaged);
 
   normalize(fn);
 
-  //newWrapperMap[initFn] = fn;
+  newWrapperMap[initFn] = fn;
 
   return fn;
 }
 
-//
-// Records:
-//   move x, new R(...);
-//     normally:
-//       def initTemp : R;
-//       init(initTemp, ...);
-//       postinit(initTemp);
-//       move x, initTemp
-//     promotion:
-//       fn _new(chpl_t:R, ...) {
-//         def tmp : chpl_t;
-//         init(tmp, ...);
-//         postinit(tmp);
-//         return tmp;
-//       }
-//       def initTemp;
-//       move initTemp, _new(R, ...);
-//       move x, initTemp;
 FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
   AggregateType* at = resolveNewFindType(newExpr);
@@ -363,14 +343,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
       resolveExpr(cast);
     }
 
-    //CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove()); 
-    //stmt->insertBefore(new DefExpr(new_temp));
-    //stmt->insertBefore(newMove);
-    //resolveCall(call);
-    //resolveFunction(call->resolvedFunction());
-    //resolveCall(newMove);
-
-
     tmp->defPoint->insertAfter(newExpr->remove());
     tmp->defPoint->remove(); // only used for 'init' call
     newExpr->convertToNoop();
@@ -389,17 +361,10 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
         normalize(tempMove);
         tail->replace(new SymExpr(ir_temp));
       }
-      //SymExpr* se = toSymExpr(block->body.tail);
-      //se->replace(new CallExpr("chpl__initCopy", new SymExpr(se->symbol())));
     }
   } else {
     AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
-    //newExpr->setResolvedFunction(call->resolvedFunction());
-    //newExpr->insertAtHead(new SymExpr(tmp));
-    //newExpr->insertAtHead(new SymExpr(gMethodToken));
-    //if (call->numActuals() != call->resolvedFunction()->numFormals()) {
-      wrapAndCleanUpActuals(call->resolvedFunction(), info, actualIdxToFormal, false);
-   // }
+    wrapAndCleanUpActuals(call->resolvedFunction(), info, actualIdxToFormal, false);
 
     if (stmt == newExpr) {
       newExpr->insertAfter(new SymExpr(tmp));
@@ -414,20 +379,10 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
       resolveCallAndCallee(postinit);
     }
 
-    //call->remove();
     newExpr->convertToNoop();
     tmp->type = call->resolvedFunction()->_this->getValType();
   }
 
-//  wrap = wrapAndCleanUpActuals(call->resolvedFunction(),
-//                               info,
-//                               actualIdxToFormal,
-//                               true);
-//
-//  call->baseExpr->replace(new SymExpr(wrap));
-//
-//  resolveFunction(wrap);
-//
   return NULL;
 }
 
