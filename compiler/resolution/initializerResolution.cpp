@@ -200,7 +200,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
   AggregateType* at = resolveNewFindType(newExpr);
   AggregateType* rootType = at->getRootInstantiation();
-  //if (isClass(at)) gdbShouldBreakHere();
 
   Expr* modToken = NULL;
   Expr* modValue = NULL;
@@ -272,44 +271,29 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
     stmt->insertBefore(block);
 
+    tmp->defPoint->remove();
+
     bool getBorrow = false;
     if (manager == dtBorrowed) {
       manager = dtOwned;
       getBorrow = true;
     }
 
-    bool inBlockStmt = stmt == newExpr;
-    Expr* lastExpr = NULL;
+    // If the default value for a formal is a new-expression, the final
+    // statement in the BlockStmt will be a PRIM_NEW.
+    bool inArgSymbol = stmt == newExpr && isArgSymbol(stmt->parentSymbol);
+
+    VarSymbol* new_temp = newTemp("new_temp");
+    block->insertAtTail(new DefExpr(new_temp));
 
     if (isRecord(at)) {
-      VarSymbol* new_temp = newTemp("new_temp");
       CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove());
-      block->insertAtTail(new DefExpr(new_temp));
       block->insertAtTail(newMove);
       newExpr->replace(new SymExpr(new_temp));
-      block->insertAfter(newExpr);
-      resolveBlockStmt(block);
-      newExpr->convertToNoop();
-
-      if (inBlockStmt) {
-        // For new-exprs in a formal's typeExpr we need to insert an initCopy
-        BlockStmt* block = toBlockStmt(newExpr->parentExpr);
-        Expr* tail = block->body.tail;
-        if (tail->typeInfo()->symbol->hasFlag(FLAG_ITERATOR_RECORD)) {
-          VarSymbol* ir_temp = newTemp("ir_temp");
-          CallExpr* tempMove = new CallExpr(PRIM_MOVE, ir_temp, new CallExpr("chpl__initCopy", tail->copy())); 
-          tail->insertBefore(tempMove);
-          normalize(tempMove);
-          tail->replace(new SymExpr(ir_temp));
-        }
-      }
-
-      return NULL;
 
     } else if (isManagedPtrType(manager) == false) {
-      VarSymbol* new_temp = newTemp("new_temp");
-
       Expr* new_temp_rhs = call->remove();
+
       // TODO: comment with path to weird test.
       if (isClass(at) && manager == NULL && fLegacyNew == true && fDefaultUnmanaged == false) {
         VarSymbol* borrowTemp = newTemp("borrowTemp");
@@ -320,32 +304,11 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
       }
 
       CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, new_temp_rhs);
-      block->insertAtTail(new DefExpr(new_temp));
       block->insertAtTail(newMove);
       newExpr->replace(new SymExpr(new_temp));
-      block->insertAfter(newExpr);
-      resolveBlockStmt(block);
-      newExpr->convertToNoop();
-
-      if (inBlockStmt) {
-        // For new-exprs in a formal's typeExpr we need to insert an initCopy
-        BlockStmt* block = toBlockStmt(newExpr->parentExpr);
-        Expr* tail = block->body.tail;
-        if (tail->typeInfo()->symbol->hasFlag(FLAG_ITERATOR_RECORD)) {
-          VarSymbol* ir_temp = newTemp("ir_temp");
-          CallExpr* tempMove = new CallExpr(PRIM_MOVE, ir_temp, new CallExpr("chpl__initCopy", tail->copy())); 
-          tail->insertBefore(tempMove);
-          normalize(tempMove);
-          tail->replace(new SymExpr(ir_temp));
-        }
-      }
-
-      return NULL;
 
     } else {
-      VarSymbol* new_temp = newTemp("new_temp");
       CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove());
-      block->insertAtTail(new DefExpr(new_temp));
       block->insertAtTail(newMove);
 
       CallExpr* last = new CallExpr(PRIM_NEW, manager->symbol, new_temp);
@@ -359,38 +322,16 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
       }
 
       newExpr->replace(last);
-      block->insertAfter(newExpr);
-      resolveBlockStmt(block);
-      newExpr->convertToNoop();
-      resolveExpr(last);
-
-      if (inBlockStmt) {
-        // For new-exprs in a formal's typeExpr we need to insert an initCopy
-        BlockStmt* block = toBlockStmt(newExpr->parentExpr);
-        Expr* tail = block->body.tail;
-        if (tail->typeInfo()->symbol->hasFlag(FLAG_ITERATOR_RECORD)) {
-          VarSymbol* ir_temp = newTemp("ir_temp");
-          CallExpr* tempMove = new CallExpr(PRIM_MOVE, ir_temp, new CallExpr("chpl__initCopy", tail->copy())); 
-          tail->insertBefore(tempMove);
-          normalize(tempMove);
-          tail->replace(new SymExpr(ir_temp));
-        }
-      }
-
-      block->flattenAndRemove();
-
-      return NULL;
-
     }
 
-    tmp->defPoint->insertAfter(newExpr->remove());
-    tmp->defPoint->remove(); // only used for 'init' call
+    block->insertAfter(newExpr);
+    resolveBlockStmt(block);
     newExpr->convertToNoop();
-    if (lastExpr != newExpr) {
-      lastExpr->getStmtExpr()->insertBefore(newExpr->remove());
-    }
 
-    if (inBlockStmt) {
+    // Flatten in case something in the BlockStmt needs to be auto-destroyed.
+    block->flattenAndRemove();
+
+    if (inArgSymbol) {
       // For new-exprs in a formal's typeExpr we need to insert an initCopy
       BlockStmt* block = toBlockStmt(newExpr->parentExpr);
       Expr* tail = block->body.tail;
@@ -402,6 +343,7 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
         tail->replace(new SymExpr(ir_temp));
       }
     }
+
   } else {
     AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
     wrapAndCleanUpActuals(call->resolvedFunction(), info, actualIdxToFormal, false);
