@@ -179,6 +179,7 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   } else {
     resultExpr = new SymExpr(initTemp);
   }
+
   CallExpr* finalMove = new CallExpr(PRIM_MOVE, result, resultExpr);
   body->insertAtTail(new DefExpr(result));
   body->insertAtTail(finalMove);
@@ -196,15 +197,10 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   return fn;
 }
 
-FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
-  INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
-  AggregateType* at = resolveNewFindType(newExpr);
+static CallExpr* buildInitCall(CallExpr* newExpr,
+                               AggregateType* at,
+                               BlockStmt* block) {
   AggregateType* rootType = at->getRootInstantiation();
-
-  BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
-  Expr* stmt = newExpr->getStmtExpr();
-  stmt->insertBefore(block);
-
 
   Expr* modToken = NULL;
   Expr* modValue = NULL;
@@ -222,13 +218,14 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   for (int i = 1; i <= newExpr->numActuals(); i++) {
     call->insertAtTail(newExpr->get(i)->copy());
   }
-  stmt->insertBefore(new DefExpr(tmp));
-  stmt->insertBefore(call);
 
   if (modToken != NULL) {
     call->insertAtHead(modValue);
     call->insertAtHead(modToken);
   }
+
+  block->insertAtTail(new DefExpr(tmp));
+  block->insertAtTail(call);
 
   if (rootType->isGeneric()) {
     tmp->addFlag(FLAG_DELAY_GENERIC_EXPANSION);
@@ -255,8 +252,24 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     }
   }
 
+  return call;
+}
+
+FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
+  INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
+  AggregateType* at = resolveNewFindType(newExpr);
+
+  BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
+  Expr* stmt = newExpr->getStmtExpr();
+  stmt->insertBefore(block);
+
+  CallExpr* initCall = buildInitCall(newExpr, at, block);
+  FnSymbol* initFn = initCall->resolvedFunction();
+  Symbol* initTemp = toSymExpr(toNamedExpr(initCall->get(2))->actual)->symbol();
+  AggregateType* initType = toAggregateType(initFn->_this->getValType());
+
   CallInfo info;
-  if (info.isWellFormed(call) == false) {
+  if (info.isWellFormed(initCall) == false) {
     info.haltNotWellFormed();
   }
 
@@ -264,15 +277,16 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
 
   makeActualsVector(info, actualIdxToFormal);
 
-  if (isClass(at) || isPromotionRequired(call->resolvedFunction(), info, actualIdxToFormal)) {
-    FnSymbol* newWrapper = buildNewWrapper(call->resolvedFunction());
-    TypeSymbol* ts = call->resolvedFunction()->_this->getValType()->symbol;
-    call->setResolvedFunction(newWrapper);
-    call->get(2)->remove(); // 'this'
-    call->get(1)->remove(); // '_mt'
-    call->insertAtHead(new SymExpr(ts));
+  if (isClass(at) || isPromotionRequired(initFn, info, actualIdxToFormal)) {
+    FnSymbol* newWrapper = buildNewWrapper(initFn);
 
-    tmp->defPoint->remove();
+    initCall->setResolvedFunction(newWrapper);
+    initCall->get(2)->remove(); // 'this'
+    initCall->get(1)->remove(); // '_mt'
+    initCall->insertAtHead(new SymExpr(initType->symbol));
+    CallExpr* newCall = toCallExpr(initCall->remove());
+
+    initTemp->defPoint->remove();
 
     bool getBorrow = false;
     if (manager == dtBorrowed) {
@@ -288,14 +302,15 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     block->insertAtTail(new DefExpr(new_temp));
 
     if (isRecord(at)) {
-      CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove());
+      CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, newCall);
       block->insertAtTail(newMove);
       newExpr->replace(new SymExpr(new_temp));
 
     } else if (isManagedPtrType(manager) == false) {
-      Expr* new_temp_rhs = call->remove();
+      Expr* new_temp_rhs = newCall;
 
       // TODO: comment with path to weird test.
+      // Needed for: test/compflags/ferguson/default-unmanaged.chpl
       if (isClass(at) && manager == NULL && fLegacyNew == true && fDefaultUnmanaged == false) {
         VarSymbol* borrowTemp = newTemp("borrowTemp");
         block->insertAtTail(new DefExpr(borrowTemp));
@@ -309,31 +324,35 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
       newExpr->replace(new SymExpr(new_temp));
 
     } else {
-      CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, call->remove());
+      CallExpr* newMove = new CallExpr(PRIM_MOVE, new_temp, newCall);
       block->insertAtTail(newMove);
 
-      CallExpr* last = new CallExpr(PRIM_NEW, manager->symbol, new_temp);
+      CallExpr* new_temp_rhs = new CallExpr(PRIM_NEW, manager->symbol, new_temp);
+
       if (getBorrow) {
+        // (new owned T(...)).borrow()
         VarSymbol* tmpM = newTemp("new_temp_m");
         tmpM->addFlag(FLAG_INSERT_AUTO_DESTROY);
         block->insertAtTail(new DefExpr(tmpM));
-        block->insertAtTail(new CallExpr(PRIM_INIT_VAR, tmpM, last));
+        block->insertAtTail(new CallExpr(PRIM_INIT_VAR, tmpM, new_temp_rhs));
 
-        last = new CallExpr("borrow", gMethodToken, tmpM);
+        new_temp_rhs = new CallExpr("borrow", gMethodToken, tmpM);
       }
 
-      newExpr->replace(last);
+      newExpr->replace(new_temp_rhs);
     }
 
     block->insertAfter(newExpr);
     resolveBlockStmt(block);
     newExpr->convertToNoop();
 
-    // Flatten in case something in the BlockStmt needs to be auto-destroyed.
+    // If not flattened, the hidden owned temporary for 'new borrowed' might
+    // be auto-destroyed at the end of the block.
     block->flattenAndRemove();
 
     if (inArgSymbol) {
-      // For new-exprs in a formal's typeExpr we need to insert an initCopy
+      // Need to insert an initCopy for promoted new-expressions in order to
+      // turn an iterator record into an array.
       BlockStmt* block = toBlockStmt(newExpr->parentExpr);
       Expr* tail = block->body.tail;
       if (tail->typeInfo()->symbol->hasFlag(FLAG_ITERATOR_RECORD)) {
@@ -346,13 +365,12 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     }
 
   } else {
-    AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
-    block->insertAtTail(tmp->defPoint->remove());
-    block->insertAtTail(call->remove());
-    newExpr->replace(new SymExpr(tmp));
+    block->insertAtTail(initTemp->defPoint->remove());
+    block->insertAtTail(initCall->remove());
+    newExpr->replace(new SymExpr(initTemp));
 
-    if (at->hasPostInitializer()) {
-      CallExpr* postinit = new CallExpr("postinit", gMethodToken, tmp);
+    if (initType->hasPostInitializer()) {
+      CallExpr* postinit = new CallExpr("postinit", gMethodToken, initTemp);
       block->insertAtTail(postinit);
     }
 
@@ -360,8 +378,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     resolveBlockStmt(block);
     newExpr->convertToNoop();
     block->flattenAndRemove();
-
-    tmp->type = call->resolvedFunction()->_this->getValType();
   }
 
   return NULL;
