@@ -148,7 +148,7 @@ module SharedObject {
       // since it would refer to `this` as a whole here.
     }
 
-    proc init(p: ?T) where isClass(T) == false && isSubtype(T, _shared) == false && 
+    proc init(p: ?T) where isClass(T) == false && isSubtype(T, _shared) == false &&
                      isIterator(p) == false {
       compilerError("Shared only works with classes");
       this.t = T;

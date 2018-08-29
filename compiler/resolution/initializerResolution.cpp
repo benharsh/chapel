@@ -54,8 +54,6 @@ static void makeActualsVector(const CallInfo&          info,
 
 static AggregateType* resolveNewFindType(CallExpr* newExpr);
 
-static SymExpr* resolveNewFindTypeExpr(CallExpr* newExpr);
-
 /************************************* | **************************************
 *                                                                             *
 *                                                                             *
@@ -112,7 +110,8 @@ FnSymbol* resolveInitializer(CallExpr* call) {
 
 static std::map<FnSymbol*,FnSymbol*> newWrapperMap;
 
-// The '_new' wrapper for classes always returns unmanaged
+// Note: The wrapper for classes always returns unmanaged
+// Note: A wrapper might be generated for records in the case of promotion
 static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   AggregateType* type = toAggregateType(initFn->_this->getValType());
   if (newWrapperMap.find(initFn) != newWrapperMap.end()) {
@@ -197,6 +196,13 @@ static FnSymbol* buildNewWrapper(FnSymbol* initFn) {
   return fn;
 }
 
+//
+// Builds and returns a call to an initializer based on the arguments in
+// 'newExpr'. The call will be inserted at the end of 'block'. The call and its
+// resolved function will both be resolved.
+//
+// Note: Modifies 'newExpr'
+//
 static CallExpr* buildInitCall(CallExpr* newExpr,
                                AggregateType* at,
                                BlockStmt* block) {
@@ -255,7 +261,7 @@ static CallExpr* buildInitCall(CallExpr* newExpr,
   return call;
 }
 
-FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
+void resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   INT_ASSERT(newExpr->isPrimitive(PRIM_NEW));
   AggregateType* at = resolveNewFindType(newExpr);
 
@@ -309,7 +315,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     } else if (isManagedPtrType(manager) == false) {
       Expr* new_temp_rhs = newCall;
 
-      // TODO: comment with path to weird test.
       // Needed for: test/compflags/ferguson/default-unmanaged.chpl
       if (isClass(at) && manager == NULL && fLegacyNew == true && fDefaultUnmanaged == false) {
         VarSymbol* borrowTemp = newTemp("borrowTemp");
@@ -379,8 +384,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     newExpr->convertToNoop();
     block->flattenAndRemove();
   }
-
-  return NULL;
 }
 
 /************************************* | **************************************
@@ -558,32 +561,8 @@ static void resolveInitializerMatch(FnSymbol* fn) {
     }
 
     insertFormalTemps(fn);
-
-    if (at->isRecord() || at->isUnion()) {
-      at->setFirstGenericField();
-
-      resolveInitializerBody(fn);
-
-    } else if (at->isClass() == true) {
-      //AggregateType* parent = at->dispatchParents.v[0];
-
-      //if (parent->isGeneric() == false) {
-      //  if (at->setFirstGenericField() == false) {
-      //    INT_ASSERT(false);
-      //  }
-
-      //} else {
-      //  at->setFirstGenericField();
-      //}
-      at->setFirstGenericField();
-
-      resolveInitializerBody(fn);
-
-      buildClassAllocator(fn);
-
-    } else {
-      INT_ASSERT(false);
-    }
+    at->setFirstGenericField();
+    resolveInitializerBody(fn);
   }
 }
 
@@ -747,32 +726,27 @@ static void makeActualsVector(const CallInfo&          info,
 }
 
 static AggregateType* resolveNewFindType(CallExpr* newExpr) {
-  SymExpr* typeExpr = resolveNewFindTypeExpr(newExpr);
-  Type*    type     = resolveTypeAlias(typeExpr);
+  SymExpr* typeExpr = NULL;
 
-  return toAggregateType(type);
-}
-
-// Find the SymExpr for the type.
-//   1) Common case  :- primNew(Type, arg1, ...);
-//   2) Module scope :- primNew(module=, moduleName, Type, arg1, ...);
-//   3) Nested call  :- primNew(Inner(_mt, this), arg1, ...);
-static SymExpr* resolveNewFindTypeExpr(CallExpr* newExpr) {
-  SymExpr* retval = NULL;
-
+  // Find the SymExpr for the type.
+  //   1) Common case  :- primNew(Type, arg1, ...);
+  //   2) Module scope :- primNew(module=, moduleName, Type, arg1, ...);
+  //   3) Nested call  :- primNew(Inner(_mt, this), arg1, ...);
   if (SymExpr* se = toSymExpr(newExpr->get(1))) {
     if (se->symbol() != gModuleToken) {
-      retval = se;
+      typeExpr = se;
 
     } else {
-      retval = toSymExpr(newExpr->get(3));
+      typeExpr = toSymExpr(newExpr->get(3));
     }
 
   } else if (CallExpr* partial = toCallExpr(newExpr->get(1))) {
     if (SymExpr* se = toSymExpr(partial->baseExpr)) {
-      retval = partial->partialTag ? se : NULL;
+      typeExpr = partial->partialTag ? se : NULL;
     }
   }
 
-  return retval;
+  Type*    type     = resolveTypeAlias(typeExpr);
+
+  return toAggregateType(type);
 }

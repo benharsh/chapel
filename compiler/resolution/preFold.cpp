@@ -897,7 +897,6 @@ static Expr* preFoldPrimOp(CallExpr* call) {
     retval = standaloneCall;
 
   } else if (call->isPrimitive(PRIM_ITERATOR_RECORD_SET_SHAPE)) {
-    if (call->id == 958002) gdbShouldBreakHere();
     Symbol* ir = toSymExpr(call->get(1))->symbol();
     if (ir->hasFlag(FLAG_TYPE_VARIABLE)) {
       // This is a type. Do not do shape.

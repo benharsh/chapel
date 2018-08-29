@@ -8839,7 +8839,6 @@ static void removeUnusedFunctions() {
 static void removeUnusedTypes() {
   // Remove unused aggregate types.
   forv_Vec(TypeSymbol, type, gTypeSymbols) {
-    if (strcmp(type->name, "R") == 0) gdbShouldBreakHere();
     if (type->inTree()                                  &&
         type->hasFlag(FLAG_REF)                == false &&
         type->hasFlag(FLAG_RUNTIME_TYPE_VALUE) == false) {
