@@ -201,6 +201,11 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
   AggregateType* at = resolveNewFindType(newExpr);
   AggregateType* rootType = at->getRootInstantiation();
 
+  BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
+  Expr* stmt = newExpr->getStmtExpr();
+  stmt->insertBefore(block);
+
+
   Expr* modToken = NULL;
   Expr* modValue = NULL;
   if (SymExpr* se = toSymExpr(newExpr->get(1))) {
@@ -212,7 +217,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
 
   newExpr->get(1)->remove();
 
-  Expr* stmt = newExpr->getStmtExpr();
   VarSymbol* tmp = newTemp("initTemp", rootType);
   CallExpr* call = new CallExpr("init", gMethodToken, new NamedExpr("this", new SymExpr(tmp)));
   for (int i = 1; i <= newExpr->numActuals(); i++) {
@@ -267,9 +271,6 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
     call->get(2)->remove(); // 'this'
     call->get(1)->remove(); // '_mt'
     call->insertAtHead(new SymExpr(ts));
-
-    BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
-    stmt->insertBefore(block);
 
     tmp->defPoint->remove();
 
@@ -346,22 +347,20 @@ FnSymbol* resolveNewInitializer(CallExpr* newExpr, Type* manager) {
 
   } else {
     AggregateType* at = toAggregateType(call->resolvedFunction()->_this->getValType());
-    wrapAndCleanUpActuals(call->resolvedFunction(), info, actualIdxToFormal, false);
-
-    if (stmt == newExpr) {
-      newExpr->insertAfter(new SymExpr(tmp));
-    } else {
-      newExpr->replace(new SymExpr(tmp));
-      stmt->insertBefore(newExpr);
-    }
+    block->insertAtTail(tmp->defPoint->remove());
+    block->insertAtTail(call->remove());
+    newExpr->replace(new SymExpr(tmp));
 
     if (at->hasPostInitializer()) {
       CallExpr* postinit = new CallExpr("postinit", gMethodToken, tmp);
-      stmt->insertBefore(postinit);
-      resolveCallAndCallee(postinit);
+      block->insertAtTail(postinit);
     }
 
+    block->insertAfter(newExpr);
+    resolveBlockStmt(block);
     newExpr->convertToNoop();
+    block->flattenAndRemove();
+
     tmp->type = call->resolvedFunction()->_this->getValType();
   }
 
