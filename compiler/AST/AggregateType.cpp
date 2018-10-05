@@ -1584,7 +1584,6 @@ bool AggregateType::addSuperArgs(FnSymbol*                    fn,
                                  SymbolMap& fieldArgMap) {
   bool retval = true;
 
-  // Lydia NOTE 06/16/17: be sure to avoid applying this to tuples, too!
   if (isClass()                    ==  true &&
       symbol->hasFlag(FLAG_REF)    == false &&
       dispatchParents.n            >      0 &&
@@ -1598,6 +1597,8 @@ bool AggregateType::addSuperArgs(FnSymbol*                    fn,
       CallExpr* base         = new CallExpr(".", superPortion, initPortion);
       CallExpr* superCall    = new CallExpr(base);
 
+      FnSymbol* parentInit = NULL;
+
       if (parent->hasUserDefinedInit == false) {
         // We want to call the compiler-generated all-fields initializer
 
@@ -1609,43 +1610,55 @@ bool AggregateType::addSuperArgs(FnSymbol*                    fn,
           }
         }
 
-        if (parent->defaultInitializer == NULL) {
-          // The parent might have inherited from a class that defines
-          // any initializer but not one without arguments.
-          // In this case, we shouldn't define a default initializer
-          // for this class either.
-          retval = false;
-
-        } else {
-          // Otherwise, we are good to go!
-
-          // Add an argument per argument in the parent initializer
-          for_formals(formal, parent->defaultInitializer) {
-            if (formal->type                   == dtMethodToken ||
-                formal->hasFlag(FLAG_ARG_THIS) == true) {
-
-            // Skip arguments shadowed by this class' fields
-            } else if (names.find(formal->name) != names.end()) {
-
+        parentInit = parent->defaultInitializer;
+      } else {
+        // User the parent's initializer if only one was defined
+        FnSymbol* onlyInit = NULL;
+        forv_Vec(FnSymbol, method, parent->methods) {
+          if (method->isInitializer()) {
+            if (onlyInit != NULL) {
+              onlyInit = NULL;
+              break;
             } else {
-              DefExpr* superArg = formal->defPoint->copy();
-
-              VarSymbol* field = toVarSymbol(parent->getField(superArg->sym->name));
-              fieldArgMap.put(field, superArg->sym);
-              fieldArgMap.put(formal, superArg->sym);
-
-              fn->insertFormalAtTail(superArg);
-
-              superCall->insertAtTail(superArg->sym);
+              onlyInit = method;
             }
           }
         }
 
-      } else {
-        INT_ASSERT(parent->hasUserDefinedInit == true);
+        parentInit = onlyInit;
+      }
 
-        // We want to call a user-defined no-argument initializer.
-        // Insert no arguments
+
+      if (parentInit == NULL) {
+        // The parent might have inherited from a class that defines
+        // any initializer but not one without arguments.
+        // In this case, we shouldn't define a default initializer
+        // for this class either.
+        retval = false;
+
+      } else {
+        // Otherwise, we are good to go!
+
+        // Add an argument per argument in the parent initializer
+        for_formals(formal, parentInit) {
+          if (formal->type                   == dtMethodToken ||
+              formal->hasFlag(FLAG_ARG_THIS) == true) {
+
+          // Skip arguments shadowed by this class' fields
+          } else if (names.find(formal->name) != names.end()) {
+
+          } else {
+            DefExpr* superArg = formal->defPoint->copy();
+
+            VarSymbol* field = toVarSymbol(parent->getField(superArg->sym->name));
+            fieldArgMap.put(field, superArg->sym);
+            fieldArgMap.put(formal, superArg->sym);
+
+            fn->insertFormalAtTail(superArg);
+
+            superCall->insertAtTail(superArg->sym);
+          }
+        }
       }
 
       fn->body->insertAtHead(superCall);
