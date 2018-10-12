@@ -9415,6 +9415,27 @@ static Expr* resolvePrimInit(CallExpr* call, Type* type) {
              at->instantiatedFrom                         == NULL &&
              isNonGenericRecordWithInitializers(at)       == true) {
     // Parent PRIM_MOVE will be updated to init() later in resolution
+  } else if (at != NULL && at->isRecord() && at->symbol->hasFlag(FLAG_TUPLE) == false) {
+    VarSymbol* default_temp = newTemp("default_init_temp", at);
+    Expr* stmt = call->getStmtExpr();
+    stmt->insertBefore(new DefExpr(default_temp));
+
+    CallExpr* initCall = new CallExpr("init", gMethodToken, default_temp);
+    form_Map(SymbolMapElem, e, at->substitutions) {
+      initCall->insertAtTail(new NamedExpr(e->key->name, new SymExpr(e->value)));
+    }
+
+    stmt->insertBefore(initCall);
+    resolveCallAndCallee(initCall);
+    retval = new SymExpr(default_temp);
+    call->replace(retval);
+
+    if (at && at->isRecord() && at->hasPostInitializer()) {
+      CallExpr* move = toCallExpr(stmt);
+      INT_ASSERT(move->isPrimitive(PRIM_MOVE));
+      SymExpr*  var  = toSymExpr(move->get(1));
+      move->insertAfter(new CallExpr("postinit", gMethodToken, var->copy()));
+    }
 
   } else {
     SET_LINENO(call);
