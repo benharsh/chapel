@@ -909,7 +909,7 @@ bool FnSymbol::isPostInitializer() const {
 
 bool FnSymbol::isDefaultInit() const {
   return hasFlag(FLAG_COMPILER_GENERATED) &&
-         hasFlag(FLAG_DEFAULT_COPY_INIT) == false &&
+         hasFlag(FLAG_COPY_INIT) == false;
          isInitializer();
 }
 
