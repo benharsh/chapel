@@ -1947,9 +1947,7 @@ void resolveTypeWithInitializer(AggregateType* at, FnSymbol* fn) {
     resolvePromotionType(at);
   }
   if (at->defaultInitializer == NULL) {
-    if (fn->hasFlag(FLAG_COMPILER_GENERATED) &&
-        fn->hasFlag(FLAG_LAST_RESORT) &&
-        fn->hasFlag(FLAG_DEFAULT_COPY_INIT) == false) {
+    if (fn->isDefaultInit()) {
       at->defaultInitializer = fn;
     }
   }
