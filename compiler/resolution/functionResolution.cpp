@@ -2231,7 +2231,7 @@ static bool isGenericRecordInit(CallExpr* call) {
   bool retval = false;
 
   if (UnresolvedSymExpr* ures = toUnresolvedSymExpr(call->baseExpr)) {
-    if (strcmp(ures->unresolved, "init") == 0 &&
+    if ((strcmp(ures->unresolved, "init") == 0 || strcmp(ures->unresolved, "initequals") == 0) &&
         call->numActuals()               >= 2) {
       Type* t1 = call->get(1)->typeInfo();
       Type* t2 = call->get(2)->typeInfo();
@@ -4838,10 +4838,88 @@ static void resolveInitVar(CallExpr* call) {
     gdbShouldBreakHere();
   }
 
-  // First, determine whether there is a specified type for the variable and
-  // whether a coercion is required.
+  Type* myTargetType = NULL;
+  {
+    Type* targetType = NULL;
+    if (call->numActuals() >= 3) {
+      SymExpr* targetTypeExpr = toSymExpr(call->get(3));
+      targetType = targetTypeExpr->symbol()->type;
 
-  Type* targetType = NULL;
+      if (targetType->symbol->hasFlag(FLAG_GENERIC)) {
+        Type* useType = getInstantiationType(srcType, targetType);
+        if (useType != NULL) {
+          targetType = useType;
+        }
+      }
+    }
+    if (targetType == NULL) {
+      targetType = srcType;
+    }
+    myTargetType = targetType;
+  }
+
+  if (myTargetType->symbol->getModule()->modTag == MOD_USER && isRecord(myTargetType)) {
+    Type* targetType = NULL;
+    if (call->numActuals() >= 3) {
+      SymExpr* targetTypeExpr = toSymExpr(call->get(3)->remove());
+      targetType = targetTypeExpr->symbol()->type;
+
+      if (targetType->symbol->hasFlag(FLAG_GENERIC)) {
+        Type* useType = getInstantiationType(srcType, targetType);
+        if (useType != NULL) {
+          targetType = useType;
+        }
+      }
+    }
+    if (targetType == NULL) {
+      targetType = srcType;
+    }
+
+    // var A = B;
+    AggregateType* ct  = toAggregateType(targetType);
+    SymExpr*       rhs = toSymExpr(call->get(2));
+
+    // Clear FLAG_INSERT_AUTO_DESTROY_FOR_EXPLICIT_NEW
+    // since the result of the 'new' will "move" into
+    // the variable we are initializing.
+    src->removeFlag(FLAG_INSERT_AUTO_DESTROY_FOR_EXPLICIT_NEW);
+
+    if (dst->hasFlag(FLAG_NO_COPY)) {
+      dst->type = ct;
+      call->primitive = primitives[PRIM_MOVE];
+      resolveMove(call);
+    } else if (rhs->symbol()->hasFlag(FLAG_INSERT_AUTO_DESTROY) == false &&
+        rhs->symbol()->hasFlag(FLAG_TEMP)) {
+      dst->type = ct;
+      call->primitive = primitives[PRIM_MOVE];
+      resolveMove(call);
+    } else if (isRecordWithInitializers(ct) == false) {
+      INT_FATAL("how?");
+    } else {
+      dst->type = targetType;
+      call->setUnresolvedFunction("initequals");
+      if (ct->symbol->hasFlag(FLAG_GENERIC) == false &&
+          ct->instantiatedFrom != NULL && ct != ct->instantiatedFrom) {
+        // Initializing a generic type, need to pass the type as an argument
+        Expr* last = call->argList.tail->remove();
+        call->insertAtTail(new SymExpr(ct->symbol));
+        call->insertAtTail(last);
+      }
+
+      call->insertAtHead(gMethodToken);
+
+      if (ct->hasPostInitializer() == true) {
+        call->insertAfter(new CallExpr("postinit", gMethodToken, dst));
+      }
+
+      resolveCall(call);
+
+    }
+
+    return;
+  }
+
+  Type* targetType = srcType;
   SymExpr* targetTypeExpr = NULL;
   bool insertCoerce = false;
   if (call->numActuals() >= 3) {
@@ -4986,7 +5064,12 @@ static void resolveInitVar(CallExpr* call) {
 
 FnSymbol* findCopyInit(AggregateType* at) {
   VarSymbol* tmpAt = newTemp(at);
-  CallExpr*  call  = new CallExpr("initequals", gMethodToken, tmpAt, tmpAt);
+  CallExpr*  call  = NULL;
+  if (at->getModule()->modTag == MOD_USER) {
+    call = new CallExpr("initequals", gMethodToken, tmpAt, new SymExpr(at->symbol), tmpAt);
+  } else {
+    call = new CallExpr("initequals", gMethodToken, tmpAt, tmpAt);
+  }
 
   FnSymbol* ret = resolveUninsertedCall(at, call, false);
 
