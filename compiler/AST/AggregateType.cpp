@@ -1668,7 +1668,7 @@ void AggregateType::buildCopyInitializer() {
   if (isRecordWithInitializers(this) == true) {
     SET_LINENO(this);
 
-    FnSymbol*  fn    = new FnSymbol("init");
+    FnSymbol*  fn    = new FnSymbol("initequals");
 
     DefExpr*   def   = new DefExpr(fn);
 

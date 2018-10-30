@@ -134,6 +134,11 @@ module ChapelSyncvar {
       this.isOwned = false;
     }
 
+    proc initequals(type ThisType, const other : _syncvar) {
+      if other.type != ThisType then compilerError("init= error");
+      this.init(other);
+    }
+
     proc deinit() {
       if isOwned == true then
         delete _to_unmanaged(wrapped);
@@ -657,6 +662,11 @@ module ChapelSyncvar {
       this.valType = other.valType;
       wrapped = other.wrapped;
       isOwned = false;
+    }
+
+    proc initequals(type ThisType, const other : _singlevar) {
+      if other.type != ThisType then compilerError("init= error");
+      this.init(other);
     }
 
     proc deinit() {
