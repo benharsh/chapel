@@ -240,7 +240,7 @@ module OwnedObject {
        that takes over ownership from `src`. `src` will
        refer to `nil` after this call.
      */
-    proc init(pragma "leaves arg nil" pragma "nil from arg" ref src:_owned) {
+    proc initequals(type ThisType, pragma "leaves arg nil" pragma "nil from arg" ref src:_owned) {
       this.chpl_t = src.chpl_t;
       this.chpl_p = src.release();
     }
