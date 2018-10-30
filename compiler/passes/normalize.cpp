@@ -177,7 +177,7 @@ void normalize() {
         }
         USR_FATAL_CONT(fn, "Type '%s' defines a constructor here", ct->symbol->name);
 
-      } else if (fn->isInitializer() == true) {
+      } else if (fn->isInitializer() == true || fn->isCopyInit()) {
         updateInitMethod(fn);
       }
     }

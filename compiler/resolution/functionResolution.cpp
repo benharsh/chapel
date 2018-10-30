@@ -2885,7 +2885,7 @@ void trimVisibleCandidates(CallInfo&       info,
       BaseAST* actual = NULL;
       BaseAST* formal = NULL;
 
-      if ((isInit && fn->isInitializer()) || (isDeinit && fn->isMethod())) {
+      if ((fn->isInitializer()) || (isDeinit && fn->isMethod()) || fn->isCopyInit()) {
         actual = call->get(2);
         formal = fn->_this;
       } else if (isNew && (fn->hasFlag(FLAG_NEW_WRAPPER) || fn->isInitializer())) {
@@ -3512,7 +3512,7 @@ disambiguateByMatch(Vec<ResolutionCandidate*>&   candidates,
     ResolutionCandidate* candidate1         = candidates.v[i];
     bool                 singleMostSpecific = true;
 
-    bool forGenericInit = candidate1->fn->isInitializer();
+    bool forGenericInit = candidate1->fn->isInitializer() || candidate1->fn->isCopyInit();
 
     EXPLAIN("%s\n\n", toString(candidate1->fn));
 
@@ -4315,7 +4315,7 @@ void lvalueCheck(CallExpr* call) {
       INT_ASSERT(calleeFn == formal->defPoint->parentSymbol); // sanity
 
       Symbol* actSym = isSymExpr(actual) ? toSymExpr(actual)->symbol() : NULL;
-      bool isInitParam = actSym->hasFlag(FLAG_PARAM) && calleeFn->isInitializer();
+      bool isInitParam = actSym->hasFlag(FLAG_PARAM) && (calleeFn->isInitializer() || calleeFn->isCopyInit());
 
       if (calleeFn->hasFlag(FLAG_ASSIGNOP)) {
         // This assert is FYI. Perhaps can remove it if it fails.
@@ -4889,7 +4889,7 @@ static void resolveInitVar(CallExpr* call) {
     } else if (findCopyInit(ct) != NULL) {
       dst->type = src->type;
 
-      call->setUnresolvedFunction("init");
+      call->setUnresolvedFunction("initequals");
       call->insertAtHead(gMethodToken);
 
       if (ct->hasPostInitializer() == true) {
@@ -4926,7 +4926,7 @@ static void resolveInitVar(CallExpr* call) {
 
 FnSymbol* findCopyInit(AggregateType* at) {
   VarSymbol* tmpAt = newTemp(at);
-  CallExpr*  call  = new CallExpr("init", gMethodToken, tmpAt, tmpAt);
+  CallExpr*  call  = new CallExpr("initequals", gMethodToken, tmpAt, tmpAt);
 
   FnSymbol* ret = resolveUninsertedCall(at, call, false);
 
