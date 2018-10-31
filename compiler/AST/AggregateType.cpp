@@ -1671,7 +1671,15 @@ void AggregateType::buildCopyInitializer() {
 
     ArgSymbol* _mt   = new ArgSymbol(INTENT_BLANK, "_mt",   dtMethodToken);
     ArgSymbol* _this = new ArgSymbol(INTENT_BLANK, "this",  this);
-    ArgSymbol* other = new ArgSymbol(INTENT_BLANK, "other", this);
+    ArgSymbol* ThisType = NULL;
+    ArgSymbol* other = NULL;
+    if (symbol->getModule()->modTag == MOD_USER) {
+      ThisType = new ArgSymbol(INTENT_TYPE, "ThisType", dtAny);
+      ThisType->addFlag(FLAG_TYPE_VARIABLE);
+      other = new ArgSymbol(INTENT_BLANK, "other", dtUnknown, new SymExpr(ThisType));
+    } else {
+      other = new ArgSymbol(INTENT_BLANK, "other", this);
+    }
 
     fn->cname = fn->name;
     fn->_this = _this;
@@ -1702,6 +1710,7 @@ void AggregateType::buildCopyInitializer() {
 
     fn->insertFormalAtTail(_mt);
     fn->insertFormalAtTail(_this);
+    if (ThisType != NULL) fn->insertFormalAtTail(ThisType);
     fn->insertFormalAtTail(other);
 
     if (symbol->hasFlag(FLAG_EXTERN)) {
