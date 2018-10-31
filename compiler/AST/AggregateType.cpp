@@ -1661,6 +1661,22 @@ void AggregateType::buildCopyInitializer() {
   if (isRecordWithInitializers(this) == true) {
     SET_LINENO(this);
 
+    bool isGeneric = false;
+    // Detect if the type has at least one generic field,
+    // so we should mark the "other" arg as generic.
+    for_fields(fieldDefExpr, this) {
+      if (VarSymbol* field = toVarSymbol(fieldDefExpr)) {
+        if (field->hasFlag(FLAG_SUPER_CLASS) == false) {
+          if (field->hasFlag(FLAG_PARAM) ||
+              field->isType() == true    ||
+              (field->defPoint->init     == NULL &&
+               field->defPoint->exprType == NULL)) {
+            isGeneric = true;
+          }
+        }
+      }
+    }
+
     FnSymbol*  fn    = new FnSymbol("initequals");
 
     DefExpr*   def   = new DefExpr(fn);
@@ -1669,7 +1685,7 @@ void AggregateType::buildCopyInitializer() {
     ArgSymbol* _this = new ArgSymbol(INTENT_BLANK, "this",  this);
     ArgSymbol* ThisType = NULL;
     ArgSymbol* other = NULL;
-    if (symbol->getModule()->modTag == MOD_USER) {
+    if (isGeneric) {
       ThisType = new ArgSymbol(INTENT_TYPE, "ThisType", dtAny);
       ThisType->addFlag(FLAG_TYPE_VARIABLE);
       other = new ArgSymbol(INTENT_BLANK, "other", dtUnknown, new SymExpr(ThisType));
@@ -1686,22 +1702,8 @@ void AggregateType::buildCopyInitializer() {
 
     _this->addFlag(FLAG_ARG_THIS);
 
-    // Detect if the type has at least one generic field,
-    // so we should mark the "other" arg as generic.
-    for_fields(fieldDefExpr, this) {
-      if (VarSymbol* field = toVarSymbol(fieldDefExpr)) {
-        if (field->hasFlag(FLAG_SUPER_CLASS) == false) {
-          if (field->hasFlag(FLAG_PARAM) ||
-              field->isType() == true    ||
-              (field->defPoint->init     == NULL &&
-               field->defPoint->exprType == NULL)) {
-
-            if (other->hasFlag(FLAG_MARKED_GENERIC) == false) {
-              other->addFlag(FLAG_MARKED_GENERIC);
-            }
-          }
-        }
-      }
+    if (isGeneric && other->hasFlag(FLAG_MARKED_GENERIC) == false) {
+      other->addFlag(FLAG_MARKED_GENERIC);
     }
 
     fn->insertFormalAtTail(_mt);
