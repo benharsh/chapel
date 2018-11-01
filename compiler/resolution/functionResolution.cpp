@@ -2928,7 +2928,7 @@ void trimVisibleCandidates(CallInfo&       info,
     }
   }
 
-  bool isInit   = isMethod && call->isNamedAstr(astrInit);
+  bool isInit   = isMethod && (call->isNamedAstr(astrInit) || call->isNamed("initequals"));
   bool isNew    = call->numActuals() >= 1 && call->isNamedAstr(astrNew);
   bool isDeinit = isMethod && call->isNamedAstr(astrDeinit);
 
@@ -4903,13 +4903,13 @@ static void resolveInitVar(CallExpr* call) {
     }
     resolveMove(call);
 
-  } else if (isRecord(targetType) == false ||
+  } else if (isRecord(targetType->getValType()) == false ||
              isParamString ||
-             isSyncType(srcType) ||
-             isSingleType(srcType) ||
-             isRecordWrappedType(srcType) ||
-             srcType->symbol->hasFlag(FLAG_TUPLE) ||
-             srcType->symbol->hasFlag(FLAG_ITERATOR_RECORD)) {
+             isSyncType(srcType->getValType()) ||
+             isSingleType(srcType->getValType()) ||
+             isRecordWrappedType(srcType->getValType()) ||
+             srcType->getValType()->symbol->hasFlag(FLAG_TUPLE) ||
+             srcType->getValType()->symbol->hasFlag(FLAG_ITERATOR_RECORD)) {
     // These cases require an initCopy to implement special initialization
     // semantics (e.g. reading a sync for variable initialization).
     CallExpr* initCopy = new CallExpr("chpl__initCopy", srcExpr->remove());
@@ -4918,8 +4918,8 @@ static void resolveInitVar(CallExpr* call) {
 
     resolveExpr(initCopy);
     resolveMove(call);
-  } else if (isRecord(targetType)) {
-    AggregateType* at = toAggregateType(targetType);
+  } else if (isRecord(targetType->getValType())) {
+    AggregateType* at = toAggregateType(targetType->getValType());
     SymExpr*      rhs = toSymExpr(call->get(2));
 
     // Clear the flag since the result of 'new' will "move" into the variable
@@ -4930,7 +4930,7 @@ static void resolveInitVar(CallExpr* call) {
     // - The LHS will "own" the temp without an auto-destroy
     if (rhs->symbol()->hasFlag(FLAG_CHAPEL_STRING_LITERAL) ||
         (rhs->symbol()->hasFlag(FLAG_INSERT_AUTO_DESTROY) == false &&
-        rhs->symbol()->hasFlag(FLAG_TEMP))) {
+        rhs->symbol()->hasFlag(FLAG_TEMP) && rhs->isRef() == false)) {
       dst->type = src->type;
       call->primitive = primitives[PRIM_MOVE];
       resolveMove(call);
@@ -4938,7 +4938,12 @@ static void resolveInitVar(CallExpr* call) {
     } else if (isRecordWithInitializers(at) == false) {
       INT_FATAL("Unable to initialize record variable with type '%s'", at->symbol->name);
     } else {
-      dst->type = targetType;
+      if (dst->hasFlag(FLAG_REF) && targetType->isRef()) {
+        // TODO: does this ever run?
+        dst->type = targetType;
+      } else {
+        dst->type = targetType->getValType();
+      }
       call->setUnresolvedFunction("initequals");
       if (at->symbol->hasFlag(FLAG_GENERIC) == false &&
           at->instantiatedFrom != NULL && at != at->instantiatedFrom) {
