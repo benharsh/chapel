@@ -4894,6 +4894,7 @@ static void resolveInitVar(CallExpr* call) {
              isPrimitiveScalar(targetType) ||
              isEnumType(targetType) ||
              addedCoerce) {
+    dst->type = targetType;
 
     call->primitive = primitives[PRIM_MOVE];
     if (srcType->isRef() && !dst->hasFlag(FLAG_NO_COPY)) {
