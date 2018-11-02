@@ -4831,6 +4831,7 @@ static void resolveInitVar(CallExpr* call) {
   if (dst->hasFlag(FLAG_NO_COPY) ||
       isPrimitiveScalar(targetType) ||
       addedCoerce) {
+    dst->type = targetType;
     call->primitive = primitives[PRIM_MOVE];
     resolveMove(call);
 
