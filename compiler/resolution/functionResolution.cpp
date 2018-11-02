@@ -4870,6 +4870,14 @@ static void resolveInitVar(CallExpr* call) {
 
     } else if (isRecordWithInitializers(at) == false) {
       INT_FATAL("Unable to initialize record variable with type '%s'", at->symbol->name);
+    } else if (srcType->getValType() == targetType->getValType()) {
+      // Some of these cases require an initCopy that returns a different type
+      CallExpr* initCopy = new CallExpr("chpl__initCopy", srcExpr->remove());
+      call->insertAtTail(initCopy);
+      call->primitive = primitives[PRIM_MOVE];
+
+      resolveExpr(initCopy);
+      resolveMove(call);
     } else {
       if (dst->hasFlag(FLAG_REF) && targetType->isRef()) {
         // TODO: does this ever run?
@@ -4923,7 +4931,11 @@ FnSymbol* findCopyInit(AggregateType* at) {
   // ret's instantiationPoint points to the dummy BlockStmt created by
   // resolveUninsertedCall, so it needs to be updated.
   if (ret != NULL) {
-    ret->setInstantiationPoint(at->symbol->instantiationPoint);
+    if (BlockStmt* stmt = at->symbol->instantiationPoint) {
+      ret->setInstantiationPoint(stmt);
+    } else if (FnSymbol* fn = at->typeConstructor) {
+      ret->setInstantiationPoint(fn->instantiationPoint());
+    }
   }
 
   return ret;
