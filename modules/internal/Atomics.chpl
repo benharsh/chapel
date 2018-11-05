@@ -330,6 +330,21 @@ module Atomics {
       atomic_init(_v, default);
     }
 
+    proc initequals(type ThisType, other : ThisType) {
+      this.T = other.T;
+      this._v = other._v;
+    }
+
+    proc initequals(type ThisType, other : ThisType.T) {
+      this.T = ThisType.T;
+      this.complete();
+
+      extern externFunc("init", T, explicit=false)
+        proc atomic_init(ref obj:externT(T), value:T): void;
+
+      atomic_init(_v, other);
+    }
+
     pragma "no doc"
     proc deinit() {
       extern externFunc("destroy", T, explicit=false)
