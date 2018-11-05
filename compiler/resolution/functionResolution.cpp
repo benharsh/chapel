@@ -4804,10 +4804,10 @@ static void resolveInitVar(CallExpr* call) {
 
     // Insert a coercion if the types are different. Some internal types
     // use a coercion because their initCopy returns a different type.
-    if (targetType->getValType() != srcType->getValType() ||
-        targetType->symbol->hasFlag(FLAG_HAS_RUNTIME_TYPE) ||
+    if (targetType->symbol->hasFlag(FLAG_HAS_RUNTIME_TYPE) ||
         isSyncType(src->getValType()) ||
-        isSingleType(src->getValType())) {
+        isSingleType(src->getValType()) ||
+        (isRecord(targetType->getValType()) == false && targetType->getValType() != srcType->getValType())) {
       VarSymbol* tmp = newTemp(primCoerceTmpName, targetType);
       tmp->addFlag(FLAG_EXPR_TEMP);
 
