@@ -9454,15 +9454,7 @@ static Expr* resolvePrimInit(CallExpr* call, Type* type) {
           appendExpr = new SymExpr(e->value);
         }
       } else if (isGenericField && hasDefault == false) {
-        // Create a temporary to pass for the fully-generic field (e.g. "var x;")
-        VarSymbol* temp = newTemp("default_field_temp", e->value->typeInfo());
-        CallExpr* tempCall = new CallExpr(PRIM_MOVE, temp, new CallExpr(PRIM_INIT, e->value));
-
-        stmt->insertBefore(new DefExpr(temp));
-        stmt->insertBefore(tempCall);
-        resolveExpr(tempCall->get(2));
-        resolveExpr(tempCall);
-        appendExpr = new SymExpr(temp);
+        appendExpr = new SymExpr(e->value);
 
       } else {
         INT_FATAL("Unhandled case for default-init");

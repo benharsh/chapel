@@ -853,6 +853,11 @@ record ReverseComparator {
     this.comparator = comparator;
   }
 
+  proc init(type comparator) {
+    var temp : comparator;
+    this.init(temp);
+  }
+
   /*
    Copy Initializer - builds a comparator that's a copy of
    its argument.
