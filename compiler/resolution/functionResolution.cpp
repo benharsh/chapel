@@ -4856,9 +4856,10 @@ static void resolveInitVar(CallExpr* call) {
         USR_FATAL(call, "Could not coerce '%s' to '%s' in initialization",
                         srcType->symbol->name,
                         targetType->symbol->name);
+      } else if (inst != NULL) {
+        targetType = inst;
       }
 
-      targetType = inst;
     }
 
     // Insert a coercion if the types are different. Some internal types
@@ -4908,7 +4909,7 @@ static void resolveInitVar(CallExpr* call) {
              isParamString ||
              isSyncType(srcType->getValType()) ||
              isSingleType(srcType->getValType()) ||
-             isRecordWrappedType(srcType->getValType()) ||
+             isRecordWrappedType(targetType->getValType()) ||
              srcType->getValType()->symbol->hasFlag(FLAG_TUPLE) ||
              srcType->getValType()->symbol->hasFlag(FLAG_ITERATOR_RECORD)) {
     // These cases require an initCopy to implement special initialization
@@ -4928,24 +4929,26 @@ static void resolveInitVar(CallExpr* call) {
     src->removeFlag(FLAG_INSERT_AUTO_DESTROY_FOR_EXPLICIT_NEW);
 
     // - Don't need to copy string literals
+    //   TODO: need to copy string literals if LHS is a user record
     // - The LHS will "own" the temp without an auto-destroy
     if (rhs->symbol()->hasFlag(FLAG_CHAPEL_STRING_LITERAL) ||
         (rhs->symbol()->hasFlag(FLAG_INSERT_AUTO_DESTROY) == false &&
-        rhs->symbol()->hasFlag(FLAG_TEMP) && rhs->isRef() == false)) {
+        rhs->symbol()->hasFlag(FLAG_TEMP) && rhs->isRef() == false &&
+        srcType->getValType() == targetType->getValType())) {
       dst->type = src->type;
       call->primitive = primitives[PRIM_MOVE];
       resolveMove(call);
 
     } else if (isRecordWithInitializers(at) == false) {
       INT_FATAL("Unable to initialize record variable with type '%s'", at->symbol->name);
-    } else if (srcType->getValType() == targetType->getValType()) {
-      // Some of these cases require an initCopy that returns a different type
-      CallExpr* initCopy = new CallExpr("chpl__initCopy", srcExpr->remove());
-      call->insertAtTail(initCopy);
-      call->primitive = primitives[PRIM_MOVE];
+    //} else if (srcType->getValType() == targetType->getValType()) {
+    //  // Some of these cases require an initCopy that returns a different type
+    //  CallExpr* initCopy = new CallExpr("chpl__initCopy", srcExpr->remove());
+    //  call->insertAtTail(initCopy);
+    //  call->primitive = primitives[PRIM_MOVE];
 
-      resolveExpr(initCopy);
-      resolveMove(call);
+    //  resolveExpr(initCopy);
+    //  resolveMove(call);
     } else {
       if (dst->hasFlag(FLAG_REF) && targetType->isRef()) {
         // TODO: does this ever run?
