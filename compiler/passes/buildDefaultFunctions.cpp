@@ -1340,8 +1340,14 @@ static void build_record_copy_function(AggregateType* at) {
     if (isRecordWithInitializers(at) == true) {
 
       // Compiler-generated copy-initializers should not disable POD
-      FnSymbol* fn = function_exists("init", dtMethodToken, at, at);
-      if (fn != NULL && fn->hasFlag(FLAG_COMPILER_GENERATED) == false) {
+      bool hasUserCopyInit = false;
+      forv_Vec(FnSymbol, fn, at->methods) {
+        if (fn->isCopyInit() && fn->hasFlag(FLAG_COMPILER_GENERATED) == false) {
+          hasUserCopyInit = true;
+          break;
+        }
+      }
+      if (hasUserCopyInit) {
         at->symbol->addFlag(FLAG_NOT_POD);
       }
 
