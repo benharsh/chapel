@@ -4,7 +4,7 @@ record R {
     writeln("R.init()");
     this.x = 0;
   }
-  proc init(other:R) {
+  proc initequals(other:R) {
     this.x = other.x + 1;
     writeln("R.init(R): ", this.x);
   }

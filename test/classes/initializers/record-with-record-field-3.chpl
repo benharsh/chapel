@@ -23,7 +23,7 @@ record SubRec {
     b = _b;
   }
 
-  proc init(other : SubRec) {
+  proc initequals(other : SubRec) {
     writeln('SubRec.init(', other, ')');
 
     a = other.a;
