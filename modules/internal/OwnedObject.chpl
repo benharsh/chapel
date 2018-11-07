@@ -241,7 +241,13 @@ module OwnedObject {
        refer to `nil` after this call.
      */
     proc initequals(type ThisType, pragma "leaves arg nil" pragma "nil from arg" ref src:_owned) {
-      this.init(src);
+      // Use 'ThisType.chpl_t' in case RHS is a subtype
+      this.chpl_t = ThisType.chpl_t;
+      this.chpl_p = src.release();
+    }
+
+    proc initequals(type ThisType, src : _nilType) {
+      this.init(ThisType.chpl_t);
     }
 
     // Copy-init implementation to allow for 'new _owned(foo)' in module code
