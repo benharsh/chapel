@@ -186,7 +186,7 @@ module BigInteger {
       this.localeId = chpl_nodeID;
     }
 
-    proc init(const ref num: bigint) {
+    proc initequals(const ref num: bigint) {
       this.complete();
       if _local || num.localeId == chpl_nodeID {
         mpz_init_set(this.mpz, num.mpz);
@@ -213,6 +213,10 @@ module BigInteger {
       mpz_init_set_ui(this.mpz, num.safeCast(c_ulong));
 
       this.localeId = chpl_nodeID;
+    }
+
+    proc initequals(num : integral) {
+      this.init(num);
     }
 
     proc init(str: string, base: int = 0) {
