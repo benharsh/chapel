@@ -289,6 +289,7 @@ module ChapelRange {
   }
 
   proc range.initequals(type ThisType, other : range(?i,?b,?s)) {
+    type idxType = ThisType.idxType;
     if ThisType.boundedType != b {
       param details = ThisType.boundedType:string + " != " + b:string;
       compilerError("ranges must be initialized with a range of the same 'boundedType' parameter: ", details);
@@ -297,12 +298,12 @@ module ChapelRange {
     if !ThisType.stridable && s then
       compilerError("cannot initialize a non-stridable range from a stridable range");
 
-    const str = if ThisType.stridable && s then other.stride else 1;
+    const str = if ThisType.stridable && s then other.stride else 1:chpl__rangeStrideType(idxType);
 
-    this.init(ThisType.idxType, ThisType.boundedType, ThisType.stridable,
-              other._low, other._high,
+    this.init(idxType, ThisType.boundedType, ThisType.stridable,
+              chpl__intToIdx(idxType, other._low), chpl__intToIdx(idxType, other._high),
               str,
-              chpl__idxToInt(other.alignment),
+              chpl__intToIdx(idxType, chpl__idxToInt(other.alignment)),
               other.aligned);
   }
 
