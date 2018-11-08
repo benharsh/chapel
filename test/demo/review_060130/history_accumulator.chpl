@@ -4,6 +4,12 @@ record history_real {
   var f : real;
 }
 
+proc ref history_real.initequals(type ThisType, other : real) {
+  this.size = ThisType.size;
+  this.complete();
+  this = other;
+}
+
 proc =(ref x : history_real, y : real) {
   for i in 2..x.size by -1 do
     x.h(i) = x.h(i-1);
