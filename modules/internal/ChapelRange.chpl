@@ -288,6 +288,24 @@ module ChapelRange {
       compilerError("non-stridable range initializer called with stridable=true");
   }
 
+  proc range.initequals(type ThisType, other : range(?i,?b,?s)) {
+    if ThisType.boundedType != b {
+      param details = ThisType.boundedType:string + " != " + b:string;
+      compilerError("ranges must be initialized with a range of the same 'boundedType' parameter: ", details);
+    }
+
+    if !ThisType.stridable && s then
+      compilerError("cannot initialize a non-stridable range from a stridable range");
+
+    const str = if ThisType.stridable && s then other.stride else 1;
+
+    this.init(ThisType.idxType, ThisType.boundedType, ThisType.stridable,
+              other._low, other._high,
+              str,
+              chpl__idxToInt(other.alignment),
+              other.aligned);
+  }
+
   /////////////////////////////////
   // for debugging
   pragma "no doc"
