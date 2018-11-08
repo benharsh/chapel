@@ -6,7 +6,7 @@ record R {
     this.x = arg;
   }
 
-  proc init(from:R) {
+  proc initequals(from:R) {
     writeln("R.init copy ", from.x);
     this.x = from.x;
   }

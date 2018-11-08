@@ -1,1 +1,3 @@
-mismatch.chpl:16: error: type mismatch in assignment from A(real(64)) to A(int(64))
+mismatch.chpl:16: error: unresolved call 'A(int(64)).initequals(type A(int(64)), A(real(64)))'
+mismatch.chpl:10: note: candidates are: A.initequals(type ThisType, a: ThisType)
+mismatch.chpl:1: note:                 A.initequals(type ThisType, other: ThisType)
