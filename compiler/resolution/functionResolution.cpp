@@ -4892,6 +4892,8 @@ static void resolveInitVar(CallExpr* call) {
         call->insertAtTail(last);
       }
 
+      src->addFlag(FLAG_INSERT_AUTO_DESTROY);
+
       call->insertAtHead(gMethodToken);
 
       if (at->hasPostInitializer() == true) {
