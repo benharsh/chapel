@@ -7,6 +7,6 @@ copy-init from: R(int(64))
 
 ----- Init= from non-record -----
 init= from int(64)
-init= from real(64)
-(x = 5)
-(x = 3.0)
+init= from string
+R(int(64)): (x = 5)
+R(string): (x = a string)

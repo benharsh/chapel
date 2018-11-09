@@ -42,8 +42,8 @@ proc R.initequals(type ThisType, other : ThisType.T) {
 
 {
   var A : R(int) = 5;
-  var B : R(real) = 3.0;
-  writeln(A);
-  writeln(B);
+  var B : R(string) = "a string";
+  writeln(A.type:string, ": ", A);
+  writeln(B.type:string, ": ", B);
 }
 
