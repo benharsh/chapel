@@ -4857,40 +4857,32 @@ static void resolveInitVar(CallExpr* call) {
     resolveMove(call);
   } else if (isRecord(targetType->getValType())) {
     AggregateType* at = toAggregateType(targetType->getValType());
-    SymExpr*      rhs = toSymExpr(call->get(2));
 
     // Clear the flag since the result of 'new' will "move" into the variable
     // we are initializing.
     src->removeFlag(FLAG_INSERT_AUTO_DESTROY_FOR_EXPLICIT_NEW);
 
-    // - Don't need to copy string literals
-    //   TODO: need to copy string literals if LHS is a user record
-    // - The LHS will "own" the temp without an auto-destroy
-    if (rhs->symbol()->hasFlag(FLAG_CHAPEL_STRING_LITERAL) ||
-        (rhs->symbol()->hasFlag(FLAG_INSERT_AUTO_DESTROY) == false &&
-        rhs->symbol()->hasFlag(FLAG_TEMP) && rhs->isRef() == false &&
-        srcType->getValType() == targetType->getValType())) {
+    // Don't need to copy string literals when initializing a string
+    bool moveStringLiteral = src->hasFlag(FLAG_CHAPEL_STRING_LITERAL) &&
+                             targetType->getValType() == dtString;
+
+    // The LHS will "own" the temp without an auto-destroy, provided the types
+    // are the same.
+    // TODO: If the 'src' is a reference, can we just dereference and move?
+    bool canStealTemp = src->hasFlag(FLAG_TEMP) &&
+                        src->hasFlag(FLAG_INSERT_AUTO_DESTROY) == false &&
+                        srcType->getValType() == targetType->getValType() &&
+                        src->isRef() == false;
+    if (moveStringLiteral || canStealTemp) {
       dst->type = src->type;
       call->primitive = primitives[PRIM_MOVE];
       resolveMove(call);
 
     } else if (isRecordWithInitializers(at) == false) {
       INT_FATAL("Unable to initialize record variable with type '%s'", at->symbol->name);
-    //} else if (srcType->getValType() == targetType->getValType()) {
-    //  // Some of these cases require an initCopy that returns a different type
-    //  CallExpr* initCopy = new CallExpr("chpl__initCopy", srcExpr->remove());
-    //  call->insertAtTail(initCopy);
-    //  call->primitive = primitives[PRIM_MOVE];
-
-    //  resolveExpr(initCopy);
-    //  resolveMove(call);
     } else {
-      if (dst->hasFlag(FLAG_REF) && targetType->isRef()) {
-        // TODO: does this ever run?
-        dst->type = targetType;
-      } else {
-        dst->type = targetType->getValType();
-      }
+      dst->type = targetType->getValType();
+
       call->setUnresolvedFunction("initequals");
       if (at->symbol->hasFlag(FLAG_GENERIC) == false &&
           at->instantiatedFrom != NULL && at != at->instantiatedFrom) {
