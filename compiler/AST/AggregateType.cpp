@@ -46,6 +46,7 @@ AggregateType::AggregateType(AggregateTag initTag) :
   unmanagedClass      = NULL;
 
   typeConstructor     = NULL;
+  builtDefaultInit    = false;
   hasUserDefinedInit  = false;
   initializerResolved = false;
   iteratorInfo        = NULL;
