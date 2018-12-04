@@ -7,13 +7,14 @@ record Foo {
   proc init(v = 3) {
     this.v = v;
   }
-  proc init(type vType, v : vType = __primitive("init", vType)) {
+
+  proc init(type vType, v : vType = _typeDefaultT) {
     this.v = v;
   }
 }
 
-var foo1: Foo(bool); // specifies a different value (of a different type)
-var foo2: Foo(int); // relies on the default value
+var foo1 = new Foo(false);//: Foo(bool); // specifies a different value (of a different type)
+var foo2 = new Foo(0); //: Foo(int); // relies on the default value
 
 writeln(foo1.type:string);
 // Since the only initializer for this type takes in an integer, the type of

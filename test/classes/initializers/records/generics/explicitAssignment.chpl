@@ -11,7 +11,7 @@ record Foo {
     this.x = x;
   }
 
-  proc init(type xType, x : xType = __primitive("init", xType)) {
+  proc init(type xType, x : xType = _typeDefaultT) {
     this.x = x;
   }
 }
