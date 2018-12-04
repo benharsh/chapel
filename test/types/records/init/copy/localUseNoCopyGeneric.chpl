@@ -14,6 +14,13 @@ module Bar {
     this.y = y;
     this.z = z;
   }
+  proc R.init(type xType, x : xType = _typeDefaultT,
+              type yType, y : yType = _typeDefaultT,
+              type zType, z : zType = _typeDefaultT) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
 
   proc getter() {
     // compiler inserts a chpl__initCopy, which is flagged as erroneous because

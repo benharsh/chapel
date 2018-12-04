@@ -7,6 +7,9 @@ record Foo {
   proc init(v = 3) {
     this.v = v;
   }
+  proc init(type vType, v : vType = __primitive("init", vType)) {
+    this.v = v;
+  }
 }
 
 var foo1: Foo(bool); // specifies a different value (of a different type)

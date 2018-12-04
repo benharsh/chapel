@@ -4,8 +4,8 @@ class MyClass {
 
 record GenericCollection {
   var field;
-  proc init(type t) {
-    var default:t;
+  proc init(type fieldType) {
+    var default:fieldType;
     field = default;
   }
   proc init(field) { // borrows but that might be surprising

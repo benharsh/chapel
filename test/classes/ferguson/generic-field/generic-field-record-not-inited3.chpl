@@ -7,6 +7,10 @@ record Wrapper {
   proc init(f : GenericRecord) {
     this.f = f;
   }
+  proc init(type fType) {
+    var temp : fType;
+    this.f = temp;
+  }
 }
 
 proc test1() {

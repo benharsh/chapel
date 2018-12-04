@@ -10,6 +10,10 @@ record Foo {
   proc init(x: real) {
     this.x = x;
   }
+
+  proc init(type xType, x : xType = __primitive("init", xType)) {
+    this.x = x;
+  }
 }
 
 proc main() {

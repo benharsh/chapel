@@ -7,6 +7,9 @@ record Foo {
   proc init(x) where !isSubtype(x.type, Foo) {
     this.x = x;
   }
+  proc init(type xType, x : xType = __primitive("init", xType)) {
+    this.x = x;
+  }
 }
 
 var foo1: Foo(int);
