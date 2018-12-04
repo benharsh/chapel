@@ -1384,66 +1384,106 @@ ArgSymbol* AggregateType::insertGenericArg(FnSymbol*  fn,
   return arg;
 }
 
+static bool hasTypelessField(AggregateType* at) {
+  if (at->dispatchParents.n > 0) {
+    AggregateType* parent = at->dispatchParents.v[0];
+    if (hasTypelessField(parent)) {
+      return true;
+    }
+  }
+
+  bool ret = false;
+  for_fields(field, at) {
+    if (field->hasFlag(FLAG_PARAM) == false &&
+        field->hasFlag(FLAG_TYPE_VARIABLE) == false &&
+        field->hasFlag(FLAG_SUPER_CLASS) == false &&
+        field->defPoint->init == NULL) {
+      bool isGenericField = false;
+      if (field->defPoint->exprType == NULL) {
+        isGenericField = true;
+      } else {
+        isGenericField = isFieldTypeExprGeneric(field->defPoint->exprType);
+      }
+
+      if (isGenericField) {
+        ret = true;
+        break;
+      }
+    }
+  }
+
+  return ret;
+}
+
+void AggregateType::buildDefaultInit(bool forTypelessFields) {
+  if (forTypelessFields && hasTypelessField(this) == false) {
+    return;
+  }
+
+  SET_LINENO(this);
+  FnSymbol*  fn    = new FnSymbol("init");
+  ArgSymbol* _mt   = new ArgSymbol(INTENT_BLANK, "_mt",  dtMethodToken);
+  ArgSymbol* _this = new ArgSymbol(INTENT_BLANK, "this", this);
+
+  fn->cname = fn->name;
+  fn->_this = _this;
+
+  // Lydia NOTE 06/16/17: I don't think I want to add the
+  //  DEFAULT_CONSTRUCTOR flag to this function, but if I do,
+  // then I will need to do something different in wrappers.cpp.
+  fn->addFlag(FLAG_COMPILER_GENERATED);
+  fn->addFlag(FLAG_LAST_RESORT);
+  fn->addFlag(FLAG_SUPPRESS_LVALUE_ERRORS);
+
+  _this->addFlag(FLAG_ARG_THIS);
+
+  fn->insertFormalAtTail(_mt);
+  fn->insertFormalAtTail(_this);
+
+  std::set<const char*> names;
+  SymbolMap fieldArgMap;
+
+  if (addSuperArgs(fn, names, fieldArgMap, forTypelessFields) == true) {
+    // Parent fields before child fields
+    fieldToArg(fn, names, fieldArgMap, forTypelessFields);
+
+    // Replaces field references with argument references
+    // NOTE: doesn't handle inherited fields yet!
+    update_symbols(fn, &fieldArgMap);
+
+    DefExpr* def = new DefExpr(fn);
+
+    symbol->defPoint->insertBefore(def);
+
+    fn->setMethod(true);
+    fn->addFlag(FLAG_METHOD_PRIMARY);
+
+    preNormalizeInitMethod(fn);
+
+    if (this->isUnion()) {
+      fn->insertAtTail(new CallExpr(PRIM_SET_UNION_ID,
+                                    fn->_this,
+                                    new_IntSymbol(0)));
+    }
+
+    normalize(fn);
+
+    // BHARSH INIT TODO: Should this be part of normalize(fn)? If we did that
+    // we would emit two use-before-def errors for classes because of the
+    // generated _new function.
+    checkUseBeforeDefs(fn);
+
+    methods.add(fn);
+  } else {
+    USR_FATAL(this, "Unable to generate initializer for type '%s'", this->symbol->name);
+  }
+}
+
 void AggregateType::buildDefaultInitializer() {
   if (builtDefaultInit == false &&
       symbol->hasFlag(FLAG_REF) == false) {
-    SET_LINENO(this);
-    FnSymbol*  fn    = new FnSymbol("init");
-    ArgSymbol* _mt   = new ArgSymbol(INTENT_BLANK, "_mt",  dtMethodToken);
-    ArgSymbol* _this = new ArgSymbol(INTENT_BLANK, "this", this);
-
-    fn->cname = fn->name;
-    fn->_this = _this;
-
-    // Lydia NOTE 06/16/17: I don't think I want to add the
-    //  DEFAULT_CONSTRUCTOR flag to this function, but if I do,
-    // then I will need to do something different in wrappers.cpp.
-    fn->addFlag(FLAG_COMPILER_GENERATED);
-    fn->addFlag(FLAG_LAST_RESORT);
-    fn->addFlag(FLAG_SUPPRESS_LVALUE_ERRORS);
-
-    _this->addFlag(FLAG_ARG_THIS);
-
-    fn->insertFormalAtTail(_mt);
-    fn->insertFormalAtTail(_this);
-
-    std::set<const char*> names;
-    SymbolMap fieldArgMap;
-
-    if (addSuperArgs(fn, names, fieldArgMap) == true) {
-      // Parent fields before child fields
-      fieldToArg(fn, names, fieldArgMap);
-
-      // Replaces field references with argument references
-      // NOTE: doesn't handle inherited fields yet!
-      update_symbols(fn, &fieldArgMap);
-
-      DefExpr* def = new DefExpr(fn);
-
-      symbol->defPoint->insertBefore(def);
-
-      fn->setMethod(true);
-      fn->addFlag(FLAG_METHOD_PRIMARY);
-
-      preNormalizeInitMethod(fn);
-
-      if (this->isUnion()) {
-        fn->insertAtTail(new CallExpr(PRIM_SET_UNION_ID,
-                                      fn->_this,
-                                      new_IntSymbol(0)));
-      }
-
-      normalize(fn);
-
-      // BHARSH INIT TODO: Should this be part of normalize(fn)? If we did that
-      // we would emit two use-before-def errors for classes because of the
-      // generated _new function.
-      checkUseBeforeDefs(fn);
-
-      methods.add(fn);
-    } else {
-      USR_FATAL(this, "Unable to generate initializer for type '%s'", this->symbol->name);
-    }
+    buildDefaultInit(false);
+    buildDefaultInit(true);
 
     builtDefaultInit = true;
   }
@@ -1451,7 +1491,8 @@ void AggregateType::buildDefaultInitializer() {
 
 void AggregateType::fieldToArg(FnSymbol*              fn,
                                std::set<const char*>& names,
-                               SymbolMap&             fieldArgMap) {
+                               SymbolMap&             fieldArgMap,
+                               bool                   forTypelessFields) {
   for_fields(fieldDefExpr, this) {
     SET_LINENO(fieldDefExpr);
 
@@ -1490,7 +1531,6 @@ void AggregateType::fieldToArg(FnSymbol*              fn,
         //
         if        (defPoint->exprType == NULL && defPoint->init == NULL) {
           arg->type = dtAny;
-
 
         //
         // Type inference is required if this is a param or variable field
@@ -1552,6 +1592,35 @@ void AggregateType::fieldToArg(FnSymbol*              fn,
                                                    fn->_this,
                                                    new_CStringSymbol(name)),
                                       arg));
+
+        if (forTypelessFields) {
+          if (field->hasFlag(FLAG_PARAM) == false &&
+              field->hasFlag(FLAG_TYPE_VARIABLE) == false &&
+              field->hasFlag(FLAG_SUPER_CLASS) == false &&
+              defPoint->init == NULL) {
+            bool isGenericField = false;
+            if (defPoint->exprType == NULL) {
+              isGenericField = true;
+            } else {
+              isGenericField = isFieldTypeExprGeneric(defPoint->exprType);
+            }
+            if (isGenericField) {
+              //gdbShouldBreakHere();
+              const char* typeName = astr(name, "Type");
+              ArgSymbol* typeArg = new ArgSymbol(INTENT_BLANK, typeName, dtAny);
+              typeArg->addFlag(FLAG_TYPE_VARIABLE);
+              names.insert(typeName);
+
+              arg->defPoint->insertBefore(new DefExpr(typeArg));
+
+              BlockStmt* defaultExpr = new BlockStmt(new SymExpr(gTypeDefaultToken));
+              BlockStmt* typeExpr = new BlockStmt(new SymExpr(typeArg), BLOCK_TYPE);
+              arg->defaultExpr = defaultExpr;
+              arg->typeExpr = typeExpr;
+              arg->type = dtUnknown;
+            }
+          }
+        }
       }
     }
   }
@@ -1578,7 +1647,8 @@ void AggregateType::fieldToArgType(DefExpr* fieldDef, ArgSymbol* arg) {
 
 bool AggregateType::addSuperArgs(FnSymbol*                    fn,
                                  const std::set<const char*>& names,
-                                 SymbolMap& fieldArgMap) {
+                                 SymbolMap& fieldArgMap,
+                                 bool forTypelessFields) {
   bool retval = true;
 
   // Lydia NOTE 06/16/17: be sure to avoid applying this to tuples, too!
@@ -1605,11 +1675,18 @@ bool AggregateType::addSuperArgs(FnSymbol*                    fn,
 
         // Otherwise, we are good to go!
         FnSymbol* defaultInit = NULL;
+        std::vector<FnSymbol*> initializers;
         forv_Vec(FnSymbol, method, parent->methods) {
           if (method->isDefaultInit()) {
-            defaultInit = method;
-            break;
+            initializers.push_back(method);
           }
+        }
+
+        if (initializers.size() == 1) {
+          defaultInit = initializers[0];
+        } else {
+          INT_ASSERT(initializers.size() == 2);
+          defaultInit = forTypelessFields ? initializers[1] : initializers[0];
         }
 
         if (defaultInit == NULL) {
@@ -1626,8 +1703,8 @@ bool AggregateType::addSuperArgs(FnSymbol*                    fn,
             } else {
               DefExpr* superArg = formal->defPoint->copy();
 
-              VarSymbol* field = toVarSymbol(parent->getField(superArg->sym->name));
-              fieldArgMap.put(field, superArg->sym);
+              if (VarSymbol* field = toVarSymbol(parent->getField(superArg->sym->name, false)))
+                fieldArgMap.put(field, superArg->sym);
               fieldArgMap.put(formal, superArg->sym);
 
               fn->insertFormalAtTail(superArg);

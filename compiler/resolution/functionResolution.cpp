@@ -9202,6 +9202,7 @@ static Expr* resolvePrimInit(CallExpr* call, Type* type) {
     // Parent PRIM_MOVE will be updated to init() later in resolution
   } else if (at != NULL && at->symbol->hasFlag(FLAG_TUPLE) == false &&
             (at->isRecord() || at->isUnion())) {
+    SET_LINENO(call);
     AggregateType* root = at->getRootInstantiation();
     VarSymbol* default_temp = newTemp("default_init_temp", root);
     Expr* stmt = call->getStmtExpr();
@@ -9212,6 +9213,8 @@ static Expr* resolvePrimInit(CallExpr* call, Type* type) {
       Symbol* field = root->getField(e->key->name);
       bool hasDefault = false;
       bool isGenericField = root->fieldIsGeneric(field, hasDefault);
+
+      const char* namedExprText = e->key->name;
 
       Expr* appendExpr = NULL;
       if (field->isParameter()) {
@@ -9240,20 +9243,23 @@ static Expr* resolvePrimInit(CallExpr* call, Type* type) {
         }
       } else if (isGenericField && hasDefault == false) {
         // Create a temporary to pass for the fully-generic field (e.g. "var x;")
-        VarSymbol* temp = newTemp("default_field_temp", e->value->typeInfo());
-        CallExpr* tempCall = new CallExpr(PRIM_MOVE, temp, new CallExpr(PRIM_INIT, e->value));
+        //VarSymbol* temp = newTemp("default_field_temp", e->value->typeInfo());
+        //CallExpr* tempCall = new CallExpr(PRIM_MOVE, temp, new CallExpr(PRIM_INIT, e->value));
 
-        stmt->insertBefore(new DefExpr(temp));
-        stmt->insertBefore(tempCall);
-        resolveExpr(tempCall->get(2));
-        resolveExpr(tempCall);
-        appendExpr = new SymExpr(temp);
+        //stmt->insertBefore(new DefExpr(temp));
+        //stmt->insertBefore(tempCall);
+        //resolveExpr(tempCall->get(2));
+        //resolveExpr(tempCall);
+        //appendExpr = new SymExpr(temp);
+
+        namedExprText = astr(e->key->name, "Type");
+        appendExpr = new SymExpr(e->value);
 
       } else {
         INT_FATAL("Unhandled case for default-init");
       }
 
-      appendExpr = new NamedExpr(e->key->name, appendExpr);
+      appendExpr = new NamedExpr(namedExprText, appendExpr);
 
       initCall->insertAtTail(appendExpr);
     }

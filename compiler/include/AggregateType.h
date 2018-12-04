@@ -142,6 +142,7 @@ public:
   bool                        wantsDefaultInitializer()                  const;
 
   void                        buildDefaultInitializer();
+  void                        buildDefaultInit(bool forTypelessFields);
 
   void                        buildCopyInitializer();
 
@@ -247,14 +248,16 @@ private:
 
   void                        fieldToArg(FnSymbol*              fn,
                                          std::set<const char*>& names,
-                                         SymbolMap&             fieldArgMap);
+                                         SymbolMap&             fieldArgMap,
+                                         bool                   forTypelessFields);
 
   void                        fieldToArgType(DefExpr*   fieldDef,
                                              ArgSymbol* arg);
 
   bool                        addSuperArgs(FnSymbol*                    fn,
                                            const std::set<const char*>& names,
-                                           SymbolMap&                   fieldArgMap);
+                                           SymbolMap&                   fieldArgMap,
+                                           bool                         forTypelessFields);
 
   std::vector<AggregateType*> instantiations;
 
