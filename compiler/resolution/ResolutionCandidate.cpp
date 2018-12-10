@@ -511,7 +511,7 @@ static AggregateType* getActualType(ResolutionCandidate* rc, int idx) {
 static bool looksLikeCopyInit(ResolutionCandidate* rc) {
   bool retval = false;
 
-  if (rc->fn->isCopyInit() && rc->formalIdxToActual.size() == 3) {
+  if ((rc->fn->isCopyInit() || rc->fn->isInitializer()) && rc->formalIdxToActual.size() == 3) {
     // First formal/actual is gMethodToken
     AggregateType* base  = getActualType(rc, 1);
     AggregateType* other = getActualType(rc, 2);
