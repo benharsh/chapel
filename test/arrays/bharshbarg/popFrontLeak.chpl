@@ -8,7 +8,7 @@ record R {
   proc init(x:int) {
     c = new unmanaged C(x);
   }
-  proc initequals(other:R) {
+  proc init(other:R) {
     this.c = new unmanaged C(other.c.x);
   }
   proc deinit() {

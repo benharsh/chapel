@@ -1,1 +1,1 @@
-domain64-badworkaround.chpl:8: error: ranges must be initialized with a range of the same 'boundedType' parameter: bounded != boundedNone
+domain64-badworkaround.chpl:8: error: type mismatch in assignment of ranges with different boundedType parameters

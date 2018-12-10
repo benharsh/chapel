@@ -11,7 +11,7 @@ record R {
     this.x = x;
     writeln("R.init(int): ", x);
   }
-  proc initequals(other:R) {
+  proc init(other:R) {
     this.x = other.x + 1;
     writeln("R.init(R): ", x);
   }
