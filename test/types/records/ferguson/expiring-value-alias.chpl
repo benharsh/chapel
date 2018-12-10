@@ -334,7 +334,7 @@ proc R.init(c:unmanaged C = nil) {
   this.c = c;
 }
 
-proc R.initequals(other:R) {
+proc R.init(other:R) {
   if debug then writeln("  R.init(R) from ", getNum(other.c));
   this.c = new unmanaged C(other.c.x);
 }
