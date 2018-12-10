@@ -1351,6 +1351,14 @@ static void build_record_copy_function(AggregateType* at) {
         at->symbol->addFlag(FLAG_NOT_POD);
       }
 
+      if (at->getRootInstantiation()->hasUserDefinedInitEquals() == false) {
+        if (FnSymbol* fn = function_exists("init", dtMethodToken, at, at)) {
+          if (fn->hasFlag(FLAG_COMPILER_GENERATED) == false) {
+            at->symbol->addFlag(FLAG_NOT_POD);
+          }
+        }
+      }
+
     } else {
       FnSymbol*  fn  = new FnSymbol("chpl__initCopy");
       DefExpr*   def = new DefExpr(fn);

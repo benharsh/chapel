@@ -590,7 +590,9 @@ static bool fixupDefaultInitCopy(FnSymbol* fn,
         Symbol*   thisTmp  = newTemp(ct);
         DefExpr*  def      = new DefExpr(thisTmp);
         CallExpr* initCall = NULL;
-        if (ct->getRootInstantiation()->symbol->hasFlag(FLAG_GENERIC)) {
+        if (initFn->name == astrInit) {
+          initCall = new CallExpr(initFn, gMethodToken, thisTmp, arg);
+        } else if (ct->getRootInstantiation()->symbol->hasFlag(FLAG_GENERIC)) {
           initCall = new CallExpr(initFn, gMethodToken, thisTmp, new SymExpr(ct->symbol), arg);
         } else {
           initCall = new CallExpr(initFn, gMethodToken, thisTmp, arg);
