@@ -3244,6 +3244,14 @@ static FnSymbol* resolveForwardedCall(CallInfo& info, bool checkOnly) {
     return NULL;
   }
 
+  if (call->isNamedAstr(astrInit) && call->numActuals() >= 1) {
+    if (SymExpr* se = toSymExpr(call->get(1))) {
+      if (se->symbol() == gMethodToken) {
+        return NULL;
+      }
+    }
+  }
+
   // Detect cycles
   detectForwardingCycle(call);
 
@@ -4977,6 +4985,7 @@ static void resolveInitVar(CallExpr* call) {
 
         resolveCall(call);
       } else {
+        // TODO: only emit this once per root instantiation type
         USR_WARN(call, "The 'init=' method has replaced 'init' as the copy initializer");
       }
 
