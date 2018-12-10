@@ -1281,6 +1281,14 @@ static void check_not_pod(AggregateType* at) {
     if (hasUserCopyInit) {
       at->symbol->addFlag(FLAG_NOT_POD);
     }
+
+    if (at->getRootInstantiation()->hasUserDefinedInitEquals() == false) {
+      if (FnSymbol* fn = function_exists("init", dtMethodToken, at, at)) {
+        if (fn->hasFlag(FLAG_COMPILER_GENERATED) == false) {
+          at->symbol->addFlag(FLAG_NOT_POD);
+        }
+      }
+    }
   }
 }
 

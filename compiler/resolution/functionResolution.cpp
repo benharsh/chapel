@@ -4949,25 +4949,40 @@ static void resolveInitVar(CallExpr* call) {
       INT_FATAL("Unable to initialize record variable with type '%s'", at->symbol->name);
     } else {
       dst->type = targetType->getValType();
-
-      call->setUnresolvedFunction("initequals");
-      if (at->symbol->hasFlag(FLAG_GENERIC) == false &&
-          at->instantiatedFrom != NULL && at != at->instantiatedFrom) {
-        // Initializing a generic type, need to pass the type as an argument
-        Expr* last = call->argList.tail->remove();
-        call->insertAtTail(new SymExpr(at->symbol));
-        call->insertAtTail(last);
-      }
-
       src->addFlag(FLAG_INSERT_AUTO_DESTROY);
 
+      // TODO:
+      // - only try old-style if types match, else error
+      // - only try old-style if user-defined init= does not exist
+      // - update the 'findCopyInit' case
+
       call->insertAtHead(gMethodToken);
+
+      bool foundOldStyleInit = false;
+      if (at->getRootInstantiation()->hasUserDefinedInitEquals() == false &&
+          srcType->getValType() == targetType->getValType()) {
+        call->setUnresolvedFunction("init");
+
+        foundOldStyleInit = tryResolveCall(call) != NULL;
+      }
+      if (foundOldStyleInit == false) {
+        call->setUnresolvedFunction("initequals");
+        if (at->symbol->hasFlag(FLAG_GENERIC) == false &&
+            at->instantiatedFrom != NULL && at != at->instantiatedFrom) {
+          // Initializing a generic type, need to pass the type as an argument
+          Expr* last = call->argList.tail->remove();
+          call->insertAtTail(new SymExpr(at->symbol));
+          call->insertAtTail(last);
+        }
+
+        resolveCall(call);
+      } else {
+        USR_WARN(call, "The 'init=' method has replaced 'init' as the copy initializer");
+      }
 
       if (at->hasPostInitializer() == true) {
         call->insertAfter(new CallExpr("postinit", gMethodToken, dst));
       }
-
-      resolveCall(call);
 
     }
   }
@@ -4986,14 +5001,24 @@ static void resolveInitVar(CallExpr* call) {
 
 FnSymbol* findCopyInit(AggregateType* at) {
   VarSymbol* tmpAt = newTemp(at);
-  CallExpr*  call  = NULL;
-  if (at->getRootInstantiation()->symbol->hasFlag(FLAG_GENERIC)) {
-    call = new CallExpr("initequals", gMethodToken, tmpAt, new SymExpr(at->symbol), tmpAt);
-  } else {
-    call = new CallExpr("initequals", gMethodToken, tmpAt, tmpAt);
+
+  FnSymbol* ret = NULL;
+
+  if (at->getRootInstantiation()->hasUserDefinedInitEquals() == false) {
+    CallExpr* call = new CallExpr("init", gMethodToken, tmpAt, tmpAt);
+    ret  = resolveUninsertedCall(at, call, false);
   }
 
-  FnSymbol* ret = resolveUninsertedCall(at, call, false);
+  if (ret == NULL) {
+    CallExpr* call = NULL;
+    if (at->getRootInstantiation()->symbol->hasFlag(FLAG_GENERIC)) {
+      call = new CallExpr("initequals", gMethodToken, tmpAt, new SymExpr(at->symbol), tmpAt);
+    } else {
+      call = new CallExpr("initequals", gMethodToken, tmpAt, tmpAt);
+    }
+
+    ret = resolveUninsertedCall(at, call, false);
+  }
 
   // ret's instantiationPoint points to the dummy BlockStmt created by
   // resolveUninsertedCall, so it needs to be updated.
