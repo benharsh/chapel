@@ -33,6 +33,7 @@
 #include "typeSpecifier.h"
 #include "UnmanagedClassType.h"
 #include "visibleFunctions.h"
+#include "wellknown.h"
 
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
@@ -1844,12 +1845,15 @@ static Expr* createFunctionAsValue(CallExpr *call) {
 
   wrapper->addFlag(FLAG_INLINE);
 
-  wrapper->insertAtTail(new CallExpr(PRIM_RETURN,
-                                     new CallExpr(PRIM_CAST,
-                                                  parent->symbol,
-                                                  new CallExpr(PRIM_NEW,
-                                                               new NamedExpr(astr_chpl_manager, new SymExpr(dtUnmanaged->symbol)),
-                                                               new SymExpr(ct->symbol)))));
+  VarSymbol* tmp = newTemp("newTemp");
+  wrapper->insertAtTail(new DefExpr(tmp));
+  wrapper->insertAtTail(new CallExpr(PRIM_MOVE, tmp, new CallExpr(PRIM_NEW,
+                                                     new NamedExpr(astr_chpl_manager, new SymExpr(dtShared->symbol)),
+                                                     new SymExpr(ct->symbol))));
+  VarSymbol* shared = newTemp("sharedTemp");
+  wrapper->insertAtTail(new DefExpr(shared));
+  wrapper->insertAtTail(new CallExpr(PRIM_INIT_VAR, shared, tmp, new CallExpr(dtShared->typeConstructor, parent->symbol)));
+  wrapper->insertAtTail(new CallExpr(PRIM_RETURN, shared));
 
   call->getStmtExpr()->insertBefore(new DefExpr(wrapper));
 

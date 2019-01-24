@@ -44,6 +44,7 @@ extern AggregateType* dtMainArgument;
 extern AggregateType* dtOnBundleRecord;
 extern AggregateType* dtOpaqueArray;
 extern AggregateType* dtOwned;
+extern AggregateType* dtShared;
 extern AggregateType* dtTaskBundleRecord;
 extern AggregateType* dtTuple;
 
