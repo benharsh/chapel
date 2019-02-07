@@ -858,6 +858,9 @@ static void widenSubAggregateTypes(BaseAST* cause, Type* parent) {
       widenSubAggregateTypes(cause, fi->type);
     } else {
       if (fieldCanBeWide(fi)) {
+        if (fi->typeInfo()->symbol->hasFlag(FLAG_ARRAY)) {
+          fi->removeFlag(FLAG_LOCAL_FIELD);
+        }
         DEBUG_PRINTF("Field %s (%d) is a nested record in an on_fn bundle, must be wide\n", fi->cname, fi->id);
         setWide(cause, fi);
       }
@@ -1228,8 +1231,10 @@ static void propagateVar(Symbol* sym) {
         // TODO: Duplicate functions here.
 
         ArgSymbol* arg = actual_to_formal(use);
-        debug(sym, "Default widening of arg %s (%d)\n", arg->cname, arg->id);
-        matchWide(use, arg);
+        if (arg->hasFlag(FLAG_LOCAL) == false) {
+          debug(sym, "Default widening of arg %s (%d)\n", arg->cname, arg->id);
+          matchWide(use, arg);
+        }
       }
     }
   }
@@ -1240,7 +1245,7 @@ static void propagateVar(Symbol* sym) {
       if (call->isResolved()) {
         debug(sym, "Widening def arg\n");
         ArgSymbol* arg = actual_to_formal(def);
-        if (arg->hasFlag(FLAG_RETARG) == false) {
+        if (arg->hasFlag(FLAG_RETARG) == false && arg->hasFlag(FLAG_LOCAL) == false) {
           matchWide(def, arg);
         }
       }
@@ -2053,6 +2058,9 @@ static void fixAST() {
     if (call->isResolved()) {
       for_formals_actuals(formal, actual, call) {
         if (SymExpr* act = toSymExpr(actual)) {
+          if (isFullyWide(act) && isFullyWide(formal) == false && formal->hasFlag(FLAG_LOCAL)) {
+            insertLocalTemp(act);
+          }
           makeMatch(formal, act);
 
           if (act->getValType()->symbol->hasFlag(FLAG_TUPLE)) {
@@ -2363,6 +2371,27 @@ insertWideReferences(void) {
   if (!requireWideReferences()) {
     handleIsWidePointer();
     return;
+  }
+
+  forv_Vec(TypeSymbol, ts, gTypeSymbols) {
+    if (AggregateType* at = toAggregateType(ts->type)) {
+      if (strncmp(at->symbol->name, "_class_locals", strlen("_class_locals")) != 0 &&
+          at->symbol->hasFlag(FLAG_ITERATOR_RECORD) == false &&
+          at->symbol->hasFlag(FLAG_ITERATOR_CLASS) == false &&
+          at->symbol->hasFlag(FLAG_REF) == false &&
+          at->symbol->hasFlag(FLAG_TUPLE) == false) {
+        for_fields(field, at) {
+          if (field->typeInfo()->symbol->hasFlag(FLAG_ARRAY) && field->isRef() == false) {
+            //gdbShouldBreakHere();
+            //printf("Added to %s::%s :: %s::%s\n", at->getModule()->name, at->symbol->name, field->name, field->typeInfo()->symbol->name);
+            //viewFlags(at);
+            //printf("------\n");
+            //viewFlags(field);
+            field->addFlag(FLAG_LOCAL_FIELD);
+          }
+        }
+      }
+    }
   }
 
   //

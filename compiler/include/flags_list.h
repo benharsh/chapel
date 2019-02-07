@@ -216,6 +216,7 @@ symbolFlag( FLAG_LOCAL_ARGS , ypr, "local args" , "arguments and return value ar
 symbolFlag( FLAG_LOCAL_FIELD, ypr, "local field", "field is local to aggregate type" )
 symbolFlag( FLAG_LOCAL_FN , npr, "local fn" , "function is completely local (no communication)" )
 symbolFlag( FLAG_LOCAL_ON, npr, "local on", ncm)
+symbolFlag( FLAG_LOCAL, npr, "local variable", ncm)
 symbolFlag( FLAG_LOOP_BODY_ARGUMENT_CLASS , npr, "loop body argument class" , ncm )
 symbolFlag( FLAG_MANAGED_POINTER , ypr, "managed pointer" , "e.g. Owned and Shared" )
 symbolFlag( FLAG_MARKED_GENERIC , npr, "marked generic" , "formal is marked generic using the type query syntax" )
