@@ -4901,10 +4901,10 @@ static void resolveInitVar(CallExpr* call) {
     targetType = srcType;
   }
 
-  } else if (dst->hasFlag(FLAG_NO_COPY) ||
-             isPrimitiveScalar(targetType) ||
-             isEnumType(targetType) ||
-             addedCoerce) {
+  if (dst->hasFlag(FLAG_NO_COPY) ||
+      isPrimitiveScalar(targetType) ||
+      isEnumType(targetType) ||
+      addedCoerce) {
     dst->type = targetType;
 
     call->primitive = primitives[PRIM_MOVE];
