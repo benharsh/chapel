@@ -600,6 +600,10 @@ static void setWide(BaseAST* cause, SymExpr* se) {
 
 
 static void setValWide(BaseAST* cause, Symbol* sym) {
+  if (sym->hasFlag(FLAG_LOCAL)) {
+    setWide(cause, sym);
+    return;
+  }
   Type* valType = sym->type->getValType();
   if (!typeCanBeWide(sym)) return;
   if (!isObj(valType)) return;
