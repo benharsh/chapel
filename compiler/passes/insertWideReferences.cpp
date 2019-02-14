@@ -2063,7 +2063,16 @@ static void fixAST() {
       for_formals_actuals(formal, actual, call) {
         if (SymExpr* act = toSymExpr(actual)) {
           if (isFullyWide(act) && isFullyWide(formal) == false && formal->hasFlag(FLAG_LOCAL)) {
-            insertLocalTemp(act);
+            if (act->isWideRef() && valIsWideClass(act)) {
+              SET_LINENO(act);
+              Expr* stmt = act->getStmtExpr();
+              VarSymbol* var = newTemp(astr("local_", act->symbol()->name), QualifiedType(QUAL_REF, getNarrowType(act->getValType()).type()));
+              stmt->insertBefore(new DefExpr(var));
+              stmt->insertBefore(new CallExpr(PRIM_MOVE, var, act->copy()));
+              act->replace(new SymExpr(var));
+            } else {
+              insertLocalTemp(act);
+            }
           }
           makeMatch(formal, act);
 
