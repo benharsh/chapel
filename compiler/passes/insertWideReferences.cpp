@@ -894,7 +894,9 @@ static void addKnownWides() {
           // such fields need to be wide. This may have to be done recursively
           // if such a field is a record itself.
           widenSubAggregateTypes(fn, fi->type);
-        } else {
+
+          // Do not automatically widen the target of an on-statement.
+        } else if (fi->hasFlag(FLAG_LOCAL) == false) {
           DEBUG_PRINTF("Field %s (%d) is in an on bundle, must be wide\n", fi->cname, fi->id);
           setWide(fn, fi);
         }
@@ -1235,10 +1237,8 @@ static void propagateVar(Symbol* sym) {
         // TODO: Duplicate functions here.
 
         ArgSymbol* arg = actual_to_formal(use);
-        if (arg->hasFlag(FLAG_LOCAL) == false) {
-          debug(sym, "Default widening of arg %s (%d)\n", arg->cname, arg->id);
-          matchWide(use, arg);
-        }
+        debug(sym, "Default widening of arg %s (%d)\n", arg->cname, arg->id);
+        matchWide(use, arg);
       }
     }
   }

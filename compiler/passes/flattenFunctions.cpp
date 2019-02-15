@@ -259,7 +259,9 @@ addVarsToFormals(FnSymbol* fn, SymbolMap* vars) {
           arg->addFlag(FLAG_COFORALL_INDEX_VAR);
       if (sym->hasFlag(FLAG_LOCAL)) {
         sym->removeFlag(FLAG_LOCAL);
-        arg->addFlag(FLAG_LOCAL);
+        if (arg->getValType() != dtLocale) {
+          arg->addFlag(FLAG_LOCAL);
+        }
       }
 
       fn->insertFormalAtTail(new DefExpr(arg));

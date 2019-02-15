@@ -820,7 +820,7 @@ void createTaskFunctions(void) {
         ArgSymbol* arg = new ArgSymbol(INTENT_CONST_IN, "dummy_locale_arg", dtLocaleID);
         fn->insertFormalAtTail(arg);
 
-        if (info->isPrimitive(PRIM_BLOCK_COFORALL_ON) && info->getModule()->modTag == MOD_USER) {
+        if ((info->isPrimitive(PRIM_BLOCK_COFORALL_ON) || info->isPrimitive(PRIM_BLOCK_ON)) && info->getModule()->modTag == MOD_USER) {
           Expr* tmpInit = toSymExpr(info->get(1))->symbol()->getSingleDef();
           CallExpr* move = toCallExpr(tmpInit->parentExpr);
           INT_ASSERT(move->isPrimitive(PRIM_MOVE));
@@ -830,9 +830,12 @@ void createTaskFunctions(void) {
           CallExpr* rhs = toCallExpr(moveLocale->get(2));
           INT_ASSERT(rhs->isPrimitive(PRIM_WIDE_GET_LOCALE));
           Symbol* target = toSymExpr(rhs->get(1))->symbol();
-          if (target->hasFlag(FLAG_COFORALL_INDEX_VAR)) {
-            target->addFlag(FLAG_LOCAL);
+
+          if (info->isPrimitive(PRIM_BLOCK_COFORALL_ON)) {
+            INT_ASSERT(target->hasFlag(FLAG_COFORALL_INDEX_VAR));
           }
+
+          target->addFlag(FLAG_LOCAL);
         }
       }
       else if (info->isPrimitive(PRIM_BLOCK_LOCAL) ||

@@ -187,6 +187,10 @@ static void create_arg_bundle_class(FnSymbol* fn, CallExpr* fcall, ModuleSymbol*
 
     VarSymbol* field = new VarSymbol(astr("_", istr(i), "_", var->name), var->getValType());
 
+    if (formal->hasFlag(FLAG_LOCAL)) {
+      field->addFlag(FLAG_LOCAL);
+    }
+
     // Mark error variables with flag, so we can remove them later.
     // the rest of parallel.cpp is less
     // confusing if there's still a slot for them.
