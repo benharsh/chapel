@@ -579,6 +579,7 @@ static void printCauses(Symbol* sym) {
 
 
 static void setWide(BaseAST* cause, Symbol* sym) {
+  if (sym->id == 1391338) gdbShouldBreakHere();
   if (!typeCanBeWide(sym)) return;
   if (isArgSymbol(sym) && sym->defPoint->parentSymbol->hasFlag(FLAG_LOCAL_ARGS)) return;
   if (isVarSymbol(sym) && sym->defPoint->parentSymbol->hasFlag(FLAG_ARRAY) && !fNoInferLocalFields) {
@@ -1177,7 +1178,24 @@ static void propagateVar(Symbol* sym) {
             setWide(use, base);
           }
         } else {
-          matchWide(use, field->symbol());
+          SymExpr* se = toSymExpr(use);
+          // Will this mess things up for a nested coforall?
+          //
+          // I don't think we can statically do this for coforall-ons when
+          // iterating over an array of classes. Since the idx-var is a reference,
+          // what if the user overwrites the array element from within the coforall?
+          //
+          // coforall c in A {
+          //   assert(c == A[id]);
+          //   A[id] = ...;
+          // }
+          bool isCoforallOnTarget = field->symbol()->hasFlag(FLAG_LOCAL) &&
+                                    se != NULL &&
+                                    se->symbol()->hasFlag(FLAG_COFORALL_INDEX_VAR) &&
+                                    se->symbol()->hasFlag(FLAG_LOCAL);
+          if (isCoforallOnTarget == false) {
+            matchWide(use, field->symbol());
+          }
         }
       }
       else if (call->isPrimitive(PRIM_SET_SVEC_MEMBER)) {

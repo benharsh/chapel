@@ -648,6 +648,9 @@ static void defaultForwarding(Map<Symbol*, Vec<SymExpr*>*>& useMap,
     if (arg->hasFlag(FLAG_COFORALL_INDEX_VAR)) {
       deref->addFlag(FLAG_COFORALL_INDEX_VAR);
     }
+    if (arg->hasFlag(FLAG_LOCAL)) {
+      deref->addFlag(FLAG_LOCAL);
+    }
 
     Expr* rhs = NULL;
     if (actual->isRef()) {
