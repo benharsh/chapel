@@ -2231,7 +2231,7 @@ static bool isGenericRecordInit(CallExpr* call) {
   bool retval = false;
 
   if (UnresolvedSymExpr* ures = toUnresolvedSymExpr(call->baseExpr)) {
-    if ((strcmp(ures->unresolved, "init") == 0 || strcmp(ures->unresolved, "initequals") == 0) &&
+    if ((strcmp(ures->unresolved, "init") == 0 || strcmp(ures->unresolved, astrInitEquals) == 0) &&
         call->numActuals()               >= 2) {
       Type* t1 = call->get(1)->typeInfo();
       Type* t2 = call->get(2)->typeInfo();
@@ -2928,7 +2928,7 @@ void trimVisibleCandidates(CallInfo&       info,
     }
   }
 
-  bool isInit   = isMethod && (call->isNamedAstr(astrInit) || call->isNamed("initequals"));
+  bool isInit   = isMethod && (call->isNamedAstr(astrInit) || call->isNamed(astrInitEquals));
   bool isNew    = call->numActuals() >= 1 && call->isNamedAstr(astrNew);
   bool isDeinit = isMethod && call->isNamedAstr(astrDeinit);
 
@@ -4974,7 +4974,7 @@ static void resolveInitVar(CallExpr* call) {
         foundOldStyleInit = tryResolveCall(call) != NULL;
       }
       if (foundOldStyleInit == false) {
-        call->setUnresolvedFunction("initequals");
+        call->setUnresolvedFunction(astrInitEquals);
         if (at->symbol->hasFlag(FLAG_GENERIC) == false &&
             at->instantiatedFrom != NULL && at != at->instantiatedFrom) {
           // Initializing a generic type, need to pass the type as an argument
@@ -5021,9 +5021,9 @@ FnSymbol* findCopyInit(AggregateType* at) {
   if (ret == NULL) {
     CallExpr* call = NULL;
     if (at->getRootInstantiation()->symbol->hasFlag(FLAG_GENERIC)) {
-      call = new CallExpr("initequals", gMethodToken, tmpAt, new SymExpr(at->symbol), tmpAt);
+      call = new CallExpr(astrInitEquals, gMethodToken, tmpAt, new SymExpr(at->symbol), tmpAt);
     } else {
-      call = new CallExpr("initequals", gMethodToken, tmpAt, tmpAt);
+      call = new CallExpr(astrInitEquals, gMethodToken, tmpAt, tmpAt);
     }
 
     ret = resolveUninsertedCall(at, call, false);

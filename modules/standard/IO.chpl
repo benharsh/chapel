@@ -1276,7 +1276,7 @@ proc file.init(x: file) {
   }
 }
 
-proc file.initequals(x: file) {
+proc file.init=(x: file) {
   this.init(x);
 }
 
@@ -1974,7 +1974,7 @@ proc channel.init(x: channel) {
   }
 }
 
-proc channel.initequals(type ThisType, x: channel) {
+proc channel.init=(type ThisType, x: channel) {
   if x.type != ThisType then compilerError("init= error");
   this.init(x);
 }

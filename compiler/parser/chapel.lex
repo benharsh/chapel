@@ -213,6 +213,8 @@ with             return processToken(yyscanner, TWITH);
 yield            return processToken(yyscanner, TYIELD);
 zip              return processToken(yyscanner, TZIP);
 
+"init="          return processToken(yyscanner, TINITEQUALS);
+
 "_"              return processToken(yyscanner, TUNDERSCORE);
 
 "="              return processToken(yyscanner, TASSIGN);

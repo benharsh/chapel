@@ -6,7 +6,7 @@ record R {
   type T;
   var x : T;
 
-  proc initequals(type ThisType, other: ThisType.T) {
+  proc init=(type ThisType, other: ThisType.T) {
     this.T = ThisType.T;
     this.x = other;
   }
@@ -20,9 +20,9 @@ record X {
     writeln("X.init: ", x);
   }
 
-  proc initequals(other: X) {
+  proc init=(other: X) {
     this.x = other.x;
-    writeln("X.initequals: ", x);
+    writeln("X.init=: ", x);
   }
 
   proc deinit() {

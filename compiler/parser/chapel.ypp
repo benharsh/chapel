@@ -339,6 +339,7 @@
 %token TEQUAL TEXP TGREATER
 %token TGREATEREQUAL
 %token THASH
+%token TINITEQUALS
 %token TIO
 %token TLESS
 %token TLESSEQUAL
@@ -1233,6 +1234,7 @@ fn_ident:
 | TALIGN         { $$ = "chpl_align"; }
 | TSWAP          { $$ = "<=>"; }
 | TIO            { $$ = "<~>"; }
+| TINITEQUALS    { $$ = "init="; }
 ;
 
 assignop_ident:

@@ -1694,7 +1694,7 @@ void AggregateType::buildCopyInitializer() {
       }
     }
 
-    FnSymbol*  fn    = new FnSymbol("initequals");
+    FnSymbol*  fn    = new FnSymbol(astrInitEquals);
 
     DefExpr*   def   = new DefExpr(fn);
 

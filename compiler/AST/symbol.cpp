@@ -2008,7 +2008,7 @@ void initAstrConsts() {
   astr_cast   = astr("_cast");
   astr_defaultOf = astr("_defaultOf");
   astrInit    = astr("init");
-  astrInitEquals = astr("initequals");
+  astrInitEquals = astr("init=");
   astrNew     = astr("_new");
   astrDeinit  = astr("deinit");
   astrTag     = astr("tag");

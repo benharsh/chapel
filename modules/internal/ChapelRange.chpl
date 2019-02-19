@@ -288,7 +288,7 @@ module ChapelRange {
       compilerError("non-stridable range initializer called with stridable=true");
   }
 
-  proc range.initequals(type ThisType, other : range(?i,?b,?s)) {
+  proc range.init=(type ThisType, other : range(?i,?b,?s)) {
     type idxType = ThisType.idxType;
     if ThisType.boundedType != b {
       param details = ThisType.boundedType:string + " != " + b:string;

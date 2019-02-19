@@ -20,7 +20,7 @@ writeln("\n\n");
 writeln("----- User-Defined Copy Initialization -----");
 
 // will be 'init=' eventually
-proc R.initequals(other : R) {
+proc R.init=(other : R) {
   writeln("classic copy initialization");
   this.x = other.x;
 }
@@ -35,7 +35,7 @@ writeln("\n\n");
 
 writeln("----- Init= from integer -----");
 
-proc R.initequals(x : int) {
+proc R.init=(x : int) {
   writeln("init= from integer");
   this.x = x;
 }

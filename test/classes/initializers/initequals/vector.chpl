@@ -17,7 +17,7 @@ record Vector {
   }
 
   // Classic copy-initializer
-  proc initequals(type ThisType, other : ThisType) {
+  proc init=(type ThisType, other : ThisType) {
     writeln("classic copy init");
     this.T = other.T;
     this.D = other.D;
@@ -35,7 +35,7 @@ writeln("----- Classic Initialization -----");
 writeln("\n\n\n");
 
 // Initialize a particular Vector type from an array of the same eltType
-proc Vector.initequals(type ThisType, data : [] ThisType.T) {
+proc Vector.init=(type ThisType, data : [] ThisType.T) {
   writeln("typed init= from array");
   this.T = ThisType.T;
   this.D = data.domain;
@@ -51,7 +51,7 @@ writeln("----- Initialize Typed Generic from Expr -----");
 writeln("\n\n\n");
 
 // Infer generic information from RHS
-proc Vector.initequals(data : [] ) {
+proc Vector.init=(data : [] ) {
   writeln("init= infer from array");
   this.T = data.eltType;
   this.D = data.domain;

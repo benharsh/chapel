@@ -74,7 +74,7 @@ record list {
   }
 
   pragma "no doc"
-  proc initequals(type ThisType, l : list(?t)) {
+  proc init=(type ThisType, l : list(?t)) {
     if l.type != ThisType then compilerError("init= error");
     this.eltType = t;
     this.complete();

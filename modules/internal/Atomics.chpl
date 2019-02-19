@@ -330,12 +330,12 @@ module Atomics {
       atomic_init(_v, default);
     }
 
-    proc initequals(type ThisType, other : ThisType) {
+    proc init=(type ThisType, other : ThisType) {
       this.T = other.T;
       this._v = other._v;
     }
 
-    proc initequals(type ThisType, other : ThisType.T) {
+    proc init=(type ThisType, other : ThisType.T) {
       this.T = ThisType.T;
       this.complete();
 

@@ -134,12 +134,12 @@ module ChapelSyncvar {
       this.isOwned = false;
     }
 
-    proc initequals(type ThisType, const other : _syncvar) {
+    proc init=(type ThisType, const other : _syncvar) {
       if other.type != ThisType then compilerError("init= error");
       this.init(other);
     }
 
-    proc initequals(type ThisType, const other : ThisType.valType) {
+    proc init=(type ThisType, const other : ThisType.valType) {
       this.init(ThisType.valType);
       // TODO: initialize the sync class impl with 'other'
       this.writeEF(other);
@@ -658,12 +658,12 @@ module ChapelSyncvar {
       isOwned = false;
     }
 
-    proc initequals(type ThisType, const other : _singlevar) {
+    proc init=(type ThisType, const other : _singlevar) {
       if other.type != ThisType then compilerError("init= error");
       this.init(other);
     }
 
-    proc initequals(type ThisType, const other : ThisType.valType) {
+    proc init=(type ThisType, const other : ThisType.valType) {
       this.init(ThisType.valType);
       this.writeEF(other);
     }

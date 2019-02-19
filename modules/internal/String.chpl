@@ -335,7 +335,7 @@ module String {
       }
     }
 
-    proc initequals(s: string) {
+    proc init=(s: string) {
       this.init(s);
     }
 
@@ -355,7 +355,7 @@ module String {
       this.reinitString(cs:bufferType, cs_len, cs_len+1, needToCopy);
     }
 
-    proc initequals(cs: c_string) {
+    proc init=(cs: c_string) {
       this.init(cs);
     }
 

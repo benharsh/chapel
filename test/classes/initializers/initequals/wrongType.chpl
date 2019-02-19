@@ -3,7 +3,7 @@ record R {
   type T;
   var x : T;
 
-  proc initequals(type ThisType, other: int) {
+  proc init=(type ThisType, other: int) {
     this.T = (int, int);
     this.x = (other, other);
   }

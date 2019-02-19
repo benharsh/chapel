@@ -202,7 +202,7 @@ module BigInteger {
       this.localeId = chpl_nodeID;
     }
 
-    proc initequals(const ref num: bigint) {
+    proc init=(const ref num: bigint) {
       this.init(num);
     }
 
@@ -220,7 +220,7 @@ module BigInteger {
       this.localeId = chpl_nodeID;
     }
 
-    proc initequals(num : integral) {
+    proc init=(num : integral) {
       this.init(num);
     }
 
