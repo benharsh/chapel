@@ -4972,6 +4972,11 @@ static void resolveInitVar(CallExpr* call) {
         call->setUnresolvedFunction("init");
 
         foundOldStyleInit = tryResolveCall(call) != NULL;
+
+        // Check for errors if we found an initializer
+        if (foundOldStyleInit) {
+          resolveNormalCallFinalChecks(call);
+        }
       }
       if (foundOldStyleInit == false) {
         call->setUnresolvedFunction(astrInitEquals);

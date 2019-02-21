@@ -291,8 +291,7 @@ module ChapelRange {
   proc range.init=(type ThisType, other : range(?i,?b,?s)) {
     type idxType = ThisType.idxType;
     if ThisType.boundedType != b {
-      param details = ThisType.boundedType:string + " != " + b:string;
-      compilerError("ranges must be initialized with a range of the same 'boundedType' parameter: ", details);
+      compilerError("range(boundedType=" + ThisType.boundedType:string + ") cannot be initialized from range(boundedType=" + b:string + ")");
     }
 
     if !ThisType.stridable && s then
