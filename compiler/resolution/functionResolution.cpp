@@ -4990,8 +4990,7 @@ static void resolveInitVar(CallExpr* call) {
 
         resolveCall(call);
       } else {
-        // TODO: only emit this once per root instantiation type
-        USR_WARN(call, "The 'init=' method has replaced 'init' as the copy initializer");
+        // TODO: A warning about old-style 'init' vs. init= would go here.
       }
 
       if (at->hasPostInitializer() == true) {
