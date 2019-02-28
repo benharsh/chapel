@@ -2874,6 +2874,8 @@ module ChapelArray {
       if !isRectangularArr(this) || this.rank != 1 then
         compilerError("back() is only supported on 1D rectangular arrays");
 
+      compilerWarning("[].back() is deprecated");
+
       if boundsChecking && isEmpty() then
         halt("back called on an empty array");
 
@@ -2890,6 +2892,7 @@ module ChapelArray {
       if (!chpl__isDense1DArray()) then
         compilerError("push_back() is only supported on dense 1D arrays");
 
+      compilerWarning("[].push_back is deprecated");
       chpl__assertSingleArrayDomain("push_back");
 
       const newRange = this.domain.low..(this.domain.high+1);
@@ -2912,6 +2915,7 @@ module ChapelArray {
       if (!chpl__isDense1DArray()) then
         compilerError("push_back() is only supported on dense 1D arrays");
 
+      compilerWarning("[].push_back is deprecated");
       chpl__assertSingleArrayDomain("push_back");
 
       const thisRange = this.domain.high+1..#vals.size,
@@ -2935,6 +2939,7 @@ module ChapelArray {
       if (!chpl__isDense1DArray()) then
         compilerError("pop_back() is only supported on dense 1D arrays");
 
+      compilerWarning("[].pop_back is deprecated");
       chpl__assertSingleArrayDomain("pop_back");
 
       if boundsChecking && isEmpty() then
@@ -2972,6 +2977,8 @@ module ChapelArray {
       if !isRectangularArr(this) || this.rank != 1 then
         compilerError("front() is only supported on 1D rectangular arrays");
 
+      compilerWarning("[].front() is deprecated");
+
       if boundsChecking && isEmpty() then
         halt("front called on an empty array");
 
@@ -2987,6 +2994,7 @@ module ChapelArray {
     proc push_front(in val: this.eltType) lifetime this < val {
       if (!chpl__isDense1DArray()) then
         compilerError("push_front() is only supported on dense 1D arrays");
+      compilerWarning("[].push_front is deprecated");
       chpl__assertSingleArrayDomain("push_front");
       const lo = this.domain.low-1,
             hi = this.domain.high;
@@ -3005,6 +3013,7 @@ module ChapelArray {
       if (!chpl__isDense1DArray()) then
         compilerError("push_front() is only supported on dense 1D arrays");
 
+      compilerWarning("[].push_front is deprecated");
       chpl__assertSingleArrayDomain("push_front");
 
       const thisRange = (this.domain.low-vals.size)..#vals.size,
@@ -3028,6 +3037,7 @@ module ChapelArray {
     proc pop_front() {
       if (!chpl__isDense1DArray()) then
         compilerError("pop_front() is only supported on dense 1D arrays");
+      compilerWarning("[].pop_front is deprecated");
       chpl__assertSingleArrayDomain("pop_front");
 
       if boundsChecking && isEmpty() then
@@ -3069,6 +3079,7 @@ module ChapelArray {
       if (!chpl__isDense1DArray()) then
         compilerError("insert() is only supported on dense 1D arrays");
 
+      compilerWarning("[].insert is deprecated");
       chpl__assertSingleArrayDomain("insert");
 
       const prevHigh = this.domain.high;
@@ -3105,6 +3116,7 @@ module ChapelArray {
       if (!chpl__isDense1DArray()) then
         compilerError("insert() is only supported on dense 1D arrays");
 
+      compilerWarning("[].insert is deprecated");
       chpl__assertSingleArrayDomain("insert");
 
       const shift = vals.size,
@@ -3133,6 +3145,7 @@ module ChapelArray {
     proc remove(pos: this.idxType) {
       if (!chpl__isDense1DArray()) then
         compilerError("remove() is only supported on dense 1D arrays");
+      compilerWarning("[].remove is deprecated");
       chpl__assertSingleArrayDomain("remove");
 
       if boundsChecking && !this.domain.contains(pos) then
@@ -3167,6 +3180,7 @@ module ChapelArray {
     proc remove(pos: this.idxType, count: this.idxType) {
       if (!chpl__isDense1DArray()) then
         compilerError("remove() is only supported on dense 1D arrays");
+      compilerWarning("[].remove is deprecated");
       chpl__assertSingleArrayDomain("remove count");
       const lo = this.domain.low,
             hi = this.domain.high-count;
@@ -3205,6 +3219,7 @@ module ChapelArray {
     proc remove(pos: range(this.idxType, stridable=false)) {
       if (!chpl__isDense1DArray()) then
         compilerError("remove() is only supported on dense 1D arrays");
+      compilerWarning("[].remove is deprecated");
       chpl__assertSingleArrayDomain("remove range");
       remove(pos.low, pos.size);
     }
@@ -3230,6 +3245,7 @@ module ChapelArray {
     proc clear() {
       if (!chpl__isDense1DArray()) then
         compilerError("clear() is only supported on dense 1D arrays");
+      compilerWarning("[].clear() is deprecated");
       chpl__assertSingleArrayDomain("clear");
       const lo = this.domain.low,
             hi = this.domain.low-1;
