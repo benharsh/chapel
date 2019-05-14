@@ -1652,9 +1652,8 @@ static void normalizeCallToTypeConstructor(CallExpr* call) {
             //
             // To work around this, use a SymExpr pointing to the type
             // constructor we know to be correct.
-            if (at->hasInitializers()) {
-              se->replace(new SymExpr(at->typeConstructor));
-            } else {
+
+            if (at->hasInitializers() == false) {
               const char* name = at->typeConstructor->name;
               se->replace(new UnresolvedSymExpr(name));
             }

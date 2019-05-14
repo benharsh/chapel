@@ -639,9 +639,20 @@ void registerModule(ModuleSymbol* mod) {
 
 void update_symbols(BaseAST* ast, SymbolMap* map) {
   if (SymExpr* sym_expr = toSymExpr(ast)) {
-    if (sym_expr->symbol())
-      if (Symbol* y = map->get(sym_expr->symbol()))
-        sym_expr->setSymbol(y);
+    if (sym_expr->symbol()) {
+      if (Symbol* y = map->get(sym_expr->symbol())) {
+        bool skip = false;
+        if (CallExpr* call = toCallExpr(sym_expr->parentExpr)) {
+          if (y->getValType()->symbol->hasFlag(FLAG_TUPLE) == false &&
+              call->baseExpr == sym_expr && sym_expr->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
+            skip = true;
+          }
+        }
+        if (!skip) {
+          sym_expr->setSymbol(y);
+        }
+      }
+    }
 
 
   } else if (DefExpr* defExpr = toDefExpr(ast)) {
