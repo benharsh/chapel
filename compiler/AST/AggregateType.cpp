@@ -30,12 +30,15 @@
 #include "iterator.h"
 #include "LoopExpr.h"
 #include "passes.h"
+#include "resolution.h"
 #include "scopeResolve.h"
 #include "stlUtil.h"
 #include "stmt.h"
 #include "stringutil.h"
 #include "symbol.h"
 #include "../ifa/prim_data.h"
+
+#include <queue>
 
 AggregateType* dtObject = NULL;
 AggregateType* dtString = NULL;
@@ -686,6 +689,98 @@ bool AggregateType::setNextGenericField() {
 *                                                                             *
 ************************************** | *************************************/
 
+AggregateType* AggregateType::generateType(CallExpr* call) {
+  if (setFirstGenericField() == false) {
+    return NULL;
+  }
+
+  std::vector<Symbol*> genFields;
+  for (int i = 1; i <= fields.length; i++) {
+    bool ignoredHasDefault = false;
+    Symbol* field = getField(i);
+    if (fieldIsGeneric(field, ignoredHasDefault) == true) {
+      genFields.push_back(field);
+    }
+  }
+
+  AggregateType* ret = this;
+  SymbolMap map;
+  std::queue<Symbol*> notNamed;
+  while (call->numActuals() >= 1) {
+    Expr* actual = call->get(1)->remove();
+    if (NamedExpr* ne = toNamedExpr(actual)) {
+      Symbol* field = getField(ne->name);
+      map.put(field, toSymExpr(ne->actual)->symbol());
+    } else {
+      notNamed.push(toSymExpr(actual)->symbol());
+    }
+  }
+
+  //for (int index = genericField; index <= fields.length && notNamed.empty() == false; index++) {
+  //  Symbol* field = getField(index);
+  for_vector(Symbol, field, genFields) {
+    if (substitutionForField(field, map) == NULL && notNamed.size() > 0) {
+      map.put(field, notNamed.front());
+      notNamed.pop();
+    }
+  }
+
+  INT_ASSERT(notNamed.size() == 0);
+
+  gdbShouldBreakHere();
+  ret = ret->generateType(map);
+
+  if (ret != this) {
+    ret->instantiatedFrom = this;
+  }
+
+  return ret;
+}
+
+static Symbol* resolveFieldExpr(Expr* expr) {
+  Symbol* ret = NULL;
+
+  if (expr != NULL) {
+    if (isBlockStmt(expr) == false) {
+      BlockStmt* block = new BlockStmt();
+      expr->replace(block);
+      block->insertAtTail(expr);
+      normalize(block);
+      expr = block;
+    }
+
+    BlockStmt* block = toBlockStmt(expr);
+    resolveBlockStmt(block);
+
+    Expr* tail = block->body.tail;
+    if (SymExpr* se = toSymExpr(tail)) {
+      ret = se->symbol();
+    } else {
+      gdbShouldBreakHere();
+      ret = tail->typeInfo()->symbol;
+    }
+
+    block->replace(new SymExpr(ret));
+  }
+
+  return ret;
+}
+
+// TODO: We should do some type/val mismatch checking here, but sometimes we
+// only want to try the exprType, not the default value
+static Type* resolveFieldType(Symbol* field) {
+  Type* ret = NULL;
+
+  if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
+    Expr* useExpr = field->defPoint->exprType ? field->defPoint->exprType : field->defPoint->init;
+    if (Symbol* sym = resolveFieldExpr(useExpr)) {
+      ret = sym->type;
+    }
+  }
+
+  return ret;
+}
+
 AggregateType* AggregateType::generateType(SymbolMap& subs) {
   AggregateType* retval = this;
 
@@ -702,17 +797,80 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
     }
   }
 
+  // TODO:
+  // - 'param x = "hello"', pass it an integer (should fail)
+  // - use a type/value function in the wrong places
+  // - what does a resolution failure in the field components look like?
+
   // Process the local fields
   for (int index = 1; index <= numFields(); index = index + 1) {
     Symbol* field = getField(index);
 
     bool ignoredHasDefault = false;
+
+    if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+      gdbShouldBreakHere();
+    }
+
     if (fieldIsGeneric(field, ignoredHasDefault)) {
       if (Symbol* val = substitutionForField(field, subs)) {
         retval->genericField = index;
 
+        if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+          if (Type* fieldType = resolveFieldType(retval->getField(index))) {
+            if (getInstantiationType(val->type, fieldType) == NULL) {
+              USR_FATAL("Unable to instantiate field '%s : %s' with type '%s'\n", field->name, fieldType->symbol->name, val->type->symbol->name);
+            }
+          }
+        }
+
         retval = retval->getInstantiation(val, index);
+      } else if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+        Symbol* field = retval->getField(index);
+        if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
+          if (Type* type = resolveFieldType(field)) {
+            retval = retval->getInstantiation(type->symbol, index);
+          }
+        } else if (field->hasFlag(FLAG_PARAM)) {
+          gdbShouldBreakHere();
+          Symbol* expected = NULL;
+          Symbol* value = NULL;
+
+          if (Expr* exprType = field->defPoint->exprType) {
+            expected = resolveFieldExpr(exprType);
+            if (isTypeSymbol(expected) == false) {
+              USR_FATAL("param field '%s' has a value where its type is expected");
+            }
+          }
+          if (Expr* init = field->defPoint->init) {
+            value = resolveFieldExpr(init);
+          }
+
+          if (expected != NULL && value != NULL) {
+            if (getInstantiationType(value->type, expected->type) == NULL) {
+              // TODO: pretty-print resolved value
+              USR_FATAL("param field '%s' has type '%s' but default value is of incompatible type '%s'",
+                        field->name, expected->name, value->type->symbol->name);
+            }
+            retval = retval->getInstantiation(value, index);
+          } else if (expected == NULL && value != NULL) {
+            retval = retval->getInstantiation(value, index);
+          } else if (expected != NULL && value == NULL) {
+            USR_FATAL("param field '%s : %s' was not explicitly instantiated and does not have a default value", field->name, expected->name);
+          } else {
+            USR_FATAL("param field '%s' was not explicitly instantiated and does not have a default value", field->name);
+          }
+        } else {
+          INT_FATAL("Can only default-instantiate type and param fields");
+        }
       }
+    } else if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+      Symbol* field = retval->getField(index);
+      Type* fieldType = resolveFieldType(field);
+      if (fieldType != NULL) {
+        field->type = fieldType;
+      }
+      // TODO: error?
     }
   }
 
@@ -933,7 +1091,10 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym) {
     }
 
   } else {
-    if (field->defPoint->exprType->typeInfo() == sym->typeInfo()) {
+    Type* fieldType = field->defPoint->exprType->typeInfo();
+    if (fieldType->symbol->hasFlag(FLAG_GENERIC)) {
+      field->type = sym->typeInfo();
+    } else if (fieldType == sym->typeInfo()) {
       field->type = sym->typeInfo();
     }
   }

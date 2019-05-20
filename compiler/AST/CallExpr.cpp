@@ -554,6 +554,19 @@ QualifiedType CallExpr::qualType(void) {
     }
 
     retval = QualifiedType(q, fn->retType);
+  } else if (SymExpr* se = toSymExpr(baseExpr)) {
+    bool useType = false;
+    if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
+      if (AggregateType* at = toAggregateType(se->typeInfo())) {
+        if (at->isGeneric() == false) {
+          useType = true;
+        }
+      } else {
+        useType = true;
+      }
+    }
+
+    retval = QualifiedType(QUAL_UNKNOWN, useType ? se->typeInfo() : dtUnknown);
 
   } else {
     retval = QualifiedType(dtUnknown);

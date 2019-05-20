@@ -2471,6 +2471,8 @@ static void hack_resolve_types(ArgSymbol* arg) {
                 // Set dtUnknown, causing the upcoming conditional to fail
                 type = dtUnknown;
               }
+            } else if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
+              type = dtUnknown;
             }
           }
         }
