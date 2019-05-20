@@ -109,6 +109,11 @@ Expr* postFold(Expr* expr) {
 
     } else if (call->isPrimitive() == true) {
       retval = postFoldPrimop(call);
+    } else if (SymExpr* se = toSymExpr(call->baseExpr)) {
+      if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
+        retval = se->copy();
+        call->replace(retval);
+      }
     }
 
   } else if (SymExpr* sym = toSymExpr(expr)) {

@@ -2211,6 +2211,24 @@ static FnSymbol* wrapAndCleanUpActuals(ResolutionCandidate* best,
                                        CallInfo&            info,
                                        bool                 followerChecks);
 
+static bool isTypeConstructionCall(CallExpr* call) {
+  bool ret = false;
+
+  if (SymExpr* se = toSymExpr(call->baseExpr)) {
+    if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
+      ret = true;
+    }
+  }
+
+  return ret;
+}
+
+static void resolveTypeSpecifier(CallExpr* call) {
+  // use 'getInstantiationType' and/or 'canInstantiate'
+  AggregateType* at = toAggregateType(toSymExpr(call->baseExpr)->symbol()->typeInfo());
+  AggregateType* ret = at->generateType(call);
+  call->baseExpr->replace(new SymExpr(ret->symbol));
+}
 
 FnSymbol* resolveNormalCall(CallExpr* call, bool checkOnly) {
   CallInfo  info;
@@ -2226,6 +2244,8 @@ FnSymbol* resolveNormalCall(CallExpr* call, bool checkOnly) {
 
   if (isGenericRecordInit(call) == true) {
     retval = resolveInitializer(call);
+  } else if (isTypeConstructionCall(call)) {
+    resolveTypeSpecifier(call);
 
   } else if (info.isWellFormed(call) == true) {
     retval = resolveNormalCall(info, checkOnly);
