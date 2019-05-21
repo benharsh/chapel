@@ -689,19 +689,27 @@ bool AggregateType::setNextGenericField() {
 *                                                                             *
 ************************************** | *************************************/
 
+static void findGenericFields(AggregateType* at, std::vector<Symbol*>& genFields) {
+  if (at->isClass() == true && at->symbol->hasFlag(FLAG_NO_OBJECT) == false) {
+    AggregateType* parent = at->dispatchParents.v[0];
+    findGenericFields(parent, genFields);
+  }
+
+  for_fields(field, at) {
+    bool ignoredHasDefault = false;
+    if (at->fieldIsGeneric(field, ignoredHasDefault) == true) {
+      genFields.push_back(field);
+    }
+  }
+}
+
 AggregateType* AggregateType::generateType(CallExpr* call) {
   if (setFirstGenericField() == false) {
     return NULL;
   }
 
   std::vector<Symbol*> genFields;
-  for (int i = 1; i <= fields.length; i++) {
-    bool ignoredHasDefault = false;
-    Symbol* field = getField(i);
-    if (fieldIsGeneric(field, ignoredHasDefault) == true) {
-      genFields.push_back(field);
-    }
-  }
+  findGenericFields(this, genFields);
 
   AggregateType* ret = this;
   SymbolMap map;
@@ -962,7 +970,19 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent) {
     int         rootLen     = (int) (paren - parentName);
     Symbol*     sym         = NULL;
 
-    retval     = toAggregateType(symbol->copy()->type);
+    SymbolMap* parentFieldMap = NULL;
+    SymbolMap locMap;
+    if (symbol->getModule()->modTag == MOD_USER) {
+      AggregateType* root = parent->getRootInstantiation();
+      form_Map(SymbolMapElem, e, parent->substitutions) {
+        Symbol* instantiated = e->key;
+        locMap.put(root->getField(instantiated->name), instantiated);
+      }
+
+      parentFieldMap = &locMap;
+    }
+
+    retval     = toAggregateType(symbol->copy(parentFieldMap)->type);
 
     // Update the name/cname based on the parent's name/cname
     sym        = retval->symbol;

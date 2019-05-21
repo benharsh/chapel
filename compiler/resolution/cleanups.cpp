@@ -399,6 +399,10 @@ static bool do_isUnusedClass(Type* t) {
              at->typeConstructor->isResolved()) {
     retval = false;
 
+  } else if (at && at->instantiatedFrom != NULL &&
+             at->symbol->hasFlag(FLAG_GENERIC) == false) {
+    retval = false;
+
   // FALSE if the type uses an initializer and that initializer was
   // resolved
   } else if (at && at->initializerResolved) {
