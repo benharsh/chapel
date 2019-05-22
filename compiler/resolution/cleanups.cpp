@@ -483,12 +483,12 @@ static void removeUnusedTypes() {
 
         // If the default type constructor for this ref type is in the tree,
         // it can be removed.
-        AggregateType* at2      = toAggregateType(type->type);
-        DefExpr*       defPoint = at2->typeConstructor->defPoint;
+        //AggregateType* at2      = toAggregateType(type->type);
+        //DefExpr*       defPoint = at2->typeConstructor->defPoint;
 
-        if (defPoint->inTree()) {
-          defPoint->remove();
-        }
+        //if (defPoint->inTree()) {
+        //  defPoint->remove();
+        //}
     }
   }
 }

@@ -38,6 +38,7 @@ AggregateType* dtOpaqueArray;
 AggregateType* dtOwned;
 AggregateType* dtTaskBundleRecord;
 AggregateType* dtTuple;
+AggregateType* dtRef;
 
 
 // The well-known functions
@@ -116,6 +117,7 @@ static WellKnownType sWellKnownTypes[] = {
   { "_owned",                &dtOwned,            false },
   { "chpl_task_bundle_t",    &dtTaskBundleRecord, false },
   { "_tuple",                &dtTuple,            false },
+  { "_ref",                  &dtRef,              true },
   { "Error",                 &dtError,            true  }
 };
 

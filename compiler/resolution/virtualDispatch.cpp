@@ -170,7 +170,6 @@ static bool buildVirtualMaps() {
 
 // Add overrides of pfn to virtual maps down the inheritance hierarchy
 static void addAllToVirtualMaps(FnSymbol* pfn, AggregateType* pct) {
-  if (strcmp(pct->symbol->name, "BaseDist") == 0) gdbShouldBreakHere();
   forv_Vec(AggregateType, ct, pct->dispatchChildren) {
     if (ct->isGeneric() == false) {
       if (ct->mayHaveInstances() == true) {
@@ -1126,7 +1125,6 @@ static bool wasSuperDot(CallExpr* call);
 
 void insertDynamicDispatchCalls() {
   forv_Vec(CallExpr, call, gCallExprs) {
-    if (call->id == 134000) gdbShouldBreakHere();
     if (call->inTree()) {
       if (FnSymbol* fn = call->resolvedFunction()) {
 

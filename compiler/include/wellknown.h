@@ -47,6 +47,7 @@ extern AggregateType* dtOpaqueArray;
 extern AggregateType* dtOwned;
 extern AggregateType* dtTaskBundleRecord;
 extern AggregateType* dtTuple;
+extern AggregateType* dtRef;
 
 // The well-known functions
 extern FnSymbol *gChplHereAlloc;

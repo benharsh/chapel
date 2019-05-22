@@ -257,6 +257,7 @@ void makeRefType(Type* type) {
     // Already done.
     return;
   }
+  if (type->id == 1217338) gdbShouldBreakHere();
 
   if (type == dtMethodToken ||
       type == dtUnknown ||
@@ -266,9 +267,9 @@ void makeRefType(Type* type) {
     return;
   }
 
-  CallExpr* call = new CallExpr("_type_construct__ref", type->symbol);
-  FnSymbol* fn   = resolveUninsertedCall(type, call);
-  type->refType  = toAggregateType(fn->retType);
+  CallExpr* call = new CallExpr(dtRef->symbol, type->symbol);
+  resolveUninsertedCall(type, call);
+  type->refType  = toAggregateType(call->typeInfo());
 
   type->refType->getField(1)->type = type;
 
@@ -6201,7 +6202,8 @@ static Type* resolveGenericActual(SymExpr* se, Type* type) {
 
   if (AggregateType* at = toAggregateType(type)) {
     if (at->symbol->hasFlag(FLAG_GENERIC) && at->isGenericWithDefaults()) {
-      CallExpr*   cc    = new CallExpr(at->typeConstructor->name);
+      //CallExpr*   cc    = new CallExpr(at->typeConstructor->name);
+      CallExpr*   cc    = new CallExpr(at->symbol);
 
       se->replace(cc);
 
@@ -7207,10 +7209,10 @@ static void unmarkDefaultedGenerics() {
             formal->hasFlag(FLAG_MARKED_GENERIC) == false) {
           SET_LINENO(formal);
 
-          FnSymbol*      typeConstr = formalAt->typeConstructor;
+          //FnSymbol*      typeConstr = formalAt->typeConstructor;
 
           formal->type     = dtUnknown;
-          formal->typeExpr = new BlockStmt(new CallExpr(typeConstr));
+          formal->typeExpr = new BlockStmt(new CallExpr(formalAt->symbol));
 
           insert_help(formal->typeExpr, NULL, formal);
         }

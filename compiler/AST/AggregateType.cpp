@@ -748,6 +748,7 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
   if (ret != this) {
     ret->instantiatedFrom = this;
     ret->symbol->instantiationPoint = getInstantiationPoint(call);
+    makeRefType(ret);
   }
 
   return ret;
@@ -759,7 +760,7 @@ static Type* resolveFieldTypeExpr(Expr* expr) {
 
   if (expr != NULL) {
     if (isBlockStmt(expr) == false) {
-      BlockStmt* block = new BlockStmt();
+      BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
       expr->replace(block);
       block->insertAtTail(expr);
       normalize(block);
@@ -821,7 +822,7 @@ static Symbol* resolveFieldDefault(Symbol* field) {
 
   if (expr != NULL) {
     if (isBlockStmt(expr) == false) {
-      BlockStmt* block = new BlockStmt();
+      BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
       expr->replace(block);
       block->insertAtTail(expr);
       normalize(block);
@@ -1169,6 +1170,17 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym) {
 
   retval->substitutions.copy(substitutions);
 
+  for (int i = 1; i <= fields.length; i++) {
+    Symbol* before = getField(i);
+    Symbol* after = retval->getField(i);
+
+    if (after == field) break;
+
+    if (after->hasFlag(FLAG_PARAM)) {
+      paramMap.put(after, paramMap.get(before));
+    }
+  }
+
   if (field->hasFlag(FLAG_PARAM) == true) {
     Type* fieldType = NULL;
     if (field->defPoint->exprType) {
@@ -1190,6 +1202,7 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym) {
 
     retval->substitutions.put(field, sym);
     retval->symbol->renameInstantiatedSingle(sym);
+    paramMap.put(field,sym);
 
   } else {
     retval->substitutions.put(field, sym->typeInfo()->symbol);
