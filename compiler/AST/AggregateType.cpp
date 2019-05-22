@@ -36,6 +36,7 @@
 #include "stmt.h"
 #include "stringutil.h"
 #include "symbol.h"
+#include "visibleFunctions.h"
 #include "../ifa/prim_data.h"
 
 #include <queue>
@@ -67,6 +68,8 @@ AggregateType::AggregateType(AggregateTag initTag) :
   mIsGenericWithDefaults = false;
 
   classId             = 0;
+
+  wasConstructed      = false;
 
   // set defaultValue to nil to keep it from being constructed
   if (aggregateTag == AGGREGATE_CLASS) {
@@ -605,8 +608,14 @@ bool AggregateType::hasUserDefinedInitEquals() const {
 bool AggregateType::mayHaveInstances() const {
   bool retval = false;
 
-  if (typeConstructor != NULL) {
-    retval = typeConstructor->isResolved();
+  //if (typeConstructor != NULL) {
+  //  retval = typeConstructor->isResolved();
+  //}
+
+  if (wasConstructed) {
+    retval = true;
+  } else if (instantiatedFrom != NULL && symbol->hasFlag(FLAG_GENERIC) == false) {
+    retval = true;
 
   } else {
     retval = initializerResolved;
@@ -623,7 +632,7 @@ bool AggregateType::setFirstGenericField() {
       symbol->addFlag(FLAG_GENERIC);
     }
 
-    if (isClass() == true) {
+    if (isClass() == true && symbol->hasFlag(FLAG_NO_OBJECT) == false) {
       AggregateType* parent = dispatchParents.v[0];
 
       if (parent->isGeneric() == true) {
@@ -704,12 +713,12 @@ static void findGenericFields(AggregateType* at, std::vector<Symbol*>& genFields
 }
 
 AggregateType* AggregateType::generateType(CallExpr* call) {
-  if (setFirstGenericField() == false) {
-    return NULL;
-  }
-
   std::vector<Symbol*> genFields;
   findGenericFields(this, genFields);
+
+  if (genFields.size() == 0) {
+    return NULL;
+  }
 
   AggregateType* ret = this;
   SymbolMap map;
@@ -724,8 +733,6 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
     }
   }
 
-  //for (int index = genericField; index <= fields.length && notNamed.empty() == false; index++) {
-  //  Symbol* field = getField(index);
   for_vector(Symbol, field, genFields) {
     if (substitutionForField(field, map) == NULL && notNamed.size() > 0) {
       map.put(field, notNamed.front());
@@ -735,11 +742,12 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
 
   INT_ASSERT(notNamed.size() == 0);
 
-  gdbShouldBreakHere();
+  //gdbShouldBreakHere();
   ret = ret->generateType(map);
 
   if (ret != this) {
     ret->instantiatedFrom = this;
+    ret->symbol->instantiationPoint = getInstantiationPoint(call);
   }
 
   return ret;
@@ -756,9 +764,15 @@ static Type* resolveFieldTypeExpr(Expr* expr) {
       block->insertAtTail(expr);
       normalize(block);
       expr = block;
+    } else {
+      // For now assume that we're already in the process of resolving this
+      // expression if it's already a BlockStmt.
+      // TODO: Find better way to handle recursive type instantiation. We
+      // really just want to stop resolving after all the generic fields are
+      // done, I think.
+      return NULL;
     }
 
-    if (expr->id == 914714) gdbShouldBreakHere();
     BlockStmt* block = toBlockStmt(expr);
     resolveBlockStmt(block);
 
@@ -780,6 +794,8 @@ static Type* resolveFieldTypeExpr(Expr* expr) {
         } else {
           USR_FATAL(expr, "field's type expression does not resolve to a type");
         }
+      } else if (call->isPrimitive(PRIM_TYPEOF)) {
+        ret = call->typeInfo();
       } else {
         USR_FATAL(expr, "unknown call in field type expression");
       }
@@ -834,7 +850,7 @@ static Symbol* resolveFieldDefault(Symbol* field) {
         USR_FATAL(expr, "type field's default value is not a type expression");
       }
     } else if (field->hasFlag(FLAG_PARAM)) {
-      if (ret->isImmediate() == false) {
+      if (ret->isImmediate() == false && isEnumSymbol(ret) == false) {
         USR_FATAL(expr, "param field's default value is not a param expression");
       }
     } else {
@@ -888,31 +904,31 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
 
     bool ignoredHasDefault = false;
 
-    if (symbol->defPoint->getModule()->modTag == MOD_USER) {
-      gdbShouldBreakHere();
-    }
+    //if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+      //gdbShouldBreakHere();
+    //}
 
     if (fieldIsGeneric(field, ignoredHasDefault)) {
       if (Symbol* val = substitutionForField(field, subs)) {
         retval->genericField = index;
 
-        if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+        //if (symbol->defPoint->getModule()->modTag == MOD_USER) {
           if (Type* fieldType = resolveFieldTypeForInstantiation(retval->getField(index))) {
             if (getInstantiationType(val->type, fieldType) == NULL) {
               USR_FATAL("Unable to instantiate field '%s : %s' with type '%s'\n", field->name, fieldType->symbol->name, val->type->symbol->name);
             }
           }
-        }
+        //}
 
         retval = retval->getInstantiation(val, index);
-      } else if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+      } else /*if (symbol->defPoint->getModule()->modTag == MOD_USER)*/ {
         Symbol* field = retval->getField(index);
         if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
           if (Symbol* sym = resolveFieldDefault(field)) {
             retval = retval->getInstantiation(sym, index);
           }
         } else if (field->hasFlag(FLAG_PARAM)) {
-          gdbShouldBreakHere();
+          //gdbShouldBreakHere();
 
           Type* expected = resolveFieldTypeExpr(field->defPoint->exprType);
           Symbol* value = resolveFieldDefault(field);
@@ -935,7 +951,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
           INT_FATAL("Can only default-instantiate type and param fields");
         }
       }
-    } else if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+    } else /*if (symbol->defPoint->getModule()->modTag == MOD_USER)*/ {
       Symbol* field = retval->getField(index);
       if (Type* type = resolveFieldTypeForInstantiation(field)) {
         field->type = type;
@@ -946,6 +962,23 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
   retval->instantiatedFrom = this;
 
   return retval;
+}
+
+void AggregateType::resolveConcreteType() {
+  if (isClass() == true && symbol->hasFlag(FLAG_NO_OBJECT) == false) {
+    AggregateType* parent = dispatchParents.v[0];
+    parent->resolveConcreteType();
+  }
+
+  for_fields(field, this) {
+    if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
+      if (Type* type = resolveFieldTypeForInstantiation(field)) {
+        field->type = type;
+      }
+    }
+  }
+
+  this->wasConstructed = true;
 }
 
 // Find or create an instantiation that has the provided parent as its parent
@@ -972,7 +1005,7 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent) {
 
     SymbolMap* parentFieldMap = NULL;
     SymbolMap locMap;
-    if (symbol->getModule()->modTag == MOD_USER) {
+    //if (symbol->getModule()->modTag == MOD_USER) {
       AggregateType* root = parent->getRootInstantiation();
       form_Map(SymbolMapElem, e, parent->substitutions) {
         Symbol* instantiated = e->key;
@@ -980,7 +1013,7 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent) {
       }
 
       parentFieldMap = &locMap;
-    }
+    //}
 
     retval     = toAggregateType(symbol->copy(parentFieldMap)->type);
 

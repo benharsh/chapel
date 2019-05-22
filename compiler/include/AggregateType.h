@@ -141,6 +141,7 @@ public:
 
   AggregateType*              generateType(CallExpr* call);
   AggregateType*              generateType(SymbolMap& subs);
+  void                        resolveConcreteType();
 
   bool                        isInstantiatedFrom(const AggregateType* base)
                                                                          const;
@@ -223,6 +224,8 @@ public:
 
   Vec<AggregateType*>         dispatchParents;    // dispatch hierarchy
   Vec<AggregateType*>         dispatchChildren;   // dispatch hierarchy
+
+  bool                        wasConstructed;
 
 private:
 

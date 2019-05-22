@@ -2224,6 +2224,7 @@ static bool isTypeConstructionCall(CallExpr* call) {
 }
 
 static void resolveTypeSpecifier(CallExpr* call) {
+  if (call->id == breakOnResolveID) gdbShouldBreakHere();
   // use 'getInstantiationType' and/or 'canInstantiate'
   AggregateType* at = toAggregateType(toSymExpr(call->baseExpr)->symbol()->typeInfo());
   AggregateType* ret = at->generateType(call);
@@ -6743,20 +6744,21 @@ static void resolveExprExpandGenerics(CallExpr* call) {
 
 static
 void resolveTypeConstructor(AggregateType* at) {
-  // Resolve the parents
-  forv_Vec(AggregateType, pt, at->dispatchParents) {
-    if (pt->typeConstructor)
-      resolveTypeConstructor(pt);
-  }
+  at->resolveConcreteType();
+  //// Resolve the parents
+  //forv_Vec(AggregateType, pt, at->dispatchParents) {
+  //  if (pt->typeConstructor)
+  //    resolveTypeConstructor(pt);
+  //}
 
-  // Resolve the current one
-  if (FnSymbol* fn = at->typeConstructor) {
-    if (hasPartialCopyData(fn) == true) {
-      instantiateBody(fn);
-    }
+  //// Resolve the current one
+  //if (FnSymbol* fn = at->typeConstructor) {
+  //  if (hasPartialCopyData(fn) == true) {
+  //    instantiateBody(fn);
+  //  }
 
-    resolveSignatureAndFunction(fn);
-  }
+  //  resolveSignatureAndFunction(fn);
+  //}
 }
 
 static void resolveExprTypeConstructor(SymExpr* symExpr) {
