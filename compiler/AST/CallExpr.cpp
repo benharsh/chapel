@@ -562,7 +562,11 @@ QualifiedType CallExpr::qualType(void) {
           useType = true;
         }
       } else {
-        useType = true;
+        if (isPrimitiveType(se->typeInfo()) && numActuals() > 0) {
+          // (call uint(64) 8) represents 'uint(8)' for some reason...
+        } else {
+          useType = true;
+        }
       }
     }
 
