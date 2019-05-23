@@ -404,7 +404,7 @@ static bool do_isUnusedClass(Type* t) {
     retval = false;
 
   // TODO: merge this with previous branch checking 'instantiatedFrom'
-  } else if (at && at->wasConstructed) {
+  } else if (at && at->resolveStatus == RESOLVED) {
     retval = false;
 
   // FALSE if the type uses an initializer and that initializer was

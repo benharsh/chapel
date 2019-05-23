@@ -34,6 +34,12 @@ enum AggregateTag {
   AGGREGATE_UNION
 };
 
+enum AggregateResolved {
+  UNRESOLVED,
+  RESOLVING,
+  RESOLVED
+};
+
 typedef enum {
   // When updating, make sure that these numbers work with the masks below
   // (last bit is nilable or not)
@@ -225,7 +231,7 @@ public:
   Vec<AggregateType*>         dispatchParents;    // dispatch hierarchy
   Vec<AggregateType*>         dispatchChildren;   // dispatch hierarchy
 
-  bool                        wasConstructed;
+  AggregateResolved           resolveStatus;
 
 private:
 
