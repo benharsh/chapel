@@ -285,7 +285,6 @@ void makeRefType(Type* type) {
     // Already done.
     return;
   }
-  if (type->id == 1217338) gdbShouldBreakHere();
 
   if (type == dtMethodToken ||
       type == dtUnknown ||

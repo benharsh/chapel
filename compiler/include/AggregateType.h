@@ -35,6 +35,12 @@ enum AggregateTag {
   AGGREGATE_UNION
 };
 
+enum AggregateResolved {
+  UNRESOLVED,
+  RESOLVING,
+  RESOLVED
+};
+
 class AggregateType : public Type {
 public:
   static void                 setCreationStyle(TypeSymbol* t, FnSymbol* fn);
@@ -203,7 +209,7 @@ public:
   Vec<AggregateType*>         dispatchParents;    // dispatch hierarchy
   Vec<AggregateType*>         dispatchChildren;   // dispatch hierarchy
 
-  bool                        wasConstructed;
+  AggregateResolved           resolveStatus;
 
 private:
 

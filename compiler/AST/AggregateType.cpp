@@ -69,7 +69,7 @@ AggregateType::AggregateType(AggregateTag initTag) :
 
   classId             = 0;
 
-  wasConstructed      = false;
+  resolveStatus       = UNRESOLVED;
 
   // set defaultValue to nil to keep it from being constructed
   if (aggregateTag == AGGREGATE_CLASS) {
@@ -612,7 +612,7 @@ bool AggregateType::mayHaveInstances() const {
   //  retval = typeConstructor->isResolved();
   //}
 
-  if (wasConstructed) {
+  if (resolveStatus == RESOLVED) {
     retval = true;
   } else if (instantiatedFrom != NULL && symbol->hasFlag(FLAG_GENERIC) == false) {
     retval = true;
@@ -721,6 +721,7 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
   }
 
   AggregateType* ret = this;
+  ret->resolveStatus = RESOLVING;
   SymbolMap map;
   std::queue<Symbol*> notNamed;
   while (call->numActuals() >= 1) {
@@ -749,6 +750,7 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
     ret->instantiatedFrom = this;
     ret->symbol->instantiationPoint = getInstantiationPoint(call);
     makeRefType(ret);
+    ret->resolveStatus = RESOLVED;
   }
 
   return ret;
@@ -966,6 +968,12 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
 }
 
 void AggregateType::resolveConcreteType() {
+  if (resolveStatus == RESOLVING) {
+    return;
+  }
+
+  this->resolveStatus = RESOLVING;
+
   if (isClass() == true && symbol->hasFlag(FLAG_NO_OBJECT) == false) {
     AggregateType* parent = dispatchParents.v[0];
     parent->resolveConcreteType();
@@ -979,7 +987,7 @@ void AggregateType::resolveConcreteType() {
     }
   }
 
-  this->wasConstructed = true;
+  this->resolveStatus = RESOLVED;
 }
 
 // Find or create an instantiation that has the provided parent as its parent
