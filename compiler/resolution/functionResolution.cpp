@@ -2602,8 +2602,14 @@ static void resolveTypeSpecifier(CallExpr* call) {
   if (call->id == breakOnResolveID) gdbShouldBreakHere();
   // use 'getInstantiationType' and/or 'canInstantiate'
   AggregateType* at = toAggregateType(toSymExpr(call->baseExpr)->symbol()->typeInfo());
-  AggregateType* ret = at->generateType(call);
-  call->baseExpr->replace(new SymExpr(ret->symbol));
+  if (at->symbol->hasFlag(FLAG_TUPLE)) {
+    SymbolMap subs;
+    FnSymbol* ret = createTupleSignature(at->typeConstructor, subs, call);
+    call->baseExpr->replace(new SymExpr(ret->retType->symbol));
+  } else {
+    AggregateType* ret = at->generateType(call);
+    call->baseExpr->replace(new SymExpr(ret->symbol));
+  }
 }
 
 FnSymbol* resolveNormalCall(CallExpr* call, bool checkOnly) {

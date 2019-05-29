@@ -459,6 +459,7 @@ void resolveSpecifiedReturnType(FnSymbol* fn) {
 ************************************** | *************************************/
 
 void resolveFunction(FnSymbol* fn, CallExpr* forCall) {
+  if (fn->hasFlag(FLAG_TYPE_CONSTRUCTOR)) INT_ASSERT(false);
   if (fn->isResolved() == false) {
     if (fn->id == breakOnResolveID) {
       printf("breaking on resolve fn %s[%d] (%d args)\n",

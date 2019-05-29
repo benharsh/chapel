@@ -1660,6 +1660,11 @@ static Symbol* determineQueriedField(CallExpr* call) {
   } else {
     Vec<ArgSymbol*> args;
     int             position      = var->immediate->int_value();
+
+    if (at->symbol->hasFlag(FLAG_TUPLE)) {
+      return at->getField(position);
+    }
+
     FnSymbol*       typeConstruct = at->typeConstructor;
     AggregateType*  source        = at->instantiatedFrom;
 
@@ -1722,11 +1727,15 @@ static bool isInstantiatedField(Symbol* field) {
       retval = true;
     }
   } else {
-    for_formals(formal, at->typeConstructor) {
-      if (strcmp(field->name, formal->name) == 0) {
-        if (formal->hasFlag(FLAG_TYPE_VARIABLE) == true) {
-          retval = true;
-          break;
+    if (at->symbol->hasFlag(FLAG_TUPLE)) {
+      retval = true;
+    } else {
+      for_formals(formal, at->typeConstructor) {
+        if (strcmp(field->name, formal->name) == 0) {
+          if (formal->hasFlag(FLAG_TYPE_VARIABLE) == true) {
+            retval = true;
+            break;
+          }
         }
       }
     }
