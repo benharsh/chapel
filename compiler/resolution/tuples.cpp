@@ -99,6 +99,8 @@ makeTupleTypeCtor(std::vector<ArgSymbol*> typeCtorArgs,
                   TypeSymbol*             newTypeSymbol,
                   ModuleSymbol*           tupleModule,
                   BlockStmt*              instantiationPoint) {
+  newTypeSymbol->instantiationPoint = instantiationPoint;
+  return NULL;
   AggregateType* newType  = toAggregateType(newTypeSymbol->type);
   FnSymbol*      typeCtor = new FnSymbol("_type_construct__tuple");
 
@@ -995,8 +997,8 @@ static AggregateType* do_computeTupleWithIntent(bool           valueOnly,
   // Construct tuple that would be used for a particular argument intent.
   std::vector<TypeSymbol*> args;
   bool                     allSame            = true;
-  FnSymbol*                typeConstr         = at->typeConstructor;
-  BlockStmt*             instantiationPoint = typeConstr->instantiationPoint();
+  //FnSymbol*                typeConstr         = at->typeConstructor;
+  BlockStmt*             instantiationPoint = at->symbol->instantiationPoint;
   int                      i                  = 0;
   AggregateType*           retval             = NULL;
 
@@ -1261,9 +1263,10 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
   TupleInfo info   = getTupleInfo(args, point, noRef);
 
   if (fn->hasFlag(FLAG_TYPE_CONSTRUCTOR) == true) {
-    AggregateType* at = toAggregateType(info.typeSymbol->type);
+    //AggregateType* at = toAggregateType(info.typeSymbol->type);
 
-    retval = at->typeConstructor;
+    //retval = at->typeConstructor;
+    retval = info.init;
 
   } else if (fn->hasFlag(FLAG_INIT_TUPLE) == true) {
     retval = info.init;
