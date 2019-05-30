@@ -87,6 +87,7 @@ bool ResolutionCandidate::isApplicableConcrete(CallInfo& info) {
 
 void ResolutionCandidate::resolveTypeConstructor(CallInfo& info) {
   SET_LINENO(fn);
+  INT_ASSERT(false);
 
   // Ignore tuple constructors; they were generated
   // with their type constructors.

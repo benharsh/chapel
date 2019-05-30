@@ -958,6 +958,7 @@ static FnSymbol* makeIteratorMethod(IteratorInfo* ii,
 static void      resolveDefaultTypeConstructor(AggregateType* at);
 
 static void resolveTypeConstructor(FnSymbol* fn) {
+  INT_ASSERT(false);
   AggregateType* at = toAggregateType(fn->retType);
 
   if (at->scalarPromotionType == NULL &&

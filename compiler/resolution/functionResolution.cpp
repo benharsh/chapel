@@ -1850,10 +1850,10 @@ static Expr*     getInsertPointForTypeFunction(Type* type) {
   } else if (at->symbol->instantiationPoint != NULL) {
     retval = at->symbol->instantiationPoint;
 
-  } else if (at->typeConstructor &&
-             at->typeConstructor->instantiationPoint()) {
-    // This case can apply to generic types with initializers
-    retval = at->typeConstructor->instantiationPoint();
+  //} else if (at->typeConstructor &&
+  //           at->typeConstructor->instantiationPoint()) {
+  //  // This case can apply to generic types with initializers
+  //  retval = at->typeConstructor->instantiationPoint();
 
   } else {
     // This case applies to non-generic AggregateTypes and
@@ -2223,18 +2223,29 @@ static bool isTypeConstructionCall(CallExpr* call) {
   return ret;
 }
 
-static void resolveTypeSpecifier(CallExpr* call) {
+static Type* resolveTypeSpecifier(CallExpr* call) {
   if (call->id == breakOnResolveID) gdbShouldBreakHere();
+
+  Type* ret = NULL;
+
   // use 'getInstantiationType' and/or 'canInstantiate'
   AggregateType* at = toAggregateType(toSymExpr(call->baseExpr)->symbol()->typeInfo());
+
   if (at->symbol->hasFlag(FLAG_TUPLE)) {
     SymbolMap subs;
-    FnSymbol* ret = createTupleSignature(at->typeConstructor, subs, call);
-    call->baseExpr->replace(new SymExpr(ret->retType->symbol));
+    // TODO: pass NULL instead of type ctor?
+    if (FnSymbol* fn = createTupleSignature(at->typeConstructor, subs, call)) {
+      ret = fn->retType;
+    }
   } else {
-    AggregateType* ret = at->generateType(call);
+    ret = at->generateType(call);
+  }
+
+  if (ret != NULL) {
     call->baseExpr->replace(new SymExpr(ret->symbol));
   }
+
+  return ret;
 }
 
 FnSymbol* resolveNormalCall(CallExpr* call, bool checkOnly) {
@@ -5174,8 +5185,8 @@ FnSymbol* findCopyInit(AggregateType* at) {
     Expr* point = NULL;
     if (BlockStmt* stmt = at->symbol->instantiationPoint) {
       point = stmt;
-    } else if (FnSymbol* fn = at->typeConstructor) {
-      point = fn->instantiationPoint();
+    //} else if (FnSymbol* fn = at->typeConstructor) {
+    //  point = fn->instantiationPoint();
     }
     ret->setInstantiationPoint(point);
   }
@@ -6775,7 +6786,8 @@ static void resolveExprTypeConstructor(SymExpr* symExpr) {
   if (DecoratedClassType * dt = toDecoratedClassType(t))
     at = dt->getCanonicalClass();
 
-  if (at != NULL && at->typeConstructor) {
+  // Do not run on instantiated generics
+  if (at != NULL && at->instantiatedFrom == NULL) {
     if (at->symbol->hasFlag(FLAG_GENERIC)         == false  &&
         at->symbol->hasFlag(FLAG_ITERATOR_CLASS)  == false  &&
         at->symbol->hasFlag(FLAG_ITERATOR_RECORD) == false) {
@@ -8740,19 +8752,16 @@ static bool primInitIsUnacceptableGeneric(CallExpr* call, Type* type) {
   // If it is generic then try to resolve the default type constructor
   // for better error reporting.
   if (AggregateType* at = toAggregateType(canonicalClassType(type))) {
-    if (FnSymbol* typeCons = at->typeConstructor) {
-      SET_LINENO(call);
+    // TODO: Does this run?
+    // TODO: How to 'try-resolve' a type constructor in the new world?
+    CallExpr* typeCall = new CallExpr(at->symbol);
+    call->replace(typeCall);
 
-      // Swap in a call to the default type constructor and try to resolve it
-      CallExpr* typeConsCall = new CallExpr(typeCons->name);
-
-      call->replace(typeConsCall);
-
-      retval = (tryResolveCall(typeConsCall) == NULL) ? true : false;
-
-      // Put things back the way they were.
-      typeConsCall->replace(call);
+    if (Type* type = resolveTypeSpecifier(typeCall)) {
+      retval = true;
     }
+
+    typeCall->replace(call);
   }
 
   return retval;

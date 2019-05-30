@@ -1654,8 +1654,7 @@ static void normalizeCallToTypeConstructor(CallExpr* call) {
             // constructor we know to be correct.
 
             if (at->hasInitializers() == false) {
-              const char* name = at->typeConstructor->name;
-              se->replace(new UnresolvedSymExpr(name));
+              INT_ASSERT(false);
             }
           }
         }
