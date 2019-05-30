@@ -120,9 +120,7 @@ Expr* preFold(CallExpr* call) {
         Type* ty = symExpr->getValType();
         if (AggregateType* at = toAggregateType(ty)) {
           if (at->isGeneric()) {
-            //if (call->getModule()->modTag != MOD_USER) {
-            //  baseExpr->replace(new SymExpr(at->typeConstructor));
-            //}
+            // OK
           } else {
             if (at->instantiatedFrom != NULL) {
               USR_FATAL(call, "Type '%s' cannot be instantiated further", at->symbol->name);

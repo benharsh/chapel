@@ -395,9 +395,9 @@ static bool do_isUnusedClass(Type* t) {
     retval = false;
 
   // FALSE if the type constructor is used.
-  } else if (at && at->typeConstructor &&
-             at->typeConstructor->isResolved()) {
-    retval = false;
+  //} else if (at && at->typeConstructor &&
+  //           at->typeConstructor->isResolved()) {
+  //  retval = false;
 
   } else if (at && at->instantiatedFrom != NULL &&
              at->symbol->hasFlag(FLAG_GENERIC) == false) {
