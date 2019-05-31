@@ -1644,6 +1644,13 @@ CallExpr* AggregateType::typeConstrSuperCall(FnSymbol* fn) const {
         retval->insertAtTail(new SymExpr(arg));
       }
     }
+
+    for_vector(Symbol, field, parent->genericFields) {
+      if (isFieldInThisClass(field->name) == false) {
+        AggregateType*       ncThis = const_cast<AggregateType*>(this);
+        ncThis->genericFields.push_back(field);
+      }
+    }
   }
 
   return retval;
@@ -1691,6 +1698,9 @@ void AggregateType::typeConstrSetFields(FnSymbol* fn,
 
           typeConstrSetField(fn, field, new SymExpr(arg));
 
+          AggregateType*       ncThis = const_cast<AggregateType*>(this);
+          ncThis->genericFields.push_back(field);
+
         } else if (field->defPoint->exprType
                    && !isFieldTypeExprGeneric(field->defPoint->exprType)) {
           Expr* type = field->defPoint->exprType;
@@ -1715,6 +1725,9 @@ void AggregateType::typeConstrSetFields(FnSymbol* fn,
             CallExpr* call = new CallExpr(PRIM_TYPE_INIT, new SymExpr(arg));
 
             typeConstrSetField(fn, field, call);
+
+            AggregateType*       ncThis = const_cast<AggregateType*>(this);
+            ncThis->genericFields.push_back(field);
           }
         }
       }
