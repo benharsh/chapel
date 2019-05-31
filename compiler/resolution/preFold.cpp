@@ -1656,25 +1656,38 @@ static Symbol* determineQueriedField(CallExpr* call) {
     retval = at->getField(var->immediate->v_string, false);
 
   } else {
-    Vec<ArgSymbol*> args;
+    Vec<Symbol*> args;
     int             position      = var->immediate->int_value();
 
     if (at->symbol->hasFlag(FLAG_TUPLE)) {
       return at->getField(position);
     }
 
-    FnSymbol*       typeConstruct = at->typeConstructor;
-    AggregateType*  source        = at->instantiatedFrom;
-
-    while (typeConstruct == NULL) {
-      typeConstruct = source->typeConstructor;
-      source        = source->instantiatedFrom;
+    for_vector(Symbol, field, at->getRootInstantiation()->genericFields) {
+      args.add(field);
     }
 
-    for_formals(arg, typeConstruct) {
-      args.add(arg);
-    }
-
+    // A PRIM_QUERY supports three forms:
+    // The first case occurs when the user exclusively used positional queries:
+    //     proc foo(arg : R(?A, ?B));
+    //     ===>
+    //     (query <integer>) for each query
+    //
+    // The second case occurs when the user wrote a named-query:
+    //     proc foo(arg : R(A=?A, B=?B));
+    //     ===>
+    //     (query <string>) for each query
+    //
+    // The third case occurs when the user wrote a mix of positional and named
+    // queries:
+    //     proc foo(arg : R(A=?A, B=?B, ?C, ?D));
+    //     ===>
+    //     (query "A")       // ?A
+    //     (query "B")       // ?B
+    //     (query "A" "B" 1) // ?C
+    //     (query "A" "B" 2) // ?D
+    // The positional arguments in this case contain a list of the named fields
+    // which are used to find the other unnamed fields.
     for (int i = 2; i < call->numActuals(); i++) {
       SymExpr*   actual = toSymExpr(call->get(i));
       VarSymbol* var    = toVarSymbol(actual->symbol());
@@ -1689,7 +1702,7 @@ static Symbol* determineQueriedField(CallExpr* call) {
       }
     }
 
-    forv_Vec(ArgSymbol, arg, args) {
+    forv_Vec(Symbol, arg, args) {
       if (arg != NULL) {
         if (position == 1) {
           retval = at->getField(arg->name, false);
@@ -1724,19 +1737,10 @@ static bool isInstantiatedField(Symbol* field) {
       // Fully-generic types are apparently OK?
       retval = true;
     }
+  } else if (at->symbol->hasFlag(FLAG_TUPLE)) {
+    retval = true;
   } else {
-    if (at->symbol->hasFlag(FLAG_TUPLE)) {
-      retval = true;
-    } else {
-      for_formals(formal, at->typeConstructor) {
-        if (strcmp(field->name, formal->name) == 0) {
-          if (formal->hasFlag(FLAG_TYPE_VARIABLE) == true) {
-            retval = true;
-            break;
-          }
-        }
-      }
-    }
+    INT_ASSERT(false);
   }
 
   return retval;

@@ -211,6 +211,8 @@ public:
 
   AggregateResolved           resolveStatus;
 
+  std::vector<Symbol*>        genericFields;
+
 private:
 
   // Only used for LLVM.
