@@ -2006,11 +2006,6 @@ static Expr*     getInsertPointForTypeFunction(Type* type) {
   } else if (at->symbol->instantiationPoint != NULL) {
     retval = at->symbol->instantiationPoint;
 
-  //} else if (at->typeConstructor &&
-  //           at->typeConstructor->instantiationPoint()) {
-  //  // This case can apply to generic types with initializers
-  //  retval = at->typeConstructor->instantiationPoint();
-
   } else {
     // This case applies to non-generic AggregateTypes and
     // possibly to generic AggregateTypes with default fields.
@@ -2608,8 +2603,7 @@ static Type* resolveTypeSpecifier(CallExpr* call) {
 
   if (at->symbol->hasFlag(FLAG_TUPLE)) {
     SymbolMap subs;
-    // TODO: pass NULL instead of type ctor?
-    if (FnSymbol* fn = createTupleSignature(at->typeConstructor, subs, call)) {
+    if (FnSymbol* fn = createTupleSignature(NULL, subs, call)) {
       ret = fn->retType;
     }
   } else {
@@ -5593,8 +5587,6 @@ FnSymbol* findCopyInit(AggregateType* at) {
     Expr* point = NULL;
     if (BlockStmt* stmt = at->symbol->instantiationPoint) {
       point = stmt;
-    //} else if (FnSymbol* fn = at->typeConstructor) {
-    //  point = fn->instantiationPoint();
     }
     ret->setInstantiationPoint(point);
   }
@@ -6630,7 +6622,6 @@ static Type* resolveGenericActual(SymExpr* se, Type* type) {
 
   if (AggregateType* at = toAggregateType(type)) {
     if (at->symbol->hasFlag(FLAG_GENERIC) && at->isGenericWithDefaults()) {
-      //CallExpr*   cc    = new CallExpr(at->typeConstructor->name);
       CallExpr*   cc    = new CallExpr(at->symbol);
 
       se->replace(cc);
@@ -7176,20 +7167,6 @@ static void resolveExprExpandGenerics(CallExpr* call) {
 static
 void resolveTypeConstructor(AggregateType* at) {
   at->resolveConcreteType();
-  //// Resolve the parents
-  //forv_Vec(AggregateType, pt, at->dispatchParents) {
-  //  if (pt->typeConstructor)
-  //    resolveTypeConstructor(pt);
-  //}
-
-  //// Resolve the current one
-  //if (FnSymbol* fn = at->typeConstructor) {
-  //  if (hasPartialCopyData(fn) == true) {
-  //    instantiateBody(fn);
-  //  }
-
-  //  resolveSignatureAndFunction(fn);
-  //}
 }
 
 static void resolveExprTypeConstructor(SymExpr* symExpr) {
@@ -7638,8 +7615,6 @@ static void unmarkDefaultedGenerics() {
             typeHasGenericDefaults                            &&
             formal->hasFlag(FLAG_MARKED_GENERIC) == false) {
           SET_LINENO(formal);
-
-          //FnSymbol*      typeConstr = formalAt->typeConstructor;
 
           formal->type     = dtUnknown;
           formal->typeExpr = new BlockStmt(new CallExpr(formalAt->symbol));
