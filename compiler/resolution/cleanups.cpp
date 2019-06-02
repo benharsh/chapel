@@ -394,11 +394,6 @@ static bool do_isUnusedClass(Type* t) {
              at && at->iteratorInfo->getIterator->isResolved()) {
     retval = false;
 
-  // FALSE if the type constructor is used.
-  //} else if (at && at->typeConstructor &&
-  //           at->typeConstructor->isResolved()) {
-  //  retval = false;
-
   } else if (at && at->instantiatedFrom != NULL &&
              at->symbol->hasFlag(FLAG_GENERIC) == false) {
     retval = false;
@@ -480,15 +475,6 @@ static void removeUnusedTypes() {
             type->defPoint->remove();
           }
         }
-
-        // If the default type constructor for this ref type is in the tree,
-        // it can be removed.
-        //AggregateType* at2      = toAggregateType(type->type);
-        //DefExpr*       defPoint = at2->typeConstructor->defPoint;
-
-        //if (defPoint->inTree()) {
-        //  defPoint->remove();
-        //}
     }
   }
 }

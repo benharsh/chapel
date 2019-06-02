@@ -1170,15 +1170,18 @@ fixupTupleFunctions(FnSymbol* fn,
 FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
   std::vector<TypeSymbol*> args;
 
-  bool      noChangeTypes  = fn->hasFlag(FLAG_BUILD_TUPLE_TYPE) == true ||
+  //if (isTupleTypeConstructor(fn)) gdbShouldBreakHere();
+  bool isStarTuple = fn && fn->hasFlag(FLAG_STAR_TUPLE);
+  bool      noChangeTypes  = fn == NULL ||
+                             fn->hasFlag(FLAG_BUILD_TUPLE_TYPE) == true ||
                              fn->retTag                         == RET_TYPE;
 
-  bool      firstArgIsSize = fn->hasFlag(FLAG_INIT_TUPLE)       == true ||
-                             isTupleTypeConstructor(fn)         == true ||
-                             fn->hasFlag(FLAG_STAR_TUPLE)       == true;
+  bool      firstArgIsSize = fn == NULL || // 'type constructor' mode
+                             fn->hasFlag(FLAG_INIT_TUPLE)       == true ||
+                             isStarTuple;
 
 
-  bool      noRef          = fn->hasFlag(FLAG_DONT_ALLOW_REF);
+  bool      noRef          = fn && fn->hasFlag(FLAG_DONT_ALLOW_REF);
 
   size_t    actualN        = 0;
 
@@ -1241,7 +1244,7 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
   }
 
   if (firstArgIsSize == true) {
-    if (fn->hasFlag(FLAG_STAR_TUPLE) == true) {
+    if (isStarTuple) {
       // Copy the first argument actualN times.
       for (size_t j = 1; j < actualN; j++) {
         args.push_back(args[0]);
@@ -1262,7 +1265,7 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
   BlockStmt* point = getInstantiationPoint(call);
   TupleInfo info   = getTupleInfo(args, point, noRef);
 
-  if (fn->hasFlag(FLAG_TYPE_CONSTRUCTOR) == true) {
+  if (fn == NULL) {
     //AggregateType* at = toAggregateType(info.typeSymbol->type);
 
     //retval = at->typeConstructor;
@@ -1272,7 +1275,7 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
     retval = info.init;
 
   } else if (fn->hasFlag(FLAG_BUILD_TUPLE_TYPE)    == true) {
-    if (fn->hasFlag(FLAG_STAR_TUPLE) == true) {
+    if (isStarTuple) {
       retval = info.buildStarTupleType;
 
     } else {
