@@ -119,12 +119,12 @@ public:
 
   bool                        setFirstGenericField();
 
-  AggregateType*              getInstantiation(Symbol* sym, int index);
+  AggregateType*              getInstantiation(Symbol* sym, int index, Expr* insnPoint = NULL);
 
   AggregateType*              getInstantiationParent(AggregateType* pt);
 
   AggregateType*              generateType(CallExpr* call);
-  AggregateType*              generateType(SymbolMap& subs);
+  AggregateType*              generateType(SymbolMap& subs, Expr* insnPoint = NULL);
   void                        resolveConcreteType();
 
   bool                        isInstantiatedFrom(const AggregateType* base)
@@ -233,14 +233,14 @@ private:
   void                        addClassToHierarchy(
                                           std::set<AggregateType*>& seen);
 
-  AggregateType*              instantiationWithParent(AggregateType* parent);
+  AggregateType*              instantiationWithParent(AggregateType* parent, Expr* insnPoint = NULL);
 
   Symbol*                     substitutionForField(Symbol*    field,
                                                    SymbolMap& subs)      const;
 
   AggregateType*              getCurInstantiation(Symbol* sym);
 
-  AggregateType*              getNewInstantiation(Symbol* sym);
+  AggregateType*              getNewInstantiation(Symbol* sym, Expr* insnPoint = NULL);
 
   AggregateType*              discoverParentAndCheck(Expr* storesName);
 

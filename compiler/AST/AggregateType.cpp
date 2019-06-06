@@ -757,11 +757,11 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
   INT_ASSERT(notNamed.size() == 0);
 
   //gdbShouldBreakHere();
-  ret = ret->generateType(map);
+  ret = ret->generateType(map, getInstantiationPoint(call));
 
   if (ret != this) {
     ret->instantiatedFrom = this;
-    ret->symbol->instantiationPoint = getInstantiationPoint(call);
+    //ret->symbol->instantiationPoint = getInstantiationPoint(call);
     makeRefType(ret);
     ret->resolveStatus = RESOLVED;
   }
@@ -909,7 +909,7 @@ static Type* resolveFieldTypeForInstantiation(Symbol* field) {
   return ret;
 }
 
-AggregateType* AggregateType::generateType(SymbolMap& subs) {
+AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
   AggregateType* retval = this;
 
   // Determine if there is a generic parent class
@@ -918,9 +918,9 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
 
     // Is the parent generic?
     if (parent->genericFields.size() > 0) {
-      AggregateType* instantiatedParent = parent->generateType(subs);
+      AggregateType* instantiatedParent = parent->generateType(subs, insnPoint);
 
-      retval = instantiationWithParent(instantiatedParent);
+      retval = instantiationWithParent(instantiatedParent, insnPoint);
     }
   }
 
@@ -947,15 +947,20 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
               USR_FATAL("Unable to instantiate field '%s : %s' with type '%s'\n", field->name, fieldType->symbol->name, val->type->symbol->name);
             }
           }
+          if (field->hasFlag(FLAG_PARAM) == false &&
+              field->hasFlag(FLAG_TYPE_VARIABLE) == false &&
+              val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
+            USR_FATAL("Generic field '%s' must be instantiated with a type-expression", field->name);
+          }
         //}
 
-        retval = retval->getInstantiation(val, index);
+        retval = retval->getInstantiation(val, index, insnPoint);
       } else /*if (symbol->defPoint->getModule()->modTag == MOD_USER)*/ {
         Symbol* field = retval->getField(index);
         if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
           if (Symbol* sym = resolveFieldDefault(field)) {
             retval->genericField = index;
-            retval = retval->getInstantiation(sym, index);
+            retval = retval->getInstantiation(sym, index, insnPoint);
           }
         } else if (field->hasFlag(FLAG_PARAM)) {
           //gdbShouldBreakHere();
@@ -970,10 +975,10 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
                         field->name, expected->symbol->name, value->type->symbol->name);
             }
             retval->genericField = index;
-            retval = retval->getInstantiation(value, index);
+            retval = retval->getInstantiation(value, index, insnPoint);
           } else if (expected == NULL && value != NULL) {
             retval->genericField = index;
-            retval = retval->getInstantiation(value, index);
+            retval = retval->getInstantiation(value, index, insnPoint);
           } else if (expected != NULL && value == NULL) {
             USR_FATAL("param field '%s : %s' was not explicitly instantiated and does not have a default value", field->name, expected->symbol->name);
           } else {
@@ -1033,7 +1038,7 @@ static void buildParentSubMap(AggregateType* at, SymbolMap& map) {
 }
 
 // Find or create an instantiation that has the provided parent as its parent
-AggregateType* AggregateType::instantiationWithParent(AggregateType* parent) {
+AggregateType* AggregateType::instantiationWithParent(AggregateType* parent, Expr* insnPoint) {
   AggregateType* retval = NULL;
 
   // Scan the current instantiations
@@ -1068,6 +1073,9 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent) {
     sym        = retval->symbol;
     sym->name  = astr(sym->name,  parentName  + rootLen);
     sym->cname = astr(sym->cname, parentCname + rootLen);
+    if (retval->symbol->instantiationPoint == NULL) {
+      retval->symbol->instantiationPoint = toBlockStmt(insnPoint);
+    }
 
     // Update the type of the 'super' field
     for_fields(field, retval) {
@@ -1124,7 +1132,7 @@ Symbol* AggregateType::substitutionForField(Symbol*    field,
 
 // Otherwise, will create a new instantiation with the given
 // argument and will return that.
-AggregateType* AggregateType::getInstantiation(Symbol* sym, int index) {
+AggregateType* AggregateType::getInstantiation(Symbol* sym, int index, Expr* insnPoint) {
   AggregateType* retval = NULL;
 
   if (index < genericField) {
@@ -1134,7 +1142,7 @@ AggregateType* AggregateType::getInstantiation(Symbol* sym, int index) {
     if (AggregateType* at = getCurInstantiation(sym)) {
       retval = at;
     } else {
-      retval = getNewInstantiation(sym);
+      retval = getNewInstantiation(sym, insnPoint);
     }
 
   } else {
@@ -1204,13 +1212,16 @@ AggregateType* AggregateType::getCurInstantiation(Symbol* sym) {
   return retval;
 }
 
-AggregateType* AggregateType::getNewInstantiation(Symbol* sym) {
+AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Expr* insnPoint) {
   AggregateType* retval = toAggregateType(symbol->copy()->type);
   Symbol*        field  = retval->getField(genericField);
 
   symbol->defPoint->insertBefore(new DefExpr(retval->symbol));
 
   retval->instantiatedFrom = this;
+  if (retval->symbol->instantiationPoint == NULL) {
+    retval->symbol->instantiationPoint = toBlockStmt(insnPoint);
+  }
 
   retval->symbol->copyFlags(symbol);
 
