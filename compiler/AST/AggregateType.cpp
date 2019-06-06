@@ -37,6 +37,7 @@
 #include "stringutil.h"
 #include "symbol.h"
 #include "visibleFunctions.h"
+#include "wellknown.h"
 #include "../ifa/prim_data.h"
 
 #include <queue>
@@ -734,6 +735,18 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
     }
   }
 
+  int numWithoutDefaults = 0;
+  for_vector(Symbol, sym, genFields) {
+    if (sym->defPoint->init == NULL) {
+      numWithoutDefaults += 1;
+    }
+  }
+  if (map.n + notNamed.size() > genFields.size()) {
+    USR_FATAL(call, "Too many arguments to type constructor");
+  } else if (map.n + notNamed.size() < numWithoutDefaults) {
+    USR_FATAL(call, "Too few arguments to type constructor");
+  }
+
   for_vector(Symbol, field, genFields) {
     if (substitutionForField(field, map) == NULL && notNamed.size() > 0) {
       map.put(field, notNamed.front());
@@ -764,7 +777,14 @@ static Type* resolveFieldTypeExpr(Expr* expr) {
     if (isBlockStmt(expr) == false) {
       BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
       expr->replace(block);
-      block->insertAtTail(expr);
+      if (isSymExpr(expr) && toSymExpr(expr)->symbol()->hasFlag(FLAG_TYPE_VARIABLE) &&
+          expr->typeInfo()->symbol->hasFlag(FLAG_GENERIC) &&
+          isPrimitiveType(expr->typeInfo()) == false &&
+          expr->typeInfo() != dtOwned) {
+        block->insertAtTail(new CallExpr(expr->typeInfo()->symbol));
+      } else {
+        block->insertAtTail(expr);
+      }
       normalize(block);
       expr = block;
     } else {
@@ -826,7 +846,14 @@ static Symbol* resolveFieldDefault(Symbol* field) {
     if (isBlockStmt(expr) == false) {
       BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
       expr->replace(block);
-      block->insertAtTail(expr);
+      if (isSymExpr(expr) && toSymExpr(expr)->symbol()->hasFlag(FLAG_TYPE_VARIABLE) &&
+          expr->typeInfo()->symbol->hasFlag(FLAG_GENERIC) &&
+          isPrimitiveType(expr->typeInfo()) == false &&
+          expr->typeInfo() != dtOwned) {
+        block->insertAtTail(new CallExpr(expr->typeInfo()->symbol));
+      } else {
+        block->insertAtTail(expr);
+      }
       normalize(block);
       expr = block;
     }
@@ -927,6 +954,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
         Symbol* field = retval->getField(index);
         if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
           if (Symbol* sym = resolveFieldDefault(field)) {
+            retval->genericField = index;
             retval = retval->getInstantiation(sym, index);
           }
         } else if (field->hasFlag(FLAG_PARAM)) {
@@ -941,8 +969,10 @@ AggregateType* AggregateType::generateType(SymbolMap& subs) {
               USR_FATAL("param field '%s' has type '%s' but default value is of incompatible type '%s'",
                         field->name, expected->symbol->name, value->type->symbol->name);
             }
+            retval->genericField = index;
             retval = retval->getInstantiation(value, index);
           } else if (expected == NULL && value != NULL) {
+            retval->genericField = index;
             retval = retval->getInstantiation(value, index);
           } else if (expected != NULL && value == NULL) {
             USR_FATAL("param field '%s : %s' was not explicitly instantiated and does not have a default value", field->name, expected->symbol->name);
@@ -981,12 +1011,25 @@ void AggregateType::resolveConcreteType() {
   for_fields(field, this) {
     if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
       if (Type* type = resolveFieldTypeForInstantiation(field)) {
-        field->type = type;
+        field->type = type->getValType();
       }
     }
   }
 
+  makeRefType(this);
+
   this->resolveStatus = RESOLVED;
+}
+
+static void buildParentSubMap(AggregateType* at, SymbolMap& map) {
+  AggregateType* root = at->getRootInstantiation();
+  if (root->dispatchParents.n > 0) {
+    buildParentSubMap(at->dispatchParents.v[0], map);
+  }
+  form_Map(SymbolMapElem, e, at->substitutions) {
+    Symbol* instantiated = e->key;
+    map.put(root->getField(instantiated->name), instantiated);
+  }
 }
 
 // Find or create an instantiation that has the provided parent as its parent
@@ -1011,19 +1054,15 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent) {
     int         rootLen     = (int) (paren - parentName);
     Symbol*     sym         = NULL;
 
-    SymbolMap* parentFieldMap = NULL;
-    SymbolMap locMap;
+    SymbolMap parentFieldMap;
+    // TODO: grab grandparent fields too...
     //if (symbol->getModule()->modTag == MOD_USER) {
-      AggregateType* root = parent->getRootInstantiation();
-      form_Map(SymbolMapElem, e, parent->substitutions) {
-        Symbol* instantiated = e->key;
-        locMap.put(root->getField(instantiated->name), instantiated);
-      }
-
-      parentFieldMap = &locMap;
+    {
+      buildParentSubMap(parent, parentFieldMap);
+    }
     //}
 
-    retval     = toAggregateType(symbol->copy(parentFieldMap)->type);
+    retval     = toAggregateType(symbol->copy(&parentFieldMap)->type);
 
     // Update the name/cname based on the parent's name/cname
     sym        = retval->symbol;
@@ -1264,8 +1303,10 @@ AggregateType::getInstantiationParent(AggregateType* parentType) {
     }
   }
 
+  SymbolMap parentMap;
+  buildParentSubMap(parentType, parentMap);
   // Otherwise, we need to create an instantiation for that type
-  AggregateType* newInstance = toAggregateType(this->symbol->copy()->type);
+  AggregateType* newInstance = toAggregateType(this->symbol->copy(&parentMap)->type);
 
   this->symbol->defPoint->insertBefore(new DefExpr(newInstance->symbol));
 
