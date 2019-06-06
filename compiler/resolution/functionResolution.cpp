@@ -2211,7 +2211,14 @@ static bool isTypeConstructionCall(CallExpr* call) {
 
   if (SymExpr* se = toSymExpr(call->baseExpr)) {
     if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
-      ret = true;
+      if (se->typeInfo()->symbol->hasFlag(FLAG_TUPLE) &&
+          se->typeInfo() != dtTuple) {
+        ret = false;
+      } else if (isAggregateType(se->typeInfo()) == false) {
+        ret = false;
+      } else {
+        ret = true;
+      }
     }
   }
 
