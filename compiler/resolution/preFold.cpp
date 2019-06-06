@@ -119,7 +119,7 @@ Expr* preFold(CallExpr* call) {
         if (AggregateType* at = toAggregateType(ty)) {
           if (at->isGeneric()) {
             // OK
-          } else {
+          } else if (call->numActuals() > 0) {
             if (at->instantiatedFrom != NULL) {
               USR_FATAL(call, "Type '%s' cannot be instantiated further", at->symbol->name);
             } else {
@@ -127,7 +127,7 @@ Expr* preFold(CallExpr* call) {
             }
           }
         } else {
-          USR_FATAL("Cannot instantiate %s[%d]\n", ty->symbol->id, ty->symbol->name);
+          USR_FATAL("Cannot instantiate %s\n", ty->symbol->name);
         }
       } else if (isLcnSymbol(symExpr->symbol()) == true) {
         baseExpr->replace(new UnresolvedSymExpr("this"));

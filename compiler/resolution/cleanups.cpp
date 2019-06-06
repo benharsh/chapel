@@ -80,11 +80,11 @@ static void removeUnusedFunctions() {
               removeCopyFns(typeSym->type);
 
               if (AggregateType* at = toAggregateType(refType)) {
-                DefExpr* defPoint = at->typeConstructor->defPoint;
+                //DefExpr* defPoint = at->typeConstructor->defPoint;
 
-                if (defPoint->inTree()) {
-                  defPoint->remove();
-                }
+                //if (defPoint->inTree()) {
+                //  defPoint->remove();
+                //}
 
                 removeCopyFns(at);
 

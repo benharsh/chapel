@@ -644,6 +644,7 @@ void update_symbols(BaseAST* ast, SymbolMap* map) {
         bool skip = false;
         if (CallExpr* call = toCallExpr(sym_expr->parentExpr)) {
           if (y->getValType()->symbol->hasFlag(FLAG_TUPLE) == false &&
+              y->getValType() != dtUnknown &&
               call->baseExpr == sym_expr && sym_expr->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
             skip = true;
           }
