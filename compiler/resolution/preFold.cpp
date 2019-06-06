@@ -128,8 +128,8 @@ Expr* preFold(CallExpr* call) {
               USR_FATAL(call, "Cannot instantiate non-generic type '%s'", at->symbol->name);
             }
           }
-        } else {
-          USR_FATAL("Cannot instantiate %s\n", ty->symbol->name);
+        //} else {
+        //  USR_FATAL(call, "Cannot instantiate type %s\n", ty->symbol->name);
         }
       } else if (isLcnSymbol(symExpr->symbol()) == true) {
         baseExpr->replace(new UnresolvedSymExpr("this"));
