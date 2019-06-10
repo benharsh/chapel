@@ -840,7 +840,11 @@ static Type* resolveFieldTypeExpr(Expr* expr) {
           USR_FATAL(expr, "field's type expression resolves to a value, not a type");
         }
       } else {
-        ret = se->typeInfo();
+        if (se->typeInfo() == dtUnknown) {
+          ret = resolveDefaultGenericTypeSymExpr(se);
+        } else {
+          ret = se->typeInfo();
+        }
       }
     } else if (CallExpr* call = toCallExpr(tail)) {
       if (FnSymbol* fn = call->resolvedFunction()) {
