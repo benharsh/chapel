@@ -713,6 +713,8 @@ static void findGenericFields(AggregateType* at, std::vector<Symbol*>& genFields
   }
 }
 
+static Type* resolveFieldTypeForInstantiation(Symbol* field);
+
 AggregateType* AggregateType::generateType(CallExpr* call) {
   std::vector<Symbol*> genFields;
   findGenericFields(this, genFields);
@@ -762,7 +764,32 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
     ret->instantiatedFrom = this;
     //ret->symbol->instantiationPoint = getInstantiationPoint(call);
     makeRefType(ret);
-    ret->resolveStatus = RESOLVED;
+
+    if (ret->resolveStatus != RESOLVED) {
+      ret->resolveStatus = RESOLVED;
+      // TODO: How to handle cases where generic fields lean on non-generic
+      // fields for type/init-expressions:
+      //   class C {
+      //     type T;
+      //     param x : int;
+      //
+      //     var next : C(T, x);
+      //
+      //     param flag : bool = if next.T == int then true else false;
+      //   }
+      //
+
+      for (int index = 1; index <= numFields(); index = index + 1) {
+        Symbol* field = ret->getField(index);
+        if (field->hasFlag(FLAG_PARAM) == false &&
+            field->hasFlag(FLAG_TYPE_VARIABLE) == false &&
+            field->type == dtUnknown) {
+          if (Type* type = resolveFieldTypeForInstantiation(field)) {
+            field->type = type;
+          }
+        }
+      }
+    }
   }
 
   return ret;
@@ -989,10 +1016,10 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
         }
       }
     } else /*if (symbol->defPoint->getModule()->modTag == MOD_USER)*/ {
-      Symbol* field = retval->getField(index);
-      if (Type* type = resolveFieldTypeForInstantiation(field)) {
-        field->type = type;
-      }
+      //Symbol* field = retval->getField(index);
+      //if (Type* type = resolveFieldTypeForInstantiation(field)) {
+      //  field->type = type;
+      //}
     }
   }
 
