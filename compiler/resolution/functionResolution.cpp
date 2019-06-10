@@ -2628,7 +2628,8 @@ static Type* resolveTypeSpecifier(CallExpr* call) {
 
   if (isAggregateType(ret) &&
       ret->scalarPromotionType == NULL &&
-      ret->symbol->hasFlag(FLAG_REF) == false) {
+      ret->symbol->hasFlag(FLAG_REF) == false &&
+      ret->symbol->hasFlag(FLAG_GENERIC) == false) {
     resolvePromotionType(toAggregateType(ret));
   }
 
