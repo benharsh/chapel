@@ -2214,7 +2214,8 @@ static bool isTypeConstructionCall(CallExpr* call) {
       if (se->typeInfo()->symbol->hasFlag(FLAG_TUPLE) &&
           se->typeInfo() != dtTuple) {
         ret = false;
-      } else if (isAggregateType(se->typeInfo()) == false) {
+      } else if (isAggregateType(se->typeInfo()) == false &&
+                 isDecoratedClassType(se->typeInfo()) == false) {
         ret = false;
       } else {
         ret = true;
@@ -2231,9 +2232,13 @@ static Type* resolveTypeSpecifier(CallExpr* call) {
   Type* ret = NULL;
 
   // use 'getInstantiationType' and/or 'canInstantiate'
-  AggregateType* at = toAggregateType(toSymExpr(call->baseExpr)->symbol()->typeInfo());
+  SymExpr* ts = toSymExpr(call->baseExpr);
+  AggregateType* at = toAggregateType(ts->typeInfo());
+  DecoratedClassType* dt = toDecoratedClassType(ts->typeInfo());
 
-  if (at->symbol->hasFlag(FLAG_TUPLE)) {
+  if (dt != NULL) {
+    ret = resolveDefaultGenericTypeSymExpr(ts);
+  } else if (at->symbol->hasFlag(FLAG_TUPLE)) {
     SymbolMap subs;
     if (FnSymbol* fn = createTupleSignature(NULL, subs, call)) {
       ret = fn->retType;
@@ -2244,6 +2249,12 @@ static Type* resolveTypeSpecifier(CallExpr* call) {
 
   if (ret != NULL) {
     call->baseExpr->replace(new SymExpr(ret->symbol));
+  }
+
+  if (isAggregateType(ret) &&
+      ret->scalarPromotionType == NULL &&
+      ret->symbol->hasFlag(FLAG_REF) == false) {
+    resolvePromotionType(toAggregateType(ret));
   }
 
   return ret;
@@ -6761,6 +6772,10 @@ static void resolveExprExpandGenerics(CallExpr* call) {
 static
 void resolveTypeConstructor(AggregateType* at) {
   at->resolveConcreteType();
+  if (at->scalarPromotionType == NULL &&
+      at->symbol->hasFlag(FLAG_REF) == false) {
+    resolvePromotionType(at);
+  }
 }
 
 static void resolveExprTypeConstructor(SymExpr* symExpr) {
