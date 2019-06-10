@@ -742,10 +742,16 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
       numWithoutDefaults += 1;
     }
   }
-  if (map.n + notNamed.size() > genFields.size()) {
+
+  int numArgs = map.n + notNamed.size();
+  if (numArgs > genFields.size()) {
     USR_FATAL(call, "Too many arguments to type constructor");
-  } else if (map.n + notNamed.size() < numWithoutDefaults) {
-    USR_FATAL(call, "Too few arguments to type constructor");
+  } else if (numArgs < numWithoutDefaults) {
+    if (numArgs != 0) {
+      USR_FATAL(call, "Too few arguments to type constructor");
+    } else {
+      return this;
+    }
   }
 
   for_vector(Symbol, field, genFields) {
@@ -970,7 +976,11 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
 
         //if (symbol->defPoint->getModule()->modTag == MOD_USER) {
           if (Type* fieldType = resolveFieldTypeForInstantiation(retval->getField(index))) {
-            if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
+            if (fieldType->symbol->hasFlag(FLAG_GENERIC)) {
+              if (getInstantiationType(val->type, fieldType) == NULL) {
+                USR_FATAL("Unable to instantiate field '%s : %s' with type '%s'\n", field->name, fieldType->symbol->name, val->type->symbol->name);
+              }
+            } else if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
               USR_FATAL("Unable to instantiate field '%s : %s' with type '%s'\n", field->name, fieldType->symbol->name, val->type->symbol->name);
             }
           }
