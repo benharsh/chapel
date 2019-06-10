@@ -722,7 +722,6 @@ AggregateType* AggregateType::generateType(CallExpr* call) {
   }
 
   AggregateType* ret = this;
-  ret->resolveStatus = RESOLVING;
   SymbolMap map;
   std::queue<Symbol*> notNamed;
   while (call->numActuals() >= 1) {
@@ -830,6 +829,7 @@ static Type* resolveFieldTypeExpr(Expr* expr) {
   if (ret != NULL) {
     // check that it's not dtUnknown
     if (ret == dtUnknown) {
+      // TODO: field name
       USR_FATAL(expr, "Unable to resolve field type");
     }
   }
@@ -943,7 +943,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
 
         //if (symbol->defPoint->getModule()->modTag == MOD_USER) {
           if (Type* fieldType = resolveFieldTypeForInstantiation(retval->getField(index))) {
-            if (getInstantiationType(val->type, fieldType) == NULL) {
+            if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
               USR_FATAL("Unable to instantiate field '%s : %s' with type '%s'\n", field->name, fieldType->symbol->name, val->type->symbol->name);
             }
           }
