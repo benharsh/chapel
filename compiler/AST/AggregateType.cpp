@@ -752,7 +752,12 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
 
   int numArgs = map.n + notNamed.size();
   if (numArgs > genFields.size()) {
-    USR_FATAL(call, "Too many arguments to type constructor");
+    // TODO: print fields as a function signature
+    USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
+    USR_PRINT(call, "type was specified with %d arguments", numArgs);
+    const char* plural = genFields.size() > 1 ? "fields" : "field";
+    USR_PRINT(this, "but type '%s' only has %d generic %s", symbol->name, genFields.size(), plural);
+    USR_STOP();
   } else if (numArgs < numWithoutDefaults) {
     if (numArgs != 0) {
       USR_FATAL(call, "Too few arguments to type constructor");
