@@ -7185,10 +7185,17 @@ static void resolveExprExpandGenerics(CallExpr* call) {
 
 static
 void resolveTypeConstructor(AggregateType* at) {
+  forv_Vec(AggregateType, pt, at->dispatchParents) {
+    resolveTypeConstructor(pt);
+  }
   at->resolveConcreteType();
   if (at->scalarPromotionType == NULL &&
       at->symbol->hasFlag(FLAG_REF) == false) {
     resolvePromotionType(at);
+  }
+
+  if (at->hasDestructor() == false) {
+    resolveDestructor(at);
   }
 }
 
