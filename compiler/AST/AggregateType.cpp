@@ -814,8 +814,9 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
 }
 
 // TODO: combine BlockStmt stuff
-static Type* resolveFieldTypeExpr(Expr* expr) {
+static Type* resolveFieldTypeExpr(Symbol* field) {
   Type* ret = NULL;
+  Expr* expr = field->defPoint->exprType;
 
   if (expr != NULL) {
     if (isBlockStmt(expr) == false) {
@@ -878,8 +879,7 @@ static Type* resolveFieldTypeExpr(Expr* expr) {
   if (ret != NULL) {
     // check that it's not dtUnknown
     if (ret == dtUnknown) {
-      // TODO: field name
-      USR_FATAL(expr, "Unable to resolve field type");
+      USR_FATAL(expr, "unable to resolve type of field '%s'", field->name);
     }
   }
 
@@ -946,7 +946,7 @@ static Type* resolveFieldTypeForInstantiation(Symbol* field) {
   Type* ret = NULL;
 
   if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
-    if (Type* type = resolveFieldTypeExpr(field->defPoint->exprType)) {
+    if (Type* type = resolveFieldTypeExpr(field)) {
       ret = type;
     } else if (field->hasFlag(FLAG_TYPE_VARIABLE) == false) {
       if (Symbol* val = resolveFieldDefault(field)) {
@@ -1018,7 +1018,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
         } else if (field->hasFlag(FLAG_PARAM)) {
           //gdbShouldBreakHere();
 
-          Type* expected = resolveFieldTypeExpr(field->defPoint->exprType);
+          Type* expected = resolveFieldTypeExpr(field);
           Symbol* value = resolveFieldDefault(field);
 
           if (expected != NULL && value != NULL) {
