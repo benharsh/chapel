@@ -733,8 +733,8 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
   AggregateType* ret = this;
   SymbolMap map;
   std::queue<Symbol*> notNamed;
-  while (call->numActuals() >= 1) {
-    Expr* actual = call->get(1)->remove();
+  for (int i = 1; i <= call->numActuals(); i++) {
+    Expr* actual = call->get(i);
     if (NamedExpr* ne = toNamedExpr(actual)) {
       Symbol* field = getField(ne->name);
       map.put(field, toSymExpr(ne->actual)->symbol());
