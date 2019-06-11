@@ -2601,7 +2601,8 @@ static bool isTypeConstructionCall(CallExpr* call) {
   return ret;
 }
 
-static Type* resolveTypeSpecifier(CallExpr* call) {
+static Type* resolveTypeSpecifier(CallInfo& info) {
+  CallExpr* call = info.call;
   if (call->id == breakOnResolveID) gdbShouldBreakHere();
 
   Type* ret = NULL;
@@ -2619,7 +2620,7 @@ static Type* resolveTypeSpecifier(CallExpr* call) {
       ret = fn->retType;
     }
   } else {
-    ret = at->generateType(call);
+    ret = at->generateType(info);
   }
 
   if (ret != NULL) {
@@ -2650,11 +2651,12 @@ FnSymbol* resolveNormalCall(CallExpr* call, bool checkOnly) {
 
   if (isGenericRecordInit(call) == true) {
     retval = resolveInitializer(call);
-  } else if (isTypeConstructionCall(call)) {
-    resolveTypeSpecifier(call);
-
   } else if (info.isWellFormed(call) == true) {
-    retval = resolveNormalCall(info, checkOnly);
+    if (isTypeConstructionCall(call)) {
+      resolveTypeSpecifier(info);
+    } else {
+      retval = resolveNormalCall(info, checkOnly);
+    }
 
   } else if (checkOnly == true) {
     retval = NULL;
@@ -9201,9 +9203,10 @@ static bool primInitIsUnacceptableGeneric(CallExpr* call, Type* type) {
     CallExpr* typeCall = new CallExpr(at->symbol);
     call->replace(typeCall);
 
-    if (Type* type = resolveTypeSpecifier(typeCall)) {
-      retval = true;
-    }
+    retval = (tryResolveCall(typeCall) == NULL);
+    //if (Type* type = resolveTypeSpecifier(typeCall)) {
+    //  retval = true;
+    //}
 
     typeCall->replace(call);
   }

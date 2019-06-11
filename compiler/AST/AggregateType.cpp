@@ -715,11 +715,18 @@ static void findGenericFields(AggregateType* at, std::vector<Symbol*>& genFields
 
 static Type* resolveFieldTypeForInstantiation(Symbol* field);
 
-AggregateType* AggregateType::generateType(CallExpr* call) {
+AggregateType* AggregateType::generateType(CallInfo& info) {
+  CallExpr* call = info.call;
   std::vector<Symbol*> genFields;
   findGenericFields(this, genFields);
 
   if (genFields.size() == 0) {
+    if (call->numActuals() > 0) {
+      USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
+      USR_PRINT(this, "type '%s' is not generic", symbol->name);
+      USR_PRINT(call, "did you forget the 'new' keyword?");
+      USR_STOP();
+    }
     return NULL;
   }
 

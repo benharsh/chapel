@@ -117,20 +117,7 @@ Expr* preFold(CallExpr* call) {
     } else {
       if (symExpr->symbol()->hasFlag(FLAG_TYPE_VARIABLE) &&
           symExpr->getValType()->symbol->hasFlag(FLAG_TUPLE) == false) {
-        Type* ty = symExpr->getValType();
-        if (AggregateType* at = toAggregateType(ty)) {
-          if (at->isGeneric()) {
-            // OK
-          } else if (call->numActuals() > 0) {
-            if (at->instantiatedFrom != NULL) {
-              USR_FATAL(call, "Type '%s' cannot be instantiated further", at->symbol->name);
-            } else {
-              USR_FATAL(call, "Cannot instantiate non-generic type '%s'", at->symbol->name);
-            }
-          }
-        //} else {
-        //  USR_FATAL(call, "Cannot instantiate type %s\n", ty->symbol->name);
-        }
+        // Type constructor calls OK
       } else if (isLcnSymbol(symExpr->symbol()) == true) {
         baseExpr->replace(new UnresolvedSymExpr("this"));
 
