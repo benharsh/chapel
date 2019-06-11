@@ -21,6 +21,7 @@
 #define _AGGREGATE_TYPE_H_
 
 #include "type.h"
+#include "../resolution/callInfo.h"
 
 /************************************* | **************************************
 *                                                                             *
@@ -145,7 +146,7 @@ public:
 
   AggregateType*              getInstantiationParent(AggregateType* pt);
 
-  AggregateType*              generateType(CallExpr* call);
+  AggregateType*              generateType(CallInfo& info);
   AggregateType*              generateType(SymbolMap& subs, Expr* insnPoint = NULL);
   void                        resolveConcreteType();
 
