@@ -832,6 +832,14 @@ static Type* resolveFieldTypeExpr(Symbol* field) {
       }
       normalize(block);
       expr = block;
+      if (CallExpr* last = toCallExpr(block->body.tail)) {
+        VarSymbol* tmp = newTemp("field_result_tmp");
+        tmp->addFlag(FLAG_MAYBE_PARAM);
+        tmp->addFlag(FLAG_MAYBE_TYPE);
+        block->insertAtTail(new DefExpr(tmp));
+        block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, last->remove()));
+        block->insertAtTail(new SymExpr(tmp));
+      }
     } else {
       // For now assume that we're already in the process of resolving this
       // expression if it's already a BlockStmt.
@@ -905,6 +913,14 @@ static Symbol* resolveFieldDefault(Symbol* field) {
       }
       normalize(block);
       expr = block;
+      if (CallExpr* last = toCallExpr(block->body.tail)) {
+        VarSymbol* tmp = newTemp("field_result_tmp");
+        tmp->addFlag(FLAG_MAYBE_PARAM);
+        tmp->addFlag(FLAG_MAYBE_TYPE);
+        block->insertAtTail(new DefExpr(tmp));
+        block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, last->remove()));
+        block->insertAtTail(new SymExpr(tmp));
+      }
     }
 
     BlockStmt* block = toBlockStmt(expr);
@@ -918,7 +934,7 @@ static Symbol* resolveFieldDefault(Symbol* field) {
       if (FnSymbol* fn = call->resolvedFunction()) {
         ret = fn->getReturnSymbol();
       } else {
-        USR_FATAL(expr, "unknown call in field type expression");
+        USR_FATAL(expr, "unknown call in field default expression");
       }
     }
   }
