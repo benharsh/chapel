@@ -919,10 +919,14 @@ static Symbol* resolveFieldDefault(Symbol* field) {
         tmp->addFlag(FLAG_MAYBE_TYPE);
         block->insertAtTail(new DefExpr(tmp));
         block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, last->remove()));
-        VarSymbol* copyTmp = newTemp();
-        block->insertAtTail(new DefExpr(copyTmp));
-        block->insertAtTail(new CallExpr(PRIM_INIT_VAR, copyTmp, tmp));
-        block->insertAtTail(new SymExpr(copyTmp));
+        if (field->hasFlag(FLAG_PARAM) == false && field->hasFlag(FLAG_TYPE_VARIABLE) == false) {
+          VarSymbol* copyTmp = newTemp();
+          block->insertAtTail(new DefExpr(copyTmp));
+          block->insertAtTail(new CallExpr(PRIM_INIT_VAR, copyTmp, tmp));
+          block->insertAtTail(new SymExpr(copyTmp));
+        } else {
+          block->insertAtTail(new SymExpr(tmp));
+        }
       }
     }
 
@@ -944,7 +948,7 @@ static Symbol* resolveFieldDefault(Symbol* field) {
 
   if (ret != NULL) {
     if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
-      if (isTypeSymbol(ret) == false) {
+      if (isTypeSymbol(ret) == false && ret->hasFlag(FLAG_TYPE_VARIABLE) == false) {
         USR_FATAL(expr, "type field's default value is not a type expression");
       }
     } else if (field->hasFlag(FLAG_PARAM)) {
