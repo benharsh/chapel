@@ -728,6 +728,14 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
       USR_STOP();
     }
     return NULL;
+  } else if (symbol->hasFlag(FLAG_GENERIC) == false &&
+             this->instantiatedFrom !=NULL &&
+             call->numActuals() > 0) {
+    USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
+    USR_PRINT(call, "type '%s' cannot be instantiated further", symbol->name);
+    USR_PRINT(call, "did you forget the 'new' keyword?");
+    USR_STOP();
+    return NULL;
   }
 
   AggregateType* ret = this;
