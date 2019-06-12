@@ -6789,7 +6789,11 @@ void resolveTypeConstructor(AggregateType* at) {
 }
 
 static void resolveExprTypeConstructor(SymExpr* symExpr) {
-  Type* t = symExpr->typeInfo();
+  if (symExpr->typeInfo() == NULL) {
+    return;
+  }
+
+  Type* t = symExpr->getValType();
   AggregateType* at = toAggregateType(t);
 
   if (DecoratedClassType * dt = toDecoratedClassType(t))
