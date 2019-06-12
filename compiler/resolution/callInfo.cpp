@@ -37,7 +37,11 @@ bool CallInfo::isWellFormed(CallExpr* callExpr) {
   call = callExpr;
 
   if (SymExpr* se = toSymExpr(call->baseExpr)) {
-    name = se->symbol()->name;
+    if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
+      name = se->typeInfo()->symbol->name;
+    } else {
+      name = se->symbol()->name;
+    }
 
   } else if (UnresolvedSymExpr* use = toUnresolvedSymExpr(call->baseExpr)) {
     name = use->unresolved;
