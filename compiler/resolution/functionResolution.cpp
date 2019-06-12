@@ -2589,9 +2589,6 @@ static bool isTypeConstructionCall(CallExpr* call) {
       if (se->typeInfo()->symbol->hasFlag(FLAG_TUPLE) &&
           se->typeInfo() != dtTuple) {
         ret = false;
-      } else if (isAggregateType(se->typeInfo()) == false &&
-                 isDecoratedClassType(se->typeInfo()) == false) {
-        ret = false;
       } else {
         ret = true;
       }
@@ -2614,6 +2611,10 @@ static Type* resolveTypeSpecifier(CallInfo& info) {
 
   if (dt != NULL) {
     ret = resolveDefaultGenericTypeSymExpr(ts);
+  } else if (isPrimitiveType(ts->typeInfo())) {
+    USR_FATAL_CONT(info.call, "illegal type index expression '%s'", info.toString());
+    USR_PRINT(info.call, "primitive type '%s' cannot be used in an index expression", ts->typeInfo()->symbol->name);
+    USR_STOP();
   } else if (at->symbol->hasFlag(FLAG_TUPLE)) {
     SymbolMap subs;
     if (FnSymbol* fn = createTupleSignature(NULL, subs, call)) {
