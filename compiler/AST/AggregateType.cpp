@@ -919,7 +919,10 @@ static Symbol* resolveFieldDefault(Symbol* field) {
         tmp->addFlag(FLAG_MAYBE_TYPE);
         block->insertAtTail(new DefExpr(tmp));
         block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, last->remove()));
-        block->insertAtTail(new SymExpr(tmp));
+        VarSymbol* copyTmp = newTemp();
+        block->insertAtTail(new DefExpr(copyTmp));
+        block->insertAtTail(new CallExpr(PRIM_INIT_VAR, copyTmp, tmp));
+        block->insertAtTail(new SymExpr(copyTmp));
       }
     }
 
