@@ -272,129 +272,129 @@ void renameInstantiatedTypeString(TypeSymbol* sym, VarSymbol* var)
  * \param call The call that is being resolved (used for scope)
  * \param type The generic type we wish to instantiate
  */
-static AggregateType* instantiateTypeForTypeConstructor(FnSymbol*      fn,
-                                                        SymbolMap&     subs,
-                                                        CallExpr*      call,
-                                                        AggregateType* ct) {
-  Type*          newType     = ct->symbol->copy()->type;
-  AggregateType* newCt       = toAggregateType(newType);
-
-  AggregateType* oldParentTy = NULL;
-  AggregateType* newParentTy = NULL;
-
-  // Get the right super type if we are using a super constructor.
-  // This only matters for generic parent types.
-  if (ct->dispatchParents.n > 0) {
-    if (AggregateType* parentTy = ct->dispatchParents.v[0]) {
-      if (parentTy->symbol->hasFlag(FLAG_GENERIC)) {
-        // Set the type of super to be the instantiated parent with subs
-        const char* parentName   = parentTy->symbol->name;
-        const char* parentTyName = astr("_type_construct_", parentName);
-        CallExpr*   parentTyCall = new CallExpr(parentTyName);
-        DefExpr*    superDef     = NULL;
-        FnSymbol*   parentFn     = NULL;
-
-        // Pass the special formals to the superclass type constructor.
-        for_formals(arg, fn) {
-          if (arg->hasFlag(FLAG_PARENT_FIELD)) {
-            Symbol* value = subs.get(arg);
-
-            if (value == NULL) {
-              value = arg;
-            }
-
-            parentTyCall->insertAtTail(value);
-          }
-        }
-
-        call->insertBefore(parentTyCall);
-
-        resolveCallAndCallee(parentTyCall);
-
-        parentFn    = parentTyCall->resolvedFunction();
-
-        oldParentTy = parentTy;
-        newParentTy = toAggregateType(parentFn->retType);
-
-        INT_ASSERT(newParentTy != NULL);
-
-        parentTyCall->remove();
-
-        for_alist(tmp, newCt->fields) {
-          DefExpr* def = toDefExpr(tmp);
-
-          INT_ASSERT(def);
-
-          if (VarSymbol* field = toVarSymbol(def->sym)) {
-            if (field->hasFlag(FLAG_SUPER_CLASS) == true) {
-              superDef = def;
-            }
-          }
-        }
-
-        if (superDef != NULL) {
-          superDef->sym->type = newParentTy;
-          INT_ASSERT(newCt->getField("super")->typeInfo() == newParentTy);
-        }
-
-      }
-    }
-  }
-
-  newCt->symbol->renameInstantiatedMulti(subs, fn);
-
-  fn->retType->symbol->defPoint->insertBefore(new DefExpr(newCt->symbol));
-
-  newCt->symbol->copyFlags(fn);
-
-  if (isSyncType(newCt) == true || isSingleType(newCt) == true) {
-    newCt->defaultValue = NULL;
-  }
-
-  newCt->substitutions.copy(fn->retType->substitutions);
-
-  // Add dispatch parents, but replace parent type with
-  // instantiated parent type.
-  if (AggregateType* at = toAggregateType(fn->retType)) {
-    forv_Vec(AggregateType, t, at->dispatchParents) {
-      AggregateType* useT = t;
-
-      if (t == oldParentTy) {
-        useT = newParentTy;
-      }
-
-      newCt->dispatchParents.add(useT);
-    }
-
-    forv_Vec(AggregateType, t, at->dispatchParents) {
-      AggregateType* useT = t;
-
-      if (t == oldParentTy) {
-        useT = newParentTy;
-      }
-
-      if (useT->dispatchChildren.add_exclusive(newCt) == false) {
-        INT_ASSERT(false);
-      }
-    }
-  }
-
-  if (newCt->dispatchChildren.n > 0) {
-    INT_FATAL(fn, "generic type has subtypes");
-
-  } else if (AggregateType* at = toAggregateType(fn->retType)) {
-    newCt->instantiatedFrom = at;
-
-  } else {
-    INT_ASSERT(false);
-  }
-
-  newCt->substitutions.map_union(subs);
-
-  newCt->symbol->removeFlag(FLAG_GENERIC);
-
-  return newCt;
-}
+//static AggregateType* instantiateTypeForTypeConstructor(FnSymbol*      fn,
+//                                                        SymbolMap&     subs,
+//                                                        CallExpr*      call,
+//                                                        AggregateType* ct) {
+//  Type*          newType     = ct->symbol->copy()->type;
+//  AggregateType* newCt       = toAggregateType(newType);
+//
+//  AggregateType* oldParentTy = NULL;
+//  AggregateType* newParentTy = NULL;
+//
+//  // Get the right super type if we are using a super constructor.
+//  // This only matters for generic parent types.
+//  if (ct->dispatchParents.n > 0) {
+//    if (AggregateType* parentTy = ct->dispatchParents.v[0]) {
+//      if (parentTy->symbol->hasFlag(FLAG_GENERIC)) {
+//        // Set the type of super to be the instantiated parent with subs
+//        const char* parentName   = parentTy->symbol->name;
+//        const char* parentTyName = astr("_type_construct_", parentName);
+//        CallExpr*   parentTyCall = new CallExpr(parentTyName);
+//        DefExpr*    superDef     = NULL;
+//        FnSymbol*   parentFn     = NULL;
+//
+//        // Pass the special formals to the superclass type constructor.
+//        for_formals(arg, fn) {
+//          if (arg->hasFlag(FLAG_PARENT_FIELD)) {
+//            Symbol* value = subs.get(arg);
+//
+//            if (value == NULL) {
+//              value = arg;
+//            }
+//
+//            parentTyCall->insertAtTail(value);
+//          }
+//        }
+//
+//        call->insertBefore(parentTyCall);
+//
+//        resolveCallAndCallee(parentTyCall);
+//
+//        parentFn    = parentTyCall->resolvedFunction();
+//
+//        oldParentTy = parentTy;
+//        newParentTy = toAggregateType(parentFn->retType);
+//
+//        INT_ASSERT(newParentTy != NULL);
+//
+//        parentTyCall->remove();
+//
+//        for_alist(tmp, newCt->fields) {
+//          DefExpr* def = toDefExpr(tmp);
+//
+//          INT_ASSERT(def);
+//
+//          if (VarSymbol* field = toVarSymbol(def->sym)) {
+//            if (field->hasFlag(FLAG_SUPER_CLASS) == true) {
+//              superDef = def;
+//            }
+//          }
+//        }
+//
+//        if (superDef != NULL) {
+//          superDef->sym->type = newParentTy;
+//          INT_ASSERT(newCt->getField("super")->typeInfo() == newParentTy);
+//        }
+//
+//      }
+//    }
+//  }
+//
+//  newCt->symbol->renameInstantiatedMulti(subs, fn);
+//
+//  fn->retType->symbol->defPoint->insertBefore(new DefExpr(newCt->symbol));
+//
+//  newCt->symbol->copyFlags(fn);
+//
+//  if (isSyncType(newCt) == true || isSingleType(newCt) == true) {
+//    newCt->defaultValue = NULL;
+//  }
+//
+//  newCt->substitutions.copy(fn->retType->substitutions);
+//
+//  // Add dispatch parents, but replace parent type with
+//  // instantiated parent type.
+//  if (AggregateType* at = toAggregateType(fn->retType)) {
+//    forv_Vec(AggregateType, t, at->dispatchParents) {
+//      AggregateType* useT = t;
+//
+//      if (t == oldParentTy) {
+//        useT = newParentTy;
+//      }
+//
+//      newCt->dispatchParents.add(useT);
+//    }
+//
+//    forv_Vec(AggregateType, t, at->dispatchParents) {
+//      AggregateType* useT = t;
+//
+//      if (t == oldParentTy) {
+//        useT = newParentTy;
+//      }
+//
+//      if (useT->dispatchChildren.add_exclusive(newCt) == false) {
+//        INT_ASSERT(false);
+//      }
+//    }
+//  }
+//
+//  if (newCt->dispatchChildren.n > 0) {
+//    INT_FATAL(fn, "generic type has subtypes");
+//
+//  } else if (AggregateType* at = toAggregateType(fn->retType)) {
+//    newCt->instantiatedFrom = at;
+//
+//  } else {
+//    INT_ASSERT(false);
+//  }
+//
+//  newCt->substitutions.map_union(subs);
+//
+//  newCt->symbol->removeFlag(FLAG_GENERIC);
+//
+//  return newCt;
+//}
 
 /** Fully instantiate a generic function given a map of substitutions and a
  *  call site.
@@ -426,25 +426,25 @@ void instantiateBody(FnSymbol* fn) {
   }
 }
 
-static
-void gatherFieldSubstitutionsForNewType(AggregateType* oldType,
-                                        AggregateType* newType,
-                                        SymbolMap& map) {
-
-  // Gather the parent fields.
-  if (newType->isClass()) {
-    for(int i = 0; i < newType->dispatchParents.n; i++) {
-      gatherFieldSubstitutionsForNewType(oldType->dispatchParents.v[i],
-                                         newType->dispatchParents.v[i],
-                                         map);
-    }
-  }
-
-  // Gather the current class fields
-  for (int i = 1; i <= newType->fields.length; i++) {
-    map.put(oldType->getField(i), newType->getField(i));
-  }
-}
+//static
+//void gatherFieldSubstitutionsForNewType(AggregateType* oldType,
+//                                        AggregateType* newType,
+//                                        SymbolMap& map) {
+//
+//  // Gather the parent fields.
+//  if (newType->isClass()) {
+//    for(int i = 0; i < newType->dispatchParents.n; i++) {
+//      gatherFieldSubstitutionsForNewType(oldType->dispatchParents.v[i],
+//                                         newType->dispatchParents.v[i],
+//                                         map);
+//    }
+//  }
+//
+//  // Gather the current class fields
+//  for (int i = 1; i <= newType->fields.length; i++) {
+//    map.put(oldType->getField(i), newType->getField(i));
+//  }
+//}
 
 /** Instantiate enough of the function for it to make it through the candidate
  *  filtering and disambiguation process.
@@ -509,18 +509,18 @@ FnSymbol* instantiateSignature(FnSymbol*  fn,
 
       if (fn->hasFlag(FLAG_TYPE_CONSTRUCTOR) == true) {
         INT_ASSERT(false);
-        AggregateType* ct = toAggregateType(fn->retType);
+        //AggregateType* ct = toAggregateType(fn->retType);
 
-        if (ct->hasUserDefinedInit        == false &&
-            ct->wantsDefaultInitializer() == false) {
-          newType = instantiateTypeForTypeConstructor(fn, subs, call, ct);
+        //if (ct->hasUserDefinedInit        == false &&
+        //    ct->wantsDefaultInitializer() == false) {
+        //  newType = instantiateTypeForTypeConstructor(fn, subs, call, ct);
 
-        } else {
-          newType = ct->generateType(subs);
+        //} else {
+        //  newType = ct->generateType(subs);
 
-          // Gather up substitutions for old -> new fields
-          gatherFieldSubstitutionsForNewType(ct, newType, map);
-        }
+        //  // Gather up substitutions for old -> new fields
+        //  gatherFieldSubstitutionsForNewType(ct, newType, map);
+        //}
       }
 
       // instantiate function

@@ -744,7 +744,12 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
   for (int i = 1; i <= call->numActuals(); i++) {
     Expr* actual = call->get(i);
     if (NamedExpr* ne = toNamedExpr(actual)) {
-      Symbol* field = getField(ne->name);
+      Symbol* field = getField(ne->name, false);
+      if (field == NULL) {
+        USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
+        USR_PRINT(call, "type '%s' does not contain a field named '%s'", symbol->name, ne->name);
+        USR_STOP();
+      }
       map.put(field, toSymExpr(ne->actual)->symbol());
     } else {
       notNamed.push(toSymExpr(actual)->symbol());
@@ -784,7 +789,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
   INT_ASSERT(notNamed.size() == 0);
 
   //gdbShouldBreakHere();
-  ret = ret->generateType(map, getInstantiationPoint(call));
+  ret = ret->generateType(map, info, getInstantiationPoint(call));
 
   if (ret != this) {
     ret->instantiatedFrom = this;
@@ -989,7 +994,7 @@ static Type* resolveFieldTypeForInstantiation(Symbol* field) {
   return ret;
 }
 
-AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
+AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr* insnPoint) {
   AggregateType* retval = this;
 
   // Determine if there is a generic parent class
@@ -998,7 +1003,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
 
     // Is the parent generic?
     if (parent->genericFields.size() > 0) {
-      AggregateType* instantiatedParent = parent->generateType(subs, insnPoint);
+      AggregateType* instantiatedParent = parent->generateType(subs, info, insnPoint);
 
       retval = instantiationWithParent(instantiatedParent, insnPoint);
     }
@@ -1021,20 +1026,37 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
       if (Symbol* val = substitutionForField(field, subs)) {
         retval->genericField = index;
 
+        // TODO: 'type field', 'param field' strings
         //if (symbol->defPoint->getModule()->modTag == MOD_USER) {
+        if (field->hasFlag(FLAG_PARAM)) {
+          if (val->isImmediate() == false && isEnumSymbol(val) == false) {
+            USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+            USR_PRINT(info.call, "cannot instantiate param field '%s' with non-param", field->name);
+            USR_STOP();
+          }
+        } else if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
+          if (val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
+            USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+            USR_PRINT(info.call, "cannot instantiate type field '%s' with non-type", field->name);
+            USR_STOP();
+          }
+        } else if (val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
+          USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+          USR_PRINT(info.call, "generic field '%s' must be instantiated with a type-expression", field->name);
+          USR_STOP();
+        }
           if (Type* fieldType = resolveFieldTypeForInstantiation(retval->getField(index))) {
             if (fieldType->symbol->hasFlag(FLAG_GENERIC)) {
               if (getInstantiationType(val->type, fieldType) == NULL) {
-                USR_FATAL("Unable to instantiate field '%s : %s' with type '%s'\n", field->name, fieldType->symbol->name, val->type->symbol->name);
+                USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+                USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
+                USR_STOP();
               }
             } else if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
-              USR_FATAL("Unable to instantiate field '%s : %s' with type '%s'\n", field->name, fieldType->symbol->name, val->type->symbol->name);
+              USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+              USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
+              USR_STOP();
             }
-          }
-          if (field->hasFlag(FLAG_PARAM) == false &&
-              field->hasFlag(FLAG_TYPE_VARIABLE) == false &&
-              val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
-            USR_FATAL("Generic field '%s' must be instantiated with a type-expression", field->name);
           }
         //}
 
@@ -1055,8 +1077,10 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
           if (expected != NULL && value != NULL) {
             if (getInstantiationType(value->type, expected) == NULL) {
               // TODO: pretty-print resolved value
-              USR_FATAL("param field '%s' has type '%s' but default value is of incompatible type '%s'",
+              USR_FATAL_CONT(info.call, "unable to resolve type '%s'", info.toString());
+              USR_PRINT(info.call, "param field '%s' has type '%s' but default value is of incompatible type '%s'",
                         field->name, expected->symbol->name, value->type->symbol->name);
+              USR_STOP();
             }
             retval->genericField = index;
             retval = retval->getInstantiation(value, index, insnPoint);
@@ -1064,9 +1088,13 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, Expr* insnPoint) {
             retval->genericField = index;
             retval = retval->getInstantiation(value, index, insnPoint);
           } else if (expected != NULL && value == NULL) {
-            USR_FATAL("param field '%s : %s' was not explicitly instantiated and does not have a default value", field->name, expected->symbol->name);
+            USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+            USR_PRINT(info.call, "param field '%s : %s' was not explicitly instantiated and does not have a default value", field->name, expected->symbol->name);
+            USR_STOP();
           } else {
-            USR_FATAL("param field '%s' was not explicitly instantiated and does not have a type expression or default value", field->name);
+            USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+            USR_PRINT(info.call, "param field '%s' was not explicitly instantiated and does not have a type expression or default value", field->name);
+            USR_STOP();
           }
         } else {
           INT_FATAL("Can only default-instantiate type and param fields");
