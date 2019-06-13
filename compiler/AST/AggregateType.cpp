@@ -1052,7 +1052,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
                 USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
                 USR_STOP();
               }
-            } else if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
+            } else if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
               USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
               USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
               USR_STOP();
