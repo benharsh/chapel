@@ -586,11 +586,11 @@ static void checkIsIterator() {
 // type constructor.
 //
 static void checkAggregateTypes() {
-  for_alive_in_Vec(AggregateType, at, gAggregateTypes) {
-    if (at->typeConstructor == NULL) {
-      INT_FATAL(at, "aggregate type has no type constructor");
-    }
-  }
+  //for_alive_in_Vec(AggregateType, at, gAggregateTypes) {
+  //  if (at->typeConstructor == NULL) {
+  //    INT_FATAL(at, "aggregate type has no type constructor");
+  //  }
+  //}
 }
 
 

@@ -52,7 +52,6 @@ AggregateType::AggregateType(AggregateTag initTag) :
   aggregateTag        = initTag;
   memset(decoratedClasses, 0, sizeof(decoratedClasses));
 
-  typeConstructor     = NULL;
   hasUserDefinedInit  = false;
   builtDefaultInit    = false;
   initializerResolved = false;
@@ -67,6 +66,8 @@ AggregateType::AggregateType(AggregateTag initTag) :
   genericField        = 0;
   mIsGeneric          = false;
   mIsGenericWithDefaults = false;
+  foundGenericFields = false;
+
 
   classId             = 0;
 
@@ -1723,8 +1724,16 @@ std::string AggregateType::docsDirective() {
 ************************************** | *************************************/
 
 FnSymbol* AggregateType::buildTypeConstructor() {
+  if (foundGenericFields) {
+    return NULL;
+  }
+  foundGenericFields = true;
+  bool eachHasDefault = mIsGeneric;
+
   if (isClass() == true && dispatchParents.n > 0) {
     AggregateType* parent        = dispatchParents.v[0];
+    parent->buildTypeConstructor();
+    eachHasDefault = parent->mIsGenericWithDefaults;
     for_vector(Symbol, field, parent->genericFields) {
       if (isFieldInThisClass(field->name) == false) {
         AggregateType*       ncThis = const_cast<AggregateType*>(this);
@@ -1732,8 +1741,6 @@ FnSymbol* AggregateType::buildTypeConstructor() {
       }
     }
   }
-
-  bool eachHasDefault = mIsGeneric;
 
   for_fields(field, this) {
     if (field->hasFlag(FLAG_SUPER_CLASS)) continue;
@@ -1757,9 +1764,9 @@ FnSymbol* AggregateType::buildTypeConstructor() {
   this->mIsGenericWithDefaults = eachHasDefault;
 
   return NULL;
-  if (typeConstructor != NULL) {
-    return typeConstructor;
-  }
+  //if (typeConstructor != NULL) {
+  //  return typeConstructor;
+  //}
 
   SET_LINENO(this);
 
@@ -1804,7 +1811,7 @@ FnSymbol* AggregateType::buildTypeConstructor() {
 
   addToSymbolTable(retval);
 
-  typeConstructor = retval;
+  //typeConstructor = retval;
 
   return retval;
 }
@@ -1819,7 +1826,7 @@ CallExpr* AggregateType::typeConstrSuperCall(FnSymbol* fn) const {
   }
   return NULL;
 
-  FnSymbol*      superTypeCtor = parent->typeConstructor;
+  FnSymbol*      superTypeCtor = NULL; //parent->typeConstructor;
   CallExpr*      retval        = NULL;
 
   if (superTypeCtor == NULL) {

@@ -180,8 +180,6 @@ public:
   // by plain AggregateType and unmanaged class pointers use this special type.
   DecoratedClassType*         decoratedClasses[NUM_PACKED_DECORATED_TYPES];
 
-  FnSymbol*                   typeConstructor;
-
   bool                        builtDefaultInit;
 
   AggregateType*              instantiatedFrom;
@@ -212,6 +210,7 @@ public:
 
   AggregateResolved           resolveStatus;
 
+  bool                        foundGenericFields;
   std::vector<Symbol*>        genericFields;
 
 private:

@@ -92,12 +92,11 @@ void ResolutionCandidate::resolveTypeConstructor(CallInfo& info) {
   // Ignore tuple constructors; they were generated
   // with their type constructors.
   if (fn->hasFlag(FLAG_PARTIAL_TUPLE) == false) {
-    AggregateType* at = toAggregateType(fn->_this->type);
-    INT_ASSERT(at->typeConstructor != NULL);
+    //INT_ASSERT(at->typeConstructor != NULL);
 
-    if (at->typeConstructor->isResolved()) return;
+    //if (at->typeConstructor->isResolved()) return;
 
-    CallExpr* typeConstructorCall = new CallExpr(at->typeConstructor);
+    CallExpr* typeConstructorCall = NULL; //new CallExpr(at->typeConstructor);
 
     for_formals(formal, fn) {
       if (fn->_this->type->symbol->hasFlag(FLAG_TUPLE)) {

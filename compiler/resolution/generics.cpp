@@ -355,7 +355,7 @@ FnSymbol* instantiateSignature(FnSymbol*  fn,
       newFn = instantiateFunction(fn, root, allSubs, call, subs, map);
 
       if (newType != NULL) {
-        newType->typeConstructor = newFn;
+        //newType->typeConstructor = newFn;
         newFn->retType           = newType;
       }
 
