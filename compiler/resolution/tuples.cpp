@@ -94,49 +94,6 @@ void makeTupleName(std::vector<TypeSymbol*>& args,
   }
 }
 
-static FnSymbol*
-makeTupleTypeCtor(std::vector<ArgSymbol*> typeCtorArgs,
-                  TypeSymbol*             newTypeSymbol,
-                  ModuleSymbol*           tupleModule,
-                  BlockStmt*              instantiationPoint) {
-  newTypeSymbol->instantiationPoint = instantiationPoint;
-  return NULL;
-  AggregateType* newType  = toAggregateType(newTypeSymbol->type);
-  FnSymbol*      typeCtor = new FnSymbol("_type_construct__tuple");
-
-  SymExpr*       symExpr  = new SymExpr(newTypeSymbol);
-  CallExpr*      ret      = new CallExpr(PRIM_RETURN, symExpr);
-
-  INT_ASSERT(newType);
-
-  for (size_t i = 0; i < typeCtorArgs.size(); i++) {
-    typeCtor->insertFormalAtTail(typeCtorArgs[i]);
-  }
-
-  typeCtor->addFlag(FLAG_ALLOW_REF);
-  typeCtor->addFlag(FLAG_COMPILER_GENERATED);
-  typeCtor->addFlag(FLAG_LAST_RESORT);
-  typeCtor->addFlag(FLAG_INLINE);
-  typeCtor->addFlag(FLAG_INVISIBLE_FN);
-  typeCtor->addFlag(FLAG_TYPE_CONSTRUCTOR);
-  typeCtor->addFlag(FLAG_PARTIAL_TUPLE);
-
-  typeCtor->retTag             = RET_TYPE;
-  typeCtor->retType            = newType;
-  typeCtor->instantiatedFrom   = gGenericTupleTypeCtor;
-  typeCtor->setInstantiationPoint(instantiationPoint);
-
-  typeCtor->insertAtTail(ret);
-
-  typeCtor->substitutions.copy(newType->substitutions);
-
-  tupleModule->block->insertAtTail(new DefExpr(typeCtor));
-
-  newType->typeConstructor = typeCtor;
-
-  return typeCtor;
-}
-
 static
 FnSymbol* makeBuildTupleType(std::vector<ArgSymbol*> typeCtorArgs,
                              TypeSymbol* newTypeSymbol,
@@ -345,7 +302,7 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
 
     Type* sizeType = dtInt[INT_SIZE_DEFAULT];
 
-    ArgSymbol* genericTypeCtorSizeArg = gGenericTupleTypeCtor->getFormal(1);
+    //ArgSymbol* genericTypeCtorSizeArg = gGenericTupleTypeCtor->getFormal(1);
 
     // Create the arguments for the type constructor
     // since we will refer to these in the substitutions.
@@ -371,8 +328,10 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
 
     newType->fields.insertAtTail(new DefExpr(sizeVar));
 
-    newType->substitutions.put(genericTypeCtorSizeArg,
-                               new_IntSymbol(args.size()));
+    newType->substitutions.put(sizeVar, new_IntSymbol(args.size()));
+
+    //newType->substitutions.put(genericTypeCtorSizeArg,
+    //                           new_IntSymbol(args.size()));
 
     for (int i = 0; i < size; i++) {
       const char* name = typeCtorArgs[i+1]->name;
@@ -431,10 +390,6 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
     tupleModule->block->insertAtTail(new DefExpr(newTypeSymbol));
 
     info.typeSymbol = newTypeSymbol;
-
-    // Build the type constructor
-    makeTupleTypeCtor(typeCtorArgs, newTypeSymbol,
-                      tupleModule, instantiationPoint);
 
     // Build the _build_tuple type function
     info.buildTupleType = makeBuildTupleType(typeCtorArgs, newTypeSymbol,
@@ -1170,7 +1125,6 @@ fixupTupleFunctions(FnSymbol* fn,
 FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
   std::vector<TypeSymbol*> args;
 
-  //if (isTupleTypeConstructor(fn)) gdbShouldBreakHere();
   bool isStarTuple = fn && fn->hasFlag(FLAG_STAR_TUPLE);
   bool      noChangeTypes  = fn == NULL ||
                              fn->hasFlag(FLAG_BUILD_TUPLE_TYPE) == true ||

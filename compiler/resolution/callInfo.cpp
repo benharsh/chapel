@@ -164,11 +164,7 @@ const char* CallInfo::toString() {
     }
   }
 
-  if (developer                                   == false &&
-      strncmp("_type_construct_", name, 16) == 0) {
-    retval = astr(retval, name+16);
-
-  } else if (_this == false) {
+  if (_this == false) {
     retval = astr(retval, name);
   }
 

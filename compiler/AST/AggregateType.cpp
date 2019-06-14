@@ -138,6 +138,7 @@ bool AggregateType::isGeneric() const {
 }
 
 void AggregateType::markAsGeneric() {
+  symbol->addFlag(FLAG_GENERIC);
   mIsGeneric = true;
 }
 
@@ -456,14 +457,14 @@ void AggregateType::addDeclaration(DefExpr* defExpr) {
     }
 
     if (var->hasFlag(FLAG_TYPE_VARIABLE) == true) {
-      mIsGeneric = true;
+      markAsGeneric();
 
     } else if (var->hasFlag(FLAG_PARAM) == true) {
-      mIsGeneric = true;
+      markAsGeneric();
 
     } else if (defExpr->exprType == NULL &&
                defExpr->init     == NULL) {
-      mIsGeneric = true;
+      markAsGeneric();
     }
 
   } else if (FnSymbol* fn = toFnSymbol(defExpr->sym)) {
@@ -1108,8 +1109,6 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
     }
   }
 
-  retval->instantiatedFrom = this;
-
   return retval;
 }
 
@@ -1724,6 +1723,40 @@ std::string AggregateType::docsDirective() {
 ************************************** | *************************************/
 
 FnSymbol* AggregateType::buildTypeConstructor() {
+  if (isClass() == true && dispatchParents.n > 0) {
+    AggregateType* parent        = dispatchParents.v[0];
+    for_vector(Symbol, field, parent->genericFields) {
+      if (isFieldInThisClass(field->name) == false) {
+        AggregateType*       ncThis = const_cast<AggregateType*>(this);
+        ncThis->genericFields.push_back(field);
+      }
+    }
+  }
+
+  bool eachHasDefault = mIsGeneric;
+
+  for_fields(field, this) {
+    if (field->hasFlag(FLAG_SUPER_CLASS)) continue;
+
+    if (field->hasFlag(FLAG_PARAM) || field->hasFlag(FLAG_TYPE_VARIABLE)) {
+      genericFields.push_back(field);
+      if (field->defPoint->init == NULL) {
+        eachHasDefault = false;
+      }
+    } else if (field->defPoint->init == NULL) {
+      if (field->defPoint->exprType == NULL) {
+        genericFields.push_back(field); // "var x;"
+        eachHasDefault = false;
+      } else if (isFieldTypeExprGeneric(field->defPoint->exprType)) {
+        genericFields.push_back(field); // "var x : integral;"
+        eachHasDefault = false;
+      }
+    }
+  }
+
+  this->mIsGenericWithDefaults = eachHasDefault;
+
+  return NULL;
   if (typeConstructor != NULL) {
     return typeConstructor;
   }
@@ -1742,7 +1775,6 @@ FnSymbol* AggregateType::buildTypeConstructor() {
   retval->retType = this;
   retval->_this   = _this;
 
-  retval->addFlag(FLAG_TYPE_CONSTRUCTOR);
   retval->addFlag(FLAG_COMPILER_GENERATED);
   retval->addFlag(FLAG_LAST_RESORT);
 
@@ -1779,6 +1811,14 @@ FnSymbol* AggregateType::buildTypeConstructor() {
 
 CallExpr* AggregateType::typeConstrSuperCall(FnSymbol* fn) const {
   AggregateType* parent        = dispatchParents.v[0];
+  for_vector(Symbol, field, parent->genericFields) {
+    if (isFieldInThisClass(field->name) == false) {
+      AggregateType*       ncThis = const_cast<AggregateType*>(this);
+      ncThis->genericFields.push_back(field);
+    }
+  }
+  return NULL;
+
   FnSymbol*      superTypeCtor = parent->typeConstructor;
   CallExpr*      retval        = NULL;
 

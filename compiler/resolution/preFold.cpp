@@ -1495,28 +1495,6 @@ static Expr* preFoldNamed(CallExpr* call) {
     }
 
 
-  } else if (call->isNamed("_type_construct__tuple") ==  true &&
-             call->isResolved()                      == false) {
-    if (SymExpr* sym = toSymExpr(call->get(1))) {
-      if (VarSymbol* var = toVarSymbol(sym->symbol())) {
-        if (var->immediate) {
-          int rank = var->immediate->int_value();
-
-          if (rank != call->numActuals() - 1) {
-            if (call->numActuals() != 2) {
-              INT_FATAL(call, "bad homogeneous tuple");
-            }
-
-            Expr* actual = call->get(2);
-
-            for (int i = 1; i < rank; i++) {
-              call->insertAtTail(actual->copy());
-            }
-          }
-        }
-      }
-    }
-
   } else if (call->isNamed("chpl__staticFastFollowCheck")  ||
              call->isNamed("chpl__dynamicFastFollowCheck")  ) {
     if (! call->isResolved())

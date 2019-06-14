@@ -137,9 +137,7 @@ void normalize() {
       makeExportWrapper(fn);
     }
 
-    if (fn->hasFlag(FLAG_TYPE_CONSTRUCTOR) == false) {
-      fixupArrayFormals(fn);
-    }
+    fixupArrayFormals(fn);
 
     if (includesParameterizedPrimitive(fn) == true) {
       replaceFunctionWithInstantiationsOfPrimitive(fn);
@@ -1055,8 +1053,7 @@ static void processManagedNew(CallExpr* newCall) {
     // This conditional avoids known cases where those expressions are
     // re-normalized.
     //
-    if (parent->hasFlag(FLAG_TYPE_CONSTRUCTOR) == false &&
-        parent->hasFlag(FLAG_NEW_WRAPPER) == false &&
+    if (parent->hasFlag(FLAG_NEW_WRAPPER) == false &&
         parent->hasFlag(FLAG_COMPILER_GENERATED) == false) {
       USR_FATAL_CONT(newCall, "type in 'new' expression is missing its argument list");
     }
@@ -1191,8 +1188,7 @@ static void normalizeReturns(FnSymbol* fn) {
   // Check if this function's returns are already normal.
   if (rets.size() == 1 && theRet == fn->body->body.last()) {
     if (SymExpr* se = toSymExpr(theRet->get(1))) {
-      if (fn->hasFlag(FLAG_TYPE_CONSTRUCTOR)    == true ||
-          strcmp ("=",      fn->name)           ==    0 ||
+      if (strcmp ("=",      fn->name)           ==    0 ||
           strcmp ("_init",  fn->name)           ==    0||
           strcmp ("_ret",   se->symbol()->name) ==    0) {
         return;
@@ -2396,8 +2392,7 @@ static void updateVariableAutoDestroy(DefExpr* defExpr) {
       var->hasFlag(FLAG_REF_VAR)         == false &&
 
       fn->_this                          != var   && // Note 2.
-      fn->hasFlag(FLAG_INIT_COPY_FN)     == false && // Note 3.
-      fn->hasFlag(FLAG_TYPE_CONSTRUCTOR) == false) {
+      fn->hasFlag(FLAG_INIT_COPY_FN)     == false) { // Note 3.
 
     // Note that if the DefExpr is at module scope, the auto-destroy
     // for it will end up in the module deinit function.
@@ -2465,12 +2460,7 @@ static void hack_resolve_types(ArgSymbol* arg) {
         // because resolution will not be able to handle the resulting AST.
         if (CallExpr* call = toCallExpr(only)) {
           if (SymExpr* se = toSymExpr(call->baseExpr)) {
-            if (FnSymbol* fn = toFnSymbol(se->symbol())) {
-              if (fn->hasFlag(FLAG_TYPE_CONSTRUCTOR)) {
-                // Set dtUnknown, causing the upcoming conditional to fail
-                type = dtUnknown;
-              }
-            } else if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
+            if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
               type = dtUnknown;
             }
           }
