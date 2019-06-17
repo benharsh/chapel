@@ -1726,30 +1726,26 @@ std::string AggregateType::docsDirective() {
   return "";
 }
 
-/************************************* | **************************************
-*                                                                             *
-* Create the (default) type constructor for this class.                       *
-*                                                                             *
-************************************** | *************************************/
-
-FnSymbol* AggregateType::buildTypeConstructor() {
+void AggregateType::processGenericFields() {
   if (foundGenericFields) {
-    return NULL;
+    return;
   }
+
   foundGenericFields = true;
   bool eachHasDefault = mIsGeneric;
 
   if (isClass() == true && dispatchParents.n > 0) {
-    AggregateType* parent        = dispatchParents.v[0];
+    AggregateType* parent = dispatchParents.v[0];
     if (parent != dtObject) {
-      parent->buildTypeConstructor();
+      parent->processGenericFields();
+
       if (parent->mIsGeneric) {
         eachHasDefault = parent->mIsGenericWithDefaults;
       }
+
       for_vector(Symbol, field, parent->genericFields) {
         if (isFieldInThisClass(field->name) == false) {
-          AggregateType*       ncThis = const_cast<AggregateType*>(this);
-          ncThis->genericFields.push_back(field);
+          genericFields.push_back(field);
         }
       }
     }
@@ -1802,101 +1798,6 @@ FnSymbol* AggregateType::buildTypeConstructor() {
   typeSignature = astr(typeSignature, ")");
 
   this->mIsGenericWithDefaults = eachHasDefault;
-
-  return NULL;
-  //if (typeConstructor != NULL) {
-  //  return typeConstructor;
-  //}
-
-  SET_LINENO(this);
-
-  const char* name   = astr("_type_construct_", symbol->name);
-  const char* cName  = astr("_type_construct_", symbol->cname);
-  VarSymbol*  _this  = new VarSymbol("this", this);
-  FnSymbol*   retval = new FnSymbol(name);
-
-  _this->addFlag(FLAG_ARG_THIS);
-
-  retval->cname   = cName;
-  retval->retTag  = RET_TYPE;
-  retval->retType = this;
-  retval->_this   = _this;
-
-  retval->addFlag(FLAG_COMPILER_GENERATED);
-  retval->addFlag(FLAG_LAST_RESORT);
-
-  if (symbol->hasFlag(FLAG_REF)   == true) {
-    retval->addFlag(FLAG_REF);
-  }
-
-  if (symbol->hasFlag(FLAG_TUPLE) == true) {
-    retval->addFlag(FLAG_TUPLE);
-    retval->addFlag(FLAG_INLINE);
-
-    gGenericTupleTypeCtor = retval;
-  }
-
-  symbol->defPoint->insertBefore(new DefExpr(retval));
-
-  retval->insertAtTail(new DefExpr(_this));
-
-  if (isClass() == true && dispatchParents.n > 0) {
-    typeConstrSetFields(retval, typeConstrSuperCall(retval));
-
-  } else {
-    typeConstrSetFields(retval, NULL);
-  }
-
-  retval->insertAtTail(new CallExpr(PRIM_RETURN, _this));
-
-  addToSymbolTable(retval);
-
-  //typeConstructor = retval;
-
-  return retval;
-}
-
-CallExpr* AggregateType::typeConstrSuperCall(FnSymbol* fn) const {
-  AggregateType* parent        = dispatchParents.v[0];
-  for_vector(Symbol, field, parent->genericFields) {
-    if (isFieldInThisClass(field->name) == false) {
-      AggregateType*       ncThis = const_cast<AggregateType*>(this);
-      ncThis->genericFields.push_back(field);
-    }
-  }
-  return NULL;
-
-  FnSymbol*      superTypeCtor = NULL; //parent->typeConstructor;
-  CallExpr*      retval        = NULL;
-
-  if (superTypeCtor == NULL) {
-    superTypeCtor = parent->buildTypeConstructor();
-  }
-
-  if (superTypeCtor->numFormals() > 0) {
-    retval = new CallExpr(parent->symbol);
-
-    for_formals(formal, superTypeCtor) {
-      ArgSymbol* arg = toArgSymbol(formal->copy());
-
-      if (isFieldInThisClass(arg->name) == false) {
-        arg->addFlag(FLAG_PARENT_FIELD);
-
-        fn->insertFormalAtTail(arg);
-
-        retval->insertAtTail(new SymExpr(arg));
-      }
-    }
-
-    for_vector(Symbol, field, parent->genericFields) {
-      if (isFieldInThisClass(field->name) == false) {
-        AggregateType*       ncThis = const_cast<AggregateType*>(this);
-        ncThis->genericFields.push_back(field);
-      }
-    }
-  }
-
-  return retval;
 }
 
 bool AggregateType::isFieldInThisClass(const char* name) const {
@@ -1910,123 +1811,6 @@ bool AggregateType::isFieldInThisClass(const char* name) const {
   }
 
   return retval;
-}
-
-void AggregateType::typeConstrSetFields(FnSymbol* fn,
-                                        CallExpr* superCall) const {
-  Vec<const char*> fieldNamesSet;
-
-  if (TypeSymbol* ts = toTypeSymbol(fn->defPoint->parentSymbol)) {
-    AggregateType* outerType = toAggregateType(ts->type);
-    outerType->moveTypeConstructorToOuter(fn);
-  }
-
-  for_fields(tmp, this) {
-    SET_LINENO(tmp);
-
-    if (VarSymbol* field = toVarSymbol(tmp)) {
-      if (field->hasFlag(FLAG_SUPER_CLASS) == true) {
-        if (superCall != NULL) {
-          CallExpr* call = new CallExpr(PRIM_TYPE_INIT, superCall);
-
-          typeConstrSetField(fn, field, call);
-        }
-
-      } else {
-        fieldNamesSet.set_add(field->name);
-
-        if (field->isType()            == true ||
-            field->hasFlag(FLAG_PARAM) == true) {
-          ArgSymbol* arg = insertGenericArg(fn, field);
-
-          typeConstrSetField(fn, field, new SymExpr(arg));
-
-          AggregateType*       ncThis = const_cast<AggregateType*>(this);
-          ncThis->genericFields.push_back(field);
-
-        } else if (field->defPoint->exprType
-                   && !isFieldTypeExprGeneric(field->defPoint->exprType)) {
-          Expr* type = field->defPoint->exprType;
-          CallExpr* call = new CallExpr(PRIM_TYPE_INIT, type->copy());
-
-          typeConstrSetField(fn, field, call);
-
-        } else if (Expr* init = field->defPoint->init) {
-          // It might be appealing to change this to PRIM_INIT_FIELD -
-          // but that causes problems for fields with loop init expressions.
-          // The field should end up with array type rather than iterator
-          // record type.
-
-          CallExpr* call = new CallExpr("chpl__initCopy", init->copy());
-
-          typeConstrSetField(fn, field, call);
-
-        } else {
-          ArgSymbol* arg = insertGenericArg(fn, field);
-
-          if (symbol->hasFlag(FLAG_REF) == false) {
-            CallExpr* call = new CallExpr(PRIM_TYPE_INIT, new SymExpr(arg));
-
-            typeConstrSetField(fn, field, call);
-
-            AggregateType*       ncThis = const_cast<AggregateType*>(this);
-            ncThis->genericFields.push_back(field);
-          }
-        }
-      }
-    }
-  }
-
-  insertImplicitThis(fn, fieldNamesSet);
-
-  resolveUnresolvedSymExprs(fn);
-}
-
-void AggregateType::typeConstrSetField(FnSymbol*  fn,
-                                       VarSymbol* field,
-                                       Expr*      expr) const {
-  Symbol* _this = fn->_this;
-  Symbol* name  = new_CStringSymbol(field->name);
-
-  fn->insertAtTail(new CallExpr(PRIM_SET_MEMBER, _this, name, expr));
-}
-
-ArgSymbol* AggregateType::insertGenericArg(FnSymbol*  fn,
-                                           VarSymbol* field) const {
-  Expr*      type = field->defPoint->exprType;
-  Expr*      init = field->defPoint->init;
-  ArgSymbol* arg  = new ArgSymbol(INTENT_BLANK, field->name, field->type);
-
-  if (field->hasFlag(FLAG_PARENT_FIELD) == true) {
-    arg->addFlag(FLAG_PARENT_FIELD);
-  }
-
-  if (field->hasFlag(FLAG_PARAM) == true) {
-    arg->intent = INTENT_PARAM;
-
-  } else {
-    arg->addFlag(FLAG_TYPE_VARIABLE);
-  }
-
-  if (type != NULL) {
-    arg->typeExpr    = new BlockStmt(type->copy(), BLOCK_TYPE);
-  }
-
-  if (init != NULL) {
-    arg->defaultExpr = new BlockStmt(init->copy(), BLOCK_SCOPELESS);
-  }
-
-  if (type == NULL && arg->type == dtUnknown) {
-    if (field->isType() == false) {
-      arg->addFlag(FLAG_GENERIC);
-    }
-
-    arg->type = dtAny;
-  }
-
-  fn->insertFormalAtTail(arg);
-
-  return arg;
 }
 
 void AggregateType::buildDefaultInitializer() {
@@ -2435,16 +2219,6 @@ void AggregateType::insertImplicitThis(FnSymbol*         fn,
       }
     }
   }
-}
-
-void AggregateType::moveTypeConstructorToOuter(FnSymbol* fn) {
-  Expr*      insertPoint = symbol->defPoint;
-
-  while (isTypeSymbol(insertPoint->parentSymbol) == true) {
-    insertPoint = insertPoint->parentSymbol->defPoint;
-  }
-
-  insertPoint->insertBefore(fn->defPoint->remove());
 }
 
 /************************************* | **************************************

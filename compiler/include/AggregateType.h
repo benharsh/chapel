@@ -144,7 +144,7 @@ public:
   int                         getMemberGEP(const char* name,
                                            bool& isCArrayField);
 
-  FnSymbol*                   buildTypeConstructor();
+  void                        processGenericFields();
 
   void                        addRootType();
 
@@ -245,25 +245,14 @@ private:
 
   AggregateType*              discoverParentAndCheck(Expr* storesName);
 
-  CallExpr*                   typeConstrSuperCall(FnSymbol* fn)  const;
-
   bool                        isFieldInThisClass(const char* name)       const;
 
-  void                        typeConstrSetFields(FnSymbol* fn,
-                                                  CallExpr* superCall)   const;
-
   bool                        setNextGenericField();
-
-  void                        typeConstrSetField(FnSymbol*  fn,
-                                                 VarSymbol* field,
-                                                 Expr*      expr)        const;
 
   ArgSymbol*                  insertGenericArg(FnSymbol*  fn,
                                                VarSymbol* field)  const;
 
 private:
-
-  void                        moveTypeConstructorToOuter(FnSymbol* fn);
 
   void                        fieldToArg(FnSymbol*              fn,
                                          std::set<const char*>& names,

@@ -166,13 +166,13 @@ static void markGenerics() {
     } while (changed);
 }
 
-static void buildTypeConstructors() {
+static void processGenericFields() {
   forv_Vec(AggregateType, ct, gAggregateTypes) {
-    // Build the type constructor now that we know which fields are generic
+    // Build the type constructor now that we know which types are generic
     if (isClass(ct) && ct->symbol->hasFlag(FLAG_EXTERN)) {
       USR_FATAL_CONT(ct, "Extern classes are not supported.");
     }
-    ct->buildTypeConstructor();
+    ct->processGenericFields();
   }
 }
 
@@ -2382,7 +2382,7 @@ void scopeResolve() {
 
   markGenerics();
 
-  buildTypeConstructors();
+  processGenericFields();
 
   ResolveScope::destroyAstMap();
 
