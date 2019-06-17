@@ -1732,12 +1732,14 @@ FnSymbol* AggregateType::buildTypeConstructor() {
 
   if (isClass() == true && dispatchParents.n > 0) {
     AggregateType* parent        = dispatchParents.v[0];
-    parent->buildTypeConstructor();
-    eachHasDefault = parent->mIsGenericWithDefaults;
-    for_vector(Symbol, field, parent->genericFields) {
-      if (isFieldInThisClass(field->name) == false) {
-        AggregateType*       ncThis = const_cast<AggregateType*>(this);
-        ncThis->genericFields.push_back(field);
+    if (parent != dtObject) {
+      parent->buildTypeConstructor();
+      eachHasDefault = parent->mIsGenericWithDefaults;
+      for_vector(Symbol, field, parent->genericFields) {
+        if (isFieldInThisClass(field->name) == false) {
+          AggregateType*       ncThis = const_cast<AggregateType*>(this);
+          ncThis->genericFields.push_back(field);
+        }
       }
     }
   }
