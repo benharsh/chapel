@@ -1734,7 +1734,9 @@ FnSymbol* AggregateType::buildTypeConstructor() {
     AggregateType* parent        = dispatchParents.v[0];
     if (parent != dtObject) {
       parent->buildTypeConstructor();
-      eachHasDefault = parent->mIsGenericWithDefaults;
+      if (parent->mIsGeneric) {
+        eachHasDefault = parent->mIsGenericWithDefaults;
+      }
       for_vector(Symbol, field, parent->genericFields) {
         if (isFieldInThisClass(field->name) == false) {
           AggregateType*       ncThis = const_cast<AggregateType*>(this);
