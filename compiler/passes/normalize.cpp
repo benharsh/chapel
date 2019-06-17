@@ -1053,8 +1053,10 @@ static void processManagedNew(CallExpr* newCall) {
     // This conditional avoids known cases where those expressions are
     // re-normalized.
     //
+    bool resolvingField = normalized && isTypeSymbol(newCall->parentSymbol);
     if (parent->hasFlag(FLAG_NEW_WRAPPER) == false &&
-        parent->hasFlag(FLAG_COMPILER_GENERATED) == false) {
+        parent->hasFlag(FLAG_COMPILER_GENERATED) == false &&
+        resolvingField == false) {
       USR_FATAL_CONT(newCall, "type in 'new' expression is missing its argument list");
     }
   }
