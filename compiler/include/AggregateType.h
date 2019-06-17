@@ -249,9 +249,6 @@ private:
 
   bool                        setNextGenericField();
 
-  ArgSymbol*                  insertGenericArg(FnSymbol*  fn,
-                                               VarSymbol* field)  const;
-
 private:
 
   void                        fieldToArg(FnSymbol*              fn,
