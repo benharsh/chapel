@@ -67,6 +67,7 @@ AggregateType::AggregateType(AggregateTag initTag) :
   mIsGeneric          = false;
   mIsGenericWithDefaults = false;
   foundGenericFields = false;
+  typeSignature      = NULL;
 
 
   classId             = 0;
@@ -749,6 +750,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
       Symbol* field = getField(ne->name, false);
       if (field == NULL) {
         USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
+        USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
         USR_PRINT(call, "type '%s' does not contain a field named '%s'", symbol->name, ne->name);
         USR_STOP();
       }
@@ -769,6 +771,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
   if (numArgs > genFields.size()) {
     // TODO: print fields as a function signature
     USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
+    USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
     USR_PRINT(call, "type was specified with %d arguments", numArgs);
     const char* plural = genFields.size() > 1 ? "fields" : "field";
     USR_PRINT(this, "but type '%s' only has %d generic %s", symbol->name, genFields.size(), plural);
@@ -1033,17 +1036,20 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
         if (field->hasFlag(FLAG_PARAM)) {
           if (val->isImmediate() == false && isEnumSymbol(val) == false) {
             USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+            USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
             USR_PRINT(info.call, "cannot instantiate param field '%s' with non-param", field->name);
             USR_STOP();
           }
         } else if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
           if (val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
             USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+            USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
             USR_PRINT(info.call, "cannot instantiate type field '%s' with non-type", field->name);
             USR_STOP();
           }
         } else if (val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
           USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+          USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
           USR_PRINT(info.call, "generic field '%s' must be instantiated with a type-expression", field->name);
           USR_STOP();
         }
@@ -1051,11 +1057,13 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
             if (fieldType->symbol->hasFlag(FLAG_GENERIC)) {
               if (getInstantiationType(val->type, fieldType) == NULL) {
                 USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+                USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
                 USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
                 USR_STOP();
               }
             } else if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
               USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+              USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
               USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
               USR_STOP();
             }
@@ -1091,10 +1099,12 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
             retval = retval->getInstantiation(value, index, insnPoint);
           } else if (expected != NULL && value == NULL) {
             USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+            USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
             USR_PRINT(info.call, "param field '%s : %s' was not explicitly instantiated and does not have a default value", field->name, expected->symbol->name);
             USR_STOP();
           } else {
             USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+            USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
             USR_PRINT(info.call, "param field '%s' was not explicitly instantiated and does not have a type expression or default value", field->name);
             USR_STOP();
           }
@@ -1764,6 +1774,33 @@ FnSymbol* AggregateType::buildTypeConstructor() {
       }
     }
   }
+
+  typeSignature = astr(symbol->name, "(");
+
+  bool isFirst = true;
+  for_vector(Symbol, field, genericFields) {
+    if (isFirst) {
+      isFirst = false;
+    } else {
+      typeSignature = astr(typeSignature, ", ");
+    }
+
+    if (field->hasFlag(FLAG_PARAM)) {
+      typeSignature = astr(typeSignature, "param ");
+    } else {
+      typeSignature = astr(typeSignature, "type ");
+    }
+
+    typeSignature = astr(typeSignature, field->name);
+
+    if (field->defPoint->exprType != NULL) {
+      if (SymExpr* se = toSymExpr(field->defPoint->exprType)) {
+        typeSignature = astr(typeSignature, ": ", se->symbol()->name);
+      }
+    }
+  }
+
+  typeSignature = astr(typeSignature, ")");
 
   this->mIsGenericWithDefaults = eachHasDefault;
 

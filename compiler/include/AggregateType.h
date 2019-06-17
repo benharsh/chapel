@@ -210,6 +210,7 @@ public:
 
   AggregateResolved           resolveStatus;
 
+  const char*                 typeSignature;
   bool                        foundGenericFields;
   std::vector<Symbol*>        genericFields;
 
