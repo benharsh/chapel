@@ -702,28 +702,12 @@ bool AggregateType::setNextGenericField() {
 *                                                                             *
 ************************************** | *************************************/
 
-static void findGenericFields(AggregateType* at, std::vector<Symbol*>& genFields) {
-  if (at->isClass() == true && at->symbol->hasFlag(FLAG_NO_OBJECT) == false) {
-    AggregateType* parent = at->dispatchParents.v[0];
-    findGenericFields(parent, genFields);
-  }
-
-  for_fields(field, at) {
-    bool ignoredHasDefault = false;
-    if (at->fieldIsGeneric(field, ignoredHasDefault) == true) {
-      genFields.push_back(field);
-    }
-  }
-}
-
 static Type* resolveFieldTypeForInstantiation(Symbol* field);
 
 AggregateType* AggregateType::generateType(CallInfo& info) {
   CallExpr* call = info.call;
-  std::vector<Symbol*> genFields;
-  findGenericFields(this, genFields);
 
-  if (genFields.size() == 0) {
+  if (genericFields.size() == 0) {
     if (call->numActuals() > 0) {
       USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
       USR_PRINT(this, "type '%s' is not generic", symbol->name);
@@ -739,6 +723,35 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
     USR_PRINT(call, "did you forget the 'new' keyword?");
     USR_STOP();
     return NULL;
+  }
+
+  int numWithoutDefaults = 0;
+  for_vector(Symbol, sym, genericFields) {
+    if (sym->defPoint->init == NULL) {
+      numWithoutDefaults += 1;
+    }
+  }
+
+  int numArgs = call->numActuals();
+  if (numArgs > genericFields.size()) {
+    USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
+    USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
+    USR_PRINT(call, "type was specified with %d arguments", numArgs);
+    const char* plural = genericFields.size() > 1 ? "fields" : "field";
+    USR_PRINT(this, "but type '%s' only has %d generic %s", symbol->name, genericFields.size(), plural);
+    USR_STOP();
+  } else if (numArgs < numWithoutDefaults) {
+    if (numArgs != 0) {
+      USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
+      USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
+      USR_PRINT(call, "type was specified with %d arguments", numArgs);
+      USR_PRINT(this, "but type '%s' must be instantiated with at least %d arguments", symbol->name, numWithoutDefaults);
+      USR_STOP();
+    } else {
+      // This branch exists to support cases where we just want to indicate
+      // the generic type, e.g. a field 'var x : owned;'
+      return this;
+    }
   }
 
   AggregateType* ret = this;
@@ -760,30 +773,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
     }
   }
 
-  int numWithoutDefaults = 0;
-  for_vector(Symbol, sym, genFields) {
-    if (sym->defPoint->init == NULL) {
-      numWithoutDefaults += 1;
-    }
-  }
-
-  int numArgs = call->numActuals();
-  if (numArgs > genFields.size()) {
-    USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
-    USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
-    USR_PRINT(call, "type was specified with %d arguments", numArgs);
-    const char* plural = genFields.size() > 1 ? "fields" : "field";
-    USR_PRINT(this, "but type '%s' only has %d generic %s", symbol->name, genFields.size(), plural);
-    USR_STOP();
-  } else if (numArgs < numWithoutDefaults) {
-    if (numArgs != 0) {
-      USR_FATAL(call, "Too few arguments to type constructor");
-    } else {
-      return this;
-    }
-  }
-
-  for_vector(Symbol, field, genFields) {
+  for_vector(Symbol, field, genericFields) {
     if (substitutionForField(field, map) == NULL && notNamed.size() > 0) {
       map.put(field, notNamed.front());
       notNamed.pop();
@@ -1755,9 +1745,11 @@ void AggregateType::processGenericFields() {
     if (field->hasFlag(FLAG_SUPER_CLASS)) continue;
 
     if (field->hasFlag(FLAG_PARAM) || field->hasFlag(FLAG_TYPE_VARIABLE)) {
-      genericFields.push_back(field);
-      if (field->defPoint->init == NULL) {
-        eachHasDefault = false;
+      if (isTypeSymbol(field) == false) {
+        genericFields.push_back(field);
+        if (field->defPoint->init == NULL) {
+          eachHasDefault = false;
+        }
       }
     } else if (field->defPoint->init == NULL) {
       if (field->defPoint->exprType == NULL) {
