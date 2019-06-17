@@ -767,9 +767,8 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
     }
   }
 
-  int numArgs = map.n + notNamed.size();
+  int numArgs = call->numActuals();
   if (numArgs > genFields.size()) {
-    // TODO: print fields as a function signature
     USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
     USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
     USR_PRINT(call, "type was specified with %d arguments", numArgs);
