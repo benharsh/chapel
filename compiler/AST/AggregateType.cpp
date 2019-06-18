@@ -612,10 +612,6 @@ bool AggregateType::hasUserDefinedInitEquals() const {
 bool AggregateType::mayHaveInstances() const {
   bool retval = false;
 
-  //if (typeConstructor != NULL) {
-  //  retval = typeConstructor->isResolved();
-  //}
-
   if (resolveStatus == RESOLVED) {
     retval = true;
   } else if (instantiatedFrom != NULL && symbol->hasFlag(FLAG_GENERIC) == false) {
@@ -783,12 +779,11 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
 
   INT_ASSERT(notNamed.size() == 0);
 
-  //gdbShouldBreakHere();
   ret = ret->generateType(map, info, getInstantiationPoint(call));
 
   if (ret != this) {
     ret->instantiatedFrom = this;
-    //ret->symbol->instantiationPoint = getInstantiationPoint(call);
+
     makeRefType(ret);
 
     if (ret->resolveStatus != RESOLVED) {
@@ -1009,25 +1004,16 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
     }
   }
 
-  // TODO:
-  // - Errors for too many/too args for instantiation
-
   // Process the local fields
   for (int index = 1; index <= numFields(); index = index + 1) {
     Symbol* field = getField(index);
 
     bool ignoredHasDefault = false;
 
-    //if (symbol->defPoint->getModule()->modTag == MOD_USER) {
-      //gdbShouldBreakHere();
-    //}
-
     if (fieldIsGeneric(field, ignoredHasDefault)) {
       if (Symbol* val = substitutionForField(field, subs)) {
         retval->genericField = index;
 
-        // TODO: 'type field', 'param field' strings
-        //if (symbol->defPoint->getModule()->modTag == MOD_USER) {
         if (field->hasFlag(FLAG_PARAM)) {
           if (val->isImmediate() == false && isEnumSymbol(val) == false) {
             USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
@@ -1063,10 +1049,9 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
               USR_STOP();
             }
           }
-        //}
 
         retval = retval->getInstantiation(val, index, insnPoint);
-      } else /*if (symbol->defPoint->getModule()->modTag == MOD_USER)*/ {
+      } else {
         Symbol* field = retval->getField(index);
         if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
           if (Symbol* sym = resolveFieldDefault(field)) {
@@ -1074,8 +1059,6 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
             retval = retval->getInstantiation(sym, index, insnPoint);
           }
         } else if (field->hasFlag(FLAG_PARAM)) {
-          //gdbShouldBreakHere();
-
           Type* expected = resolveFieldTypeExpr(field);
           Symbol* value = resolveFieldDefault(field);
 
@@ -1107,11 +1090,6 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
           INT_FATAL("Can only default-instantiate type and param fields");
         }
       }
-    } else /*if (symbol->defPoint->getModule()->modTag == MOD_USER)*/ {
-      //Symbol* field = retval->getField(index);
-      //if (Type* type = resolveFieldTypeForInstantiation(field)) {
-      //  field->type = type;
-      //}
     }
   }
 
@@ -1178,14 +1156,9 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent, Exp
     Symbol*     sym         = NULL;
 
     SymbolMap parentFieldMap;
-    // TODO: grab grandparent fields too...
-    //if (symbol->getModule()->modTag == MOD_USER) {
-    {
-      buildParentSubMap(parent, parentFieldMap);
-    }
-    //}
+    buildParentSubMap(parent, parentFieldMap);
 
-    retval     = toAggregateType(symbol->copy(&parentFieldMap)->type);
+    retval = toAggregateType(symbol->copy(&parentFieldMap)->type);
 
     // Update the name/cname based on the parent's name/cname
     sym        = retval->symbol;
