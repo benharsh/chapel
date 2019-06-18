@@ -700,25 +700,26 @@ bool AggregateType::setNextGenericField() {
 
 static Type* resolveFieldTypeForInstantiation(Symbol* field);
 
-AggregateType* AggregateType::generateType(CallInfo& info) {
-  CallExpr* call = info.call;
+static void checkNumArgsErrors(AggregateType* at, CallInfo& info) {
+  CallExpr* call                      = info.call;
+  std::vector<Symbol*>& genericFields = at->genericFields;
+  TypeSymbol* symbol                  = at->symbol;
+  const char* typeSignature           = at->typeSignature;
 
   if (genericFields.size() == 0) {
     if (call->numActuals() > 0) {
       USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
-      USR_PRINT(this, "type '%s' is not generic", symbol->name);
+      USR_PRINT(at, "type '%s' is not generic", symbol->name);
       USR_PRINT(call, "did you forget the 'new' keyword?");
       USR_STOP();
     }
-    return NULL;
   } else if (symbol->hasFlag(FLAG_GENERIC) == false &&
-             this->instantiatedFrom !=NULL &&
+             at->instantiatedFrom !=NULL &&
              call->numActuals() > 0) {
     USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
     USR_PRINT(call, "type '%s' cannot be instantiated further", symbol->name);
     USR_PRINT(call, "did you forget the 'new' keyword?");
     USR_STOP();
-    return NULL;
   }
 
   int numWithoutDefaults = 0;
@@ -734,7 +735,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
     USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
     USR_PRINT(call, "type was specified with %d arguments", numArgs);
     const char* plural = genericFields.size() > 1 ? "fields" : "field";
-    USR_PRINT(this, "but type '%s' only has %d generic %s", symbol->name, genericFields.size(), plural);
+    USR_PRINT(at, "but type '%s' only has %d generic %s", symbol->name, genericFields.size(), plural);
     USR_STOP();
   } else if (numArgs < numWithoutDefaults) {
     if (numArgs != 0) {
@@ -742,15 +743,23 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
       USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
       USR_PRINT(call, "type was specified with %d arguments", numArgs);
       const char* atLeast = numWithoutDefaults < genericFields.size() ? "at least " : "";
-      USR_PRINT(this, "but type '%s' must be instantiated with %s%d arguments", symbol->name, atLeast, numWithoutDefaults);
+      USR_PRINT(at, "but type '%s' must be instantiated with %s%d arguments", symbol->name, atLeast, numWithoutDefaults);
       USR_STOP();
-    } else {
-      // This branch exists to support cases where we just want to indicate
-      // the generic type, e.g. a field 'var x : owned;'
-      return this;
     }
   }
+}
 
+AggregateType* AggregateType::generateType(CallInfo& info) {
+
+  checkNumArgsErrors(this, info);
+
+  if (info.call->numActuals() == 0) {
+    // We do this to support cases where we just want to indicate the generic
+    // type, e.g. a field 'var x : owned;'
+    return this;
+  }
+
+  CallExpr* call = info.call;
   AggregateType* ret = this;
   SymbolMap map;
   std::queue<Symbol*> notNamed;
