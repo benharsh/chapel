@@ -801,8 +801,13 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
       //
       //     var next : C(T, x);
       //
-      //     param flag : bool = if next.T == int then true else false;
+      //     param flag : bool = if next.type.T == int then true else false;
       //   }
+      //
+      // In this example, the current implementation fails to resolve the type
+      // of field 'flag' because 'next' is not yet resolved. Yet, if we were
+      // to resolve 'next' we would have to be able to better handle recursive
+      // type construction.
       //
 
       for (int index = 1; index <= numFields(); index = index + 1) {
@@ -1114,7 +1119,8 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
 }
 
 void AggregateType::resolveConcreteType() {
-  if (resolveStatus == RESOLVING) {
+  if (resolveStatus == RESOLVING || resolveStatus == RESOLVED) {
+    // Recursively constructing this type
     return;
   }
 
