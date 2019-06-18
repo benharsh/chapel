@@ -745,7 +745,8 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
       USR_FATAL_CONT(call, "invalid type specifier '%s'", info.toString());
       USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
       USR_PRINT(call, "type was specified with %d arguments", numArgs);
-      USR_PRINT(this, "but type '%s' must be instantiated with at least %d arguments", symbol->name, numWithoutDefaults);
+      const char* atLeast = numWithoutDefaults < genericFields.size() ? "at least " : "";
+      USR_PRINT(this, "but type '%s' must be instantiated with %s%d arguments", symbol->name, atLeast, numWithoutDefaults);
       USR_STOP();
     } else {
       // This branch exists to support cases where we just want to indicate
