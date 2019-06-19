@@ -947,6 +947,10 @@ static Symbol* resolveFieldDefault(Symbol* field) {
           block->insertAtTail(new SymExpr(tmp));
         }
       }
+    } else {
+      // If the field's default expression is already a BlockStmt, then some
+      // recursive case was not handled correctly.
+      INT_ASSERT(false);
     }
 
     BlockStmt* block = toBlockStmt(expr);
@@ -963,6 +967,8 @@ static Symbol* resolveFieldDefault(Symbol* field) {
         USR_FATAL(expr, "unknown call in field default expression");
       }
     }
+
+    block->replace(new SymExpr(ret));
   }
 
   if (ret != NULL) {
