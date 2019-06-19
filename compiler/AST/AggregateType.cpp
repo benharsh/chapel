@@ -665,12 +665,14 @@ bool AggregateType::setNextGenericField() {
 *                                                                             *
 *   var c : MyGenericType(int, int, 3, real);                                 *
 *                                                                             *
-* MyGenericType is a type constructor i.e a type function. In this example    *
-* it has four formals.  The formals for the type constructor have the same    *
-* names as the generic fields.  A use of this type function will find or      *
-* create a concrete type that is parameterized with these actuals.            *
+* where the type-expression is represented as a call to 'MyGenericType'       *
+* itself, along with four actuals. There is not a corresponding FnSymbol for  *
+* this call. Instead, the ``AggregateType::generateType`` method handles      *
+* instantiation of the specified type. The arguments will correspond to each  *
+* generic field in the type and the result will be a concrete type            *
+* parameterized by these arguments.                                           *
 *                                                                             *
-* This type constructor is associated with a generic type that is one of      *
+* This call is associated with a generic type that is one of                  *
 *   1) A generic record                                                       *
 *                                                                             *
 *   2) A generic base    class                                                *
@@ -689,9 +691,8 @@ bool AggregateType::setNextGenericField() {
 * The final case builds on the former.  It is necessary to instantiate the    *
 * generic parent and then instantiate the local generic fields.               *
 *                                                                             *
-* The resolution process handles a type constructor in much the same way as   *
-* any type function.  A SymbolMap is constructed that maps the formals to     *
-* this specific type constructor to the the actuals.  If the generic type is  *
+* The resolution process handles such calls by creating a SymbolMap mapping   *
+* the fields of the specified type to the actuals. If the generic type is     *
 * a class with a generic parent, directly or indirectly, then this            *
 * dictionary must be passed up the hierarchy so that the parent types can     *
 * be instantiated.                                                            *
@@ -761,6 +762,8 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
 
   CallExpr* call = info.call;
   AggregateType* ret = this;
+
+  // Separate named and positional args, storing named-exprs in a map
   SymbolMap map;
   std::queue<Symbol*> notNamed;
   for (int i = 1; i <= call->numActuals(); i++) {
@@ -779,6 +782,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
     }
   }
 
+  // place positional args in a map based on remaining unspecified fields
   for_vector(Symbol, field, genericFields) {
     if (substitutionForField(field, map) == NULL && notNamed.size() > 0) {
       map.put(field, notNamed.front());
@@ -814,6 +818,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
       // type construction.
       //
 
+      // Resolve the remaining non-generic fields
       for (int index = 1; index <= numFields(); index = index + 1) {
         Symbol* field = ret->getField(index);
         if (field->hasFlag(FLAG_PARAM) == false &&
