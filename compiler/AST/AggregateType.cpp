@@ -863,12 +863,9 @@ static Type* resolveFieldTypeExpr(Symbol* field) {
         block->insertAtTail(new SymExpr(tmp));
       }
     } else {
-      // For now assume that we're already in the process of resolving this
-      // expression if it's already a BlockStmt.
-      // TODO: Find better way to handle recursive type instantiation. We
-      // really just want to stop resolving after all the generic fields are
-      // done, I think.
-      return NULL;
+      // If the field's type expression is already a BlockStmt, then some
+      // recursive case was not handled correctly.
+      INT_ASSERT(false);
     }
 
     BlockStmt* block = toBlockStmt(expr);
