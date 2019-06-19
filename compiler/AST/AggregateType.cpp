@@ -754,7 +754,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
 
   checkNumArgsErrors(this, info);
 
-  if (info.call->numActuals() == 0) {
+  if (info.call->numActuals() == 0 && mIsGenericWithDefaults == false) {
     // We do this to support cases where we just want to indicate the generic
     // type, e.g. a field 'var x : owned;'
     return this;
