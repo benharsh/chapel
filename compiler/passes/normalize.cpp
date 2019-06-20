@@ -1650,34 +1650,6 @@ static void normalizeCallToTypeConstructor(CallExpr* call) {
           } else if (SymExpr* riSpec = callUsedInRiSpec(call)) {
             restoreReduceIntentSpecCall(riSpec, call);
 
-          } else {
-            // Transform C ( ... ) into _type_construct_C ( ... )
-
-            // The old constructor-based implementation of nested types made
-            // the type constructor a method on the enclosing type. Using a
-            // method would not be allowed within an initializer because 'this'
-            // may not yet be initialized/instantiated.
-            //
-            // Instead the initializer-based implementation of nested types
-            // hoists the nested type constructor outside of the enclosing type
-            // as a standalone function, like other type constructors.
-            //
-            // This could lead to problems with resolution if a type at the
-            // same scope as the enclosing type had the same name as the nested
-            // type. E.g.:
-            //
-            //   class Node {}
-            //   class List {
-            //     var n : Node; // which _type_construct_Node ?
-            //     class Node {}
-            //   }
-            //
-            // To work around this, use a SymExpr pointing to the type
-            // constructor we know to be correct.
-
-            if (at->hasInitializers() == false) {
-              INT_ASSERT(false);
-            }
           }
         }
       }
@@ -1695,7 +1667,7 @@ static void normalizeCallToTypeConstructor(CallExpr* call) {
 // We want to keep these reduce intents in their original form
 // until we process reduce intents later.
 //
-// We do it here to avoid transforming it into _type_construct_C ( ... ).
+// We do it here to avoid transforming it into a type constructor call.
 // That would be incorrect because this is a special syntax for reduce intent.
 //
 static SymExpr* callUsedInRiSpec(Expr* call) {

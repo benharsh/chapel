@@ -1371,6 +1371,7 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Expr* insnPoint) 
 
   if (retval->setNextGenericField() == false) {
     retval->symbol->removeFlag(FLAG_GENERIC);
+    //retval->resolveStatus = RESOLVED;
   }
 
   instantiations.push_back(retval);

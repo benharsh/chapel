@@ -330,9 +330,6 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
 
     newType->substitutions.put(sizeVar, new_IntSymbol(args.size()));
 
-    //newType->substitutions.put(genericTypeCtorSizeArg,
-    //                           new_IntSymbol(args.size()));
-
     for (int i = 0; i < size; i++) {
       const char* name = typeCtorArgs[i+1]->name;
       VarSymbol*  var  = new VarSymbol(name);
@@ -344,6 +341,7 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
     }
 
     newType->instantiatedFrom = dtTuple;
+    newType->resolveStatus = RESOLVED;
 
     forv_Vec(AggregateType, t, dtTuple->dispatchParents) {
       AggregateType* at = toAggregateType(t);

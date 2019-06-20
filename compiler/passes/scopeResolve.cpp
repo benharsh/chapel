@@ -2323,11 +2323,8 @@ static void resolveUnmanagedBorrows() {
           }
         }
       }
-      // It's tempting to give type constructor calls the same
-      // treatment, but type constructors are so special;
-      // see normalizeCallToTypeConstructor which changes
-      // them to _type_construct_C e.g. and such a function won't
-      // exist for the unmanaged type.
+      // It's tempting to give type constructor calls the same treatment, but
+      // type constructors are handled separately later during resolution.
     }
 
     // fix e.g. unmanaged!

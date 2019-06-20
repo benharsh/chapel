@@ -80,12 +80,6 @@ static void removeUnusedFunctions() {
               removeCopyFns(typeSym->type);
 
               if (AggregateType* at = toAggregateType(refType)) {
-                //DefExpr* defPoint = at->typeConstructor->defPoint;
-
-                //if (defPoint->inTree()) {
-                //  defPoint->remove();
-                //}
-
                 removeCopyFns(at);
 
                 at->symbol->defPoint->remove();
@@ -394,11 +388,6 @@ static bool do_isUnusedClass(Type* t) {
              at && at->iteratorInfo->getIterator->isResolved()) {
     retval = false;
 
-  } else if (at && at->instantiatedFrom != NULL &&
-             at->symbol->hasFlag(FLAG_GENERIC) == false) {
-    retval = false;
-
-  // TODO: merge this with previous branch checking 'instantiatedFrom'
   } else if (at && at->resolveStatus == RESOLVED) {
     retval = false;
 

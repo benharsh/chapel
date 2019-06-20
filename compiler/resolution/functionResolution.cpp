@@ -2110,6 +2110,7 @@ static void markArraysOfBorrows(AggregateType* at);
 
 void resolveTypeWithInitializer(AggregateType* at, FnSymbol* fn) {
   at->initializerResolved = true;
+  at->resolveStatus = RESOLVED;
 
   // TODO: this is a hack to allow for further resolution of fields with very
   // simple type-exprs (e.g. "var x : T"). This allows the compiler to resolve

@@ -85,65 +85,6 @@ bool ResolutionCandidate::isApplicableConcrete(CallInfo& info) {
   return checkResolveFormalsWhereClauses(info);
 }
 
-void ResolutionCandidate::resolveTypeConstructor(CallInfo& info) {
-  SET_LINENO(fn);
-  INT_ASSERT(false);
-
-  // Ignore tuple constructors; they were generated
-  // with their type constructors.
-  if (fn->hasFlag(FLAG_PARTIAL_TUPLE) == false) {
-    //INT_ASSERT(at->typeConstructor != NULL);
-
-    //if (at->typeConstructor->isResolved()) return;
-
-    CallExpr* typeConstructorCall = NULL; //new CallExpr(at->typeConstructor);
-
-    for_formals(formal, fn) {
-      if (fn->_this->type->symbol->hasFlag(FLAG_TUPLE)) {
-        if (formal->instantiatedFrom != NULL) {
-          typeConstructorCall->insertAtTail(formal->type->symbol);
-
-        } else if (formal->hasFlag(FLAG_INSTANTIATED_PARAM)) {
-          typeConstructorCall->insertAtTail(paramMap.get(formal));
-        }
-
-      } else {
-        if (formal->type == dtMethodToken) {
-          typeConstructorCall->insertAtTail(formal);
-
-        } else if (formal->instantiatedFrom != NULL) {
-          SymExpr*   se = new SymExpr(formal->type->symbol);
-          NamedExpr* ne = new NamedExpr(formal->name, se);
-
-          typeConstructorCall->insertAtTail(ne);
-
-        } else if (formal->hasFlag(FLAG_INSTANTIATED_PARAM)) {
-          SymExpr*   se = new SymExpr(paramMap.get(formal));
-          NamedExpr* ne = new NamedExpr(formal->name, se);
-
-          typeConstructorCall->insertAtTail(ne);
-        }
-      }
-    }
-
-    info.call->insertBefore(typeConstructorCall);
-
-    // If instead we call resolveCallAndCallee(typeConstructorCall)
-    // then the line number reported in an error would change
-    // e.g.: domains/deitz/test_generic_class_of_sparse_domain
-    // or:   classes/diten/multipledestructor
-    resolveCall(typeConstructorCall);
-
-    INT_ASSERT(typeConstructorCall->isResolved());
-
-    resolveFunction(typeConstructorCall->resolvedFunction());
-
-    fn->_this->type = typeConstructorCall->resolvedFunction()->retType;
-
-    typeConstructorCall->remove();
-  }
-}
-
 bool ResolutionCandidate::isApplicableGeneric(CallInfo& info) {
 
   fn = expandIfVarArgs(fn, info);

@@ -107,8 +107,6 @@ void preNormalizeFields(AggregateType* at) {
           }
 
         } else if (defExpr->init != NULL) {
-          // TODO: Check that the default expression is not a type-expression
-          // when the field is not a type field
           type = typeForExpr(defExpr->init);
         }
 

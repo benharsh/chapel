@@ -555,6 +555,7 @@ QualifiedType CallExpr::qualType(void) {
 
     retval = QualifiedType(q, fn->retType);
   } else if (SymExpr* se = toSymExpr(baseExpr)) {
+    // Handle type constructor calls
     bool useType = false;
     if (se->symbol()->hasFlag(FLAG_TYPE_VARIABLE)) {
       if (AggregateType* at = toAggregateType(se->typeInfo())) {

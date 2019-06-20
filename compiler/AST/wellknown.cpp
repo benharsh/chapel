@@ -119,7 +119,7 @@ static WellKnownType sWellKnownTypes[] = {
   { "_shared",               &dtShared,           false },
   { "chpl_task_bundle_t",    &dtTaskBundleRecord, false },
   { "_tuple",                &dtTuple,            false },
-  { "_ref",                  &dtRef,              true },
+  { "_ref",                  &dtRef,              true  },
   { "Error",                 &dtError,            true  }
 };
 
