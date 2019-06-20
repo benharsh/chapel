@@ -2605,7 +2605,6 @@ static Type* resolveTypeSpecifier(CallInfo& info) {
 
   Type* ret = NULL;
 
-  // use 'getInstantiationType' and/or 'canInstantiate'
   SymExpr* ts = toSymExpr(call->baseExpr);
   AggregateType* at = toAggregateType(ts->typeInfo());
   DecoratedClassType* dt = toDecoratedClassType(ts->typeInfo());
@@ -9165,16 +9164,11 @@ static bool primInitIsUnacceptableGeneric(CallExpr* call, Type* type) {
   // If it is generic then try to resolve the default type constructor
   // for better error reporting.
   if (AggregateType* at = toAggregateType(canonicalDecoratedClassType(type))) {
-    // TODO: Does this run?
-    // TODO: How to 'try-resolve' a type constructor in the new world?
     SET_LINENO(call);
     CallExpr* typeCall = new CallExpr(at->symbol);
     call->replace(typeCall);
 
     retval = (tryResolveCall(typeCall) == NULL);
-    //if (Type* type = resolveTypeSpecifier(typeCall)) {
-    //  retval = true;
-    //}
 
     typeCall->replace(call);
   }

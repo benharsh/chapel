@@ -302,8 +302,6 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
 
     Type* sizeType = dtInt[INT_SIZE_DEFAULT];
 
-    //ArgSymbol* genericTypeCtorSizeArg = gGenericTupleTypeCtor->getFormal(1);
-
     // Create the arguments for the type constructor
     // since we will refer to these in the substitutions.
     // Keys in the substitutions are ArgSymbols in the type constructor.
@@ -950,8 +948,7 @@ static AggregateType* do_computeTupleWithIntent(bool           valueOnly,
   // Construct tuple that would be used for a particular argument intent.
   std::vector<TypeSymbol*> args;
   bool                     allSame            = true;
-  //FnSymbol*                typeConstr         = at->typeConstructor;
-  BlockStmt*             instantiationPoint = at->symbol->instantiationPoint;
+  BlockStmt*               instantiationPoint = at->symbol->instantiationPoint;
   int                      i                  = 0;
   AggregateType*           retval             = NULL;
 
@@ -1218,9 +1215,6 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
   TupleInfo info   = getTupleInfo(args, point, noRef);
 
   if (fn == NULL) {
-    //AggregateType* at = toAggregateType(info.typeSymbol->type);
-
-    //retval = at->typeConstructor;
     retval = info.init;
 
   } else if (fn->hasFlag(FLAG_INIT_TUPLE) == true) {
