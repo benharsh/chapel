@@ -835,43 +835,59 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
   return ret;
 }
 
-// TODO: combine BlockStmt stuff
+static Expr* resolveFieldExpr(Expr* expr, bool addCopy) {
+  if (isBlockStmt(expr) == false) {
+    BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
+    expr->replace(block);
+    if (isSymExpr(expr) && toSymExpr(expr)->symbol()->hasFlag(FLAG_TYPE_VARIABLE) &&
+        expr->typeInfo()->symbol->hasFlag(FLAG_GENERIC) &&
+        isPrimitiveType(expr->typeInfo()) == false &&
+        expr->typeInfo() != dtOwned) {
+      block->insertAtTail(new CallExpr(expr->typeInfo()->symbol));
+    } else {
+      block->insertAtTail(expr);
+    }
+    normalize(block);
+    expr = block;
+    if (CallExpr* last = toCallExpr(block->body.tail)) {
+      VarSymbol* tmp = newTemp("field_result_tmp");
+      tmp->addFlag(FLAG_MAYBE_PARAM);
+      tmp->addFlag(FLAG_MAYBE_TYPE);
+      block->insertAtTail(new DefExpr(tmp));
+      block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, last->remove()));
+      if (addCopy) {
+        VarSymbol* copyTmp = newTemp();
+        block->insertAtTail(new DefExpr(copyTmp));
+        block->insertAtTail(new CallExpr(PRIM_INIT_VAR, copyTmp, tmp));
+        block->insertAtTail(new SymExpr(copyTmp));
+      } else {
+        block->insertAtTail(new SymExpr(tmp));
+      }
+    }
+  } else {
+    // If the field's type expression is already a BlockStmt, then some
+    // recursive case was not handled correctly.
+    INT_ASSERT(false);
+  }
+
+  BlockStmt* block = toBlockStmt(expr);
+  resolveBlockStmt(block);
+
+  Expr* tail = block->body.tail;
+  block->replace(tail->remove());
+
+  return tail;
+}
+
+// TODO: improve error messages and add tests for them
 static Type* resolveFieldTypeExpr(Symbol* field) {
   Type* ret = NULL;
   Expr* expr = field->defPoint->exprType;
 
   if (expr != NULL) {
-    if (isBlockStmt(expr) == false) {
-      BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
-      expr->replace(block);
-      if (isSymExpr(expr) && toSymExpr(expr)->symbol()->hasFlag(FLAG_TYPE_VARIABLE) &&
-          expr->typeInfo()->symbol->hasFlag(FLAG_GENERIC) &&
-          isPrimitiveType(expr->typeInfo()) == false &&
-          expr->typeInfo() != dtOwned) {
-        block->insertAtTail(new CallExpr(expr->typeInfo()->symbol));
-      } else {
-        block->insertAtTail(expr);
-      }
-      normalize(block);
-      expr = block;
-      if (CallExpr* last = toCallExpr(block->body.tail)) {
-        VarSymbol* tmp = newTemp("field_result_tmp");
-        tmp->addFlag(FLAG_MAYBE_PARAM);
-        tmp->addFlag(FLAG_MAYBE_TYPE);
-        block->insertAtTail(new DefExpr(tmp));
-        block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, last->remove()));
-        block->insertAtTail(new SymExpr(tmp));
-      }
-    } else {
-      // If the field's type expression is already a BlockStmt, then some
-      // recursive case was not handled correctly.
-      INT_ASSERT(false);
-    }
 
-    BlockStmt* block = toBlockStmt(expr);
-    resolveBlockStmt(block);
+    Expr* tail = resolveFieldExpr(expr, false);
 
-    Expr* tail = block->body.tail;
     if (SymExpr* se = toSymExpr(tail)) {
       if (isTypeSymbol(se->symbol()) == false && se->symbol()->hasFlag(FLAG_TYPE_VARIABLE) == false) {
         if (se->symbol()->isImmediate()) {
@@ -899,8 +915,6 @@ static Type* resolveFieldTypeExpr(Symbol* field) {
         USR_FATAL(expr, "unknown call in field type expression");
       }
     }
-
-    block->replace(tail->remove());
   }
 
   if (ret != NULL) {
@@ -919,44 +933,9 @@ static Symbol* resolveFieldDefault(Symbol* field) {
   Expr* expr = field->defPoint->init;
 
   if (expr != NULL) {
-    if (isBlockStmt(expr) == false) {
-      BlockStmt* block = new BlockStmt(BLOCK_SCOPELESS);
-      expr->replace(block);
-      if (isSymExpr(expr) && toSymExpr(expr)->symbol()->hasFlag(FLAG_TYPE_VARIABLE) &&
-          expr->typeInfo()->symbol->hasFlag(FLAG_GENERIC) &&
-          isPrimitiveType(expr->typeInfo()) == false &&
-          expr->typeInfo() != dtOwned) {
-        block->insertAtTail(new CallExpr(expr->typeInfo()->symbol));
-      } else {
-        block->insertAtTail(expr);
-      }
-      normalize(block);
-      expr = block;
-      if (CallExpr* last = toCallExpr(block->body.tail)) {
-        VarSymbol* tmp = newTemp("field_result_tmp");
-        tmp->addFlag(FLAG_MAYBE_PARAM);
-        tmp->addFlag(FLAG_MAYBE_TYPE);
-        block->insertAtTail(new DefExpr(tmp));
-        block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, last->remove()));
-        if (field->hasFlag(FLAG_PARAM) == false && field->hasFlag(FLAG_TYPE_VARIABLE) == false) {
-          VarSymbol* copyTmp = newTemp();
-          block->insertAtTail(new DefExpr(copyTmp));
-          block->insertAtTail(new CallExpr(PRIM_INIT_VAR, copyTmp, tmp));
-          block->insertAtTail(new SymExpr(copyTmp));
-        } else {
-          block->insertAtTail(new SymExpr(tmp));
-        }
-      }
-    } else {
-      // If the field's default expression is already a BlockStmt, then some
-      // recursive case was not handled correctly.
-      INT_ASSERT(false);
-    }
-
-    BlockStmt* block = toBlockStmt(expr);
-    resolveBlockStmt(block);
-
-    Expr* tail = block->body.tail;
+    bool needsCopy = field->hasFlag(FLAG_PARAM) == false &&
+                     field->hasFlag(FLAG_TYPE_VARIABLE) == false;
+    Expr* tail = resolveFieldExpr(expr, needsCopy);
     if (SymExpr* se = toSymExpr(tail)) {
       ret = se->symbol();
 
@@ -967,8 +946,6 @@ static Symbol* resolveFieldDefault(Symbol* field) {
         USR_FATAL(expr, "unknown call in field default expression");
       }
     }
-
-    block->replace(new SymExpr(ret));
   }
 
   if (ret != NULL) {
