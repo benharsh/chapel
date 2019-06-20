@@ -1043,10 +1043,11 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
 
         retval = retval->getInstantiation(val, index, insnPoint);
       } else {
-        Symbol* field = retval->getField(index);
+        // Attempt to instantiate a field with a default value
+        retval->genericField = index;
+
         if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
           if (Symbol* sym = resolveFieldDefault(field)) {
-            retval->genericField = index;
             retval = retval->getInstantiation(sym, index, insnPoint);
           }
         } else if (field->hasFlag(FLAG_PARAM)) {
@@ -1061,10 +1062,8 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
                         field->name, expected->symbol->name, value->type->symbol->name);
               USR_STOP();
             }
-            retval->genericField = index;
             retval = retval->getInstantiation(value, index, insnPoint);
           } else if (expected == NULL && value != NULL) {
-            retval->genericField = index;
             retval = retval->getInstantiation(value, index, insnPoint);
           } else if (expected != NULL && value == NULL) {
             USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
@@ -1309,11 +1308,9 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Expr* insnPoint) 
 
   retval->substitutions.copy(substitutions);
 
-  for (int i = 1; i <= fields.length; i++) {
+  for (int i = 1; i < genericField; i++) {
     Symbol* before = getField(i);
     Symbol* after = retval->getField(i);
-
-    if (after == field) break;
 
     if (after->hasFlag(FLAG_PARAM)) {
       paramMap.put(after, paramMap.get(before));
@@ -1362,6 +1359,8 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Expr* insnPoint) 
       field->type = sym->typeInfo();
     } else if (fieldType == sym->typeInfo()) {
       field->type = sym->typeInfo();
+    } else {
+      INT_ASSERT(false);
     }
   }
 
