@@ -880,6 +880,8 @@ static Expr* resolveFieldExpr(Expr* expr, bool addCopy) {
 }
 
 // TODO: improve error messages and add tests for them
+//   - classes/generics/badFieldExprs
+//   - thread CallInfo through so we can print a message with the given instantiation
 static Type* resolveFieldTypeExpr(Symbol* field) {
   Type* ret = NULL;
   Expr* expr = field->defPoint->exprType;
@@ -902,18 +904,8 @@ static Type* resolveFieldTypeExpr(Symbol* field) {
           ret = se->typeInfo();
         }
       }
-    } else if (CallExpr* call = toCallExpr(tail)) {
-      if (FnSymbol* fn = call->resolvedFunction()) {
-        if (fn->retTag == RET_TYPE) {
-          ret = fn->retType;
-        } else {
-          USR_FATAL(expr, "field's type expression does not resolve to a type");
-        }
-      } else if (call->isPrimitive(PRIM_TYPEOF)) {
-        ret = call->typeInfo();
-      } else {
-        USR_FATAL(expr, "unknown call in field type expression");
-      }
+    } else {
+      INT_FATAL("unexpected AST in field expr");
     }
   }
 
@@ -940,11 +932,7 @@ static Symbol* resolveFieldDefault(Symbol* field) {
       ret = se->symbol();
 
     } else if (CallExpr* call = toCallExpr(tail)) {
-      if (FnSymbol* fn = call->resolvedFunction()) {
-        ret = fn->getReturnSymbol();
-      } else {
-        USR_FATAL(expr, "unknown call in field default expression");
-      }
+      INT_FATAL("unexpected AST in field expr");
     }
   }
 
