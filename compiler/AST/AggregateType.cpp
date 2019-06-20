@@ -919,6 +919,8 @@ static Type* resolveFieldTypeExpr(Symbol* field) {
   return ret;
 }
 
+// TODO: add tests for these error messages
+//   - also thread CallInfo when possible
 static Symbol* resolveFieldDefault(Symbol* field) {
   Symbol* ret = NULL;
 
@@ -971,6 +973,47 @@ static Type* resolveFieldTypeForInstantiation(Symbol* field) {
   return ret;
 }
 
+static void checkTypesForInstantiation(AggregateType* at, CallInfo& info, Symbol* field, Symbol* val) {
+  const char* typeSignature = at->typeSignature;
+  if (field->hasFlag(FLAG_PARAM)) {
+    if (val->isImmediate() == false && isEnumSymbol(val) == false) {
+      USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+      USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
+      USR_PRINT(info.call, "cannot instantiate param field '%s' with non-param", field->name);
+      USR_STOP();
+    }
+  } else if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
+    if (val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
+      USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+      USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
+      USR_PRINT(info.call, "cannot instantiate type field '%s' with non-type", field->name);
+      USR_STOP();
+    }
+  } else if (val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
+    USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+    USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
+    USR_PRINT(info.call, "generic field '%s' must be instantiated with a type-expression", field->name);
+    USR_STOP();
+  }
+
+  if (Type* fieldType = resolveFieldTypeForInstantiation(field)) {
+    if (fieldType->symbol->hasFlag(FLAG_GENERIC)) {
+      if (getInstantiationType(val->type, fieldType) == NULL) {
+        USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+        USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
+        USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
+        USR_STOP();
+      }
+    } else if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
+      USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
+      USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
+      USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
+      USR_STOP();
+    }
+  }
+}
+
+// TODO: common util function for the 'invalid type specifier' stuff
 AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr* insnPoint) {
   AggregateType* retval = this;
 
@@ -988,7 +1031,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
 
   // Process the local fields
   for (int index = 1; index <= numFields(); index = index + 1) {
-    Symbol* field = getField(index);
+    Symbol* field = retval->getField(index);
 
     bool ignoredHasDefault = false;
 
@@ -996,41 +1039,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
       if (Symbol* val = substitutionForField(field, subs)) {
         retval->genericField = index;
 
-        if (field->hasFlag(FLAG_PARAM)) {
-          if (val->isImmediate() == false && isEnumSymbol(val) == false) {
-            USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
-            USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
-            USR_PRINT(info.call, "cannot instantiate param field '%s' with non-param", field->name);
-            USR_STOP();
-          }
-        } else if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
-          if (val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
-            USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
-            USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
-            USR_PRINT(info.call, "cannot instantiate type field '%s' with non-type", field->name);
-            USR_STOP();
-          }
-        } else if (val->hasFlag(FLAG_TYPE_VARIABLE) == false) {
-          USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
-          USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
-          USR_PRINT(info.call, "generic field '%s' must be instantiated with a type-expression", field->name);
-          USR_STOP();
-        }
-          if (Type* fieldType = resolveFieldTypeForInstantiation(retval->getField(index))) {
-            if (fieldType->symbol->hasFlag(FLAG_GENERIC)) {
-              if (getInstantiationType(val->type, fieldType) == NULL) {
-                USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
-                USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
-                USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
-                USR_STOP();
-              }
-            } else if (canDispatch(val->type, val, fieldType, NULL, NULL, NULL, NULL, field->hasFlag(FLAG_PARAM)) == false) {
-              USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
-              USR_PRINT(info.call, "type specifier did not match: %s", typeSignature);
-              USR_PRINT(info.call, "unable to instantiate field '%s : %s' with type '%s'", field->name, fieldType->symbol->name, val->type->symbol->name);
-              USR_STOP();
-            }
-          }
+        checkTypesForInstantiation(this, info, field, val);
 
         retval = retval->getInstantiation(val, index, insnPoint);
       } else {
