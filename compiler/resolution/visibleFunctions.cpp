@@ -329,6 +329,12 @@ static void getVisibleFunctions(const char*           name,
  */
 BlockStmt* getInstantiationPoint(Expr* expr) {
 
+  if (TypeSymbol* ts = toTypeSymbol(expr->parentSymbol)) {
+    if (BlockStmt* block = ts->instantiationPoint) {
+      return block;
+    }
+  }
+
   Expr* cur = expr;
   while (cur != NULL) {
     if (BlockStmt* block = toBlockStmt(cur->parentExpr)) {
