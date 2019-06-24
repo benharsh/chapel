@@ -699,7 +699,7 @@ bool AggregateType::setNextGenericField() {
 *                                                                             *
 ************************************** | *************************************/
 
-static Type* resolveFieldTypeForInstantiation(Symbol* field);
+static Type* resolveFieldTypeForInstantiation(Symbol* field, CallInfo* info);
 
 static void checkNumArgsErrors(AggregateType* at, CallInfo& info) {
   CallExpr* call                      = info.call;
@@ -824,7 +824,7 @@ AggregateType* AggregateType::generateType(CallInfo& info) {
         if (field->hasFlag(FLAG_PARAM) == false &&
             field->hasFlag(FLAG_TYPE_VARIABLE) == false &&
             field->type == dtUnknown) {
-          if (Type* type = resolveFieldTypeForInstantiation(field)) {
+          if (Type* type = resolveFieldTypeForInstantiation(field, &info)) {
             field->type = type;
           }
         }
@@ -857,6 +857,8 @@ static Expr* resolveFieldExpr(Expr* expr, bool addCopy) {
       block->insertAtTail(new CallExpr(PRIM_MOVE, tmp, last->remove()));
       if (addCopy) {
         VarSymbol* copyTmp = newTemp();
+        copyTmp->addFlag(FLAG_MAYBE_PARAM);
+        copyTmp->addFlag(FLAG_MAYBE_TYPE);
         block->insertAtTail(new DefExpr(copyTmp));
         block->insertAtTail(new CallExpr(PRIM_INIT_VAR, copyTmp, tmp));
         block->insertAtTail(new SymExpr(copyTmp));
@@ -879,12 +881,20 @@ static Expr* resolveFieldExpr(Expr* expr, bool addCopy) {
   return tail;
 }
 
-// TODO: improve error messages and add tests for them
-//   - classes/generics/badFieldExprs
-//   - thread CallInfo through so we can print a message with the given instantiation
-static Type* resolveFieldTypeExpr(Symbol* field) {
+static Type* resolveFieldTypeExpr(Symbol* field, CallInfo* info) {
   Type* ret = NULL;
   Expr* expr = field->defPoint->exprType;
+
+  Expr* errExpr = NULL;
+  const char* errTypeString = NULL;
+  if (info == NULL) {
+    Symbol* ts = field->defPoint->parentSymbol;
+    errExpr = ts->defPoint;
+    errTypeString = ts->name;
+  } else {
+    errExpr = info->call;
+    errTypeString = info->toString();
+  }
 
   if (expr != NULL) {
 
@@ -892,11 +902,13 @@ static Type* resolveFieldTypeExpr(Symbol* field) {
 
     if (SymExpr* se = toSymExpr(tail)) {
       if (isTypeSymbol(se->symbol()) == false && se->symbol()->hasFlag(FLAG_TYPE_VARIABLE) == false) {
+        USR_FATAL_CONT(errExpr, "error while resolving type '%s'", errTypeString);
         if (se->symbol()->isImmediate()) {
-          USR_FATAL(expr, "field's type expression resolves to a 'param' value, not a type");
+          USR_PRINT(expr, "type expression of field '%s' resolves to a 'param' value, not a type", field->name);
         } else {
-          USR_FATAL(expr, "field's type expression resolves to a value, not a type");
+          USR_PRINT(expr, "type expression of field '%s' resolves to a value, not a type", field->name);
         }
+        USR_STOP();
       } else {
         if (se->typeInfo() == dtUnknown) {
           ret = resolveDefaultGenericTypeSymExpr(se);
@@ -912,7 +924,9 @@ static Type* resolveFieldTypeExpr(Symbol* field) {
   if (ret != NULL) {
     // check that it's not dtUnknown
     if (ret == dtUnknown) {
-      USR_FATAL(expr, "unable to resolve type of field '%s'", field->name);
+      USR_FATAL_CONT(errExpr, "error while resolving type '%s'", errTypeString);
+      USR_PRINT(expr, "unable to resolve type of field '%s'", field->name);
+      USR_STOP();
     }
   }
 
@@ -921,10 +935,21 @@ static Type* resolveFieldTypeExpr(Symbol* field) {
 
 // TODO: add tests for these error messages
 //   - also thread CallInfo when possible
-static Symbol* resolveFieldDefault(Symbol* field) {
+static Symbol* resolveFieldDefault(Symbol* field, CallInfo* info) {
   Symbol* ret = NULL;
 
   Expr* expr = field->defPoint->init;
+
+  Expr* errExpr = NULL;
+  const char* errTypeString = NULL;
+  if (info == NULL) {
+    Symbol* ts = field->defPoint->parentSymbol;
+    errExpr = ts->defPoint;
+    errTypeString = ts->name;
+  } else {
+    errExpr = info->call;
+    errTypeString = info->toString();
+  }
 
   if (expr != NULL) {
     bool needsCopy = field->hasFlag(FLAG_PARAM) == false &&
@@ -941,15 +966,21 @@ static Symbol* resolveFieldDefault(Symbol* field) {
   if (ret != NULL) {
     if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
       if (isTypeSymbol(ret) == false && ret->hasFlag(FLAG_TYPE_VARIABLE) == false) {
-        USR_FATAL(expr, "type field's default value is not a type expression");
+        USR_FATAL_CONT(errExpr, "error while resolving type '%s'", errTypeString);
+        USR_PRINT(expr, "type field '%s' has a default expression that does not resolve to a type", field->name);
+        USR_STOP();
       }
     } else if (field->hasFlag(FLAG_PARAM)) {
       if (ret->isImmediate() == false && isEnumSymbol(ret) == false) {
-        USR_FATAL(expr, "param field's default value is not a param expression");
+        USR_FATAL_CONT(errExpr, "error while resolving type '%s'", errTypeString);
+        USR_PRINT(expr, "param field '%s' has a default expression that does not resolve to a param", field->name);
+        USR_STOP();
       }
     } else {
-      if (isTypeSymbol(ret)) {
-        USR_FATAL(expr, "field's default value cannot be a type expression");
+      if (isTypeSymbol(ret) || ret->hasFlag(FLAG_TYPE_VARIABLE)) {
+        USR_FATAL_CONT(errExpr, "error while resolving type '%s'", errTypeString);
+        USR_PRINT(expr, "field '%s' has a default expression that resolves to a type", field->name);
+        USR_STOP();
       }
     }
   }
@@ -957,14 +988,14 @@ static Symbol* resolveFieldDefault(Symbol* field) {
   return ret;
 }
 
-static Type* resolveFieldTypeForInstantiation(Symbol* field) {
+static Type* resolveFieldTypeForInstantiation(Symbol* field, CallInfo* info) {
   Type* ret = NULL;
 
   if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
-    if (Type* type = resolveFieldTypeExpr(field)) {
+    if (Type* type = resolveFieldTypeExpr(field, info)) {
       ret = type;
     } else if (field->hasFlag(FLAG_TYPE_VARIABLE) == false) {
-      if (Symbol* val = resolveFieldDefault(field)) {
+      if (Symbol* val = resolveFieldDefault(field, info)) {
         ret = val->type;
       }
     }
@@ -996,7 +1027,7 @@ static void checkTypesForInstantiation(AggregateType* at, CallInfo& info, Symbol
     USR_STOP();
   }
 
-  if (Type* fieldType = resolveFieldTypeForInstantiation(field)) {
+  if (Type* fieldType = resolveFieldTypeForInstantiation(field, &info)) {
     if (fieldType->symbol->hasFlag(FLAG_GENERIC)) {
       if (getInstantiationType(val->type, fieldType) == NULL) {
         USR_FATAL_CONT(info.call, "invalid type specifier '%s'", info.toString());
@@ -1047,12 +1078,12 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallInfo& info, Expr
         retval->genericField = index;
 
         if (field->hasFlag(FLAG_TYPE_VARIABLE)) {
-          if (Symbol* sym = resolveFieldDefault(field)) {
+          if (Symbol* sym = resolveFieldDefault(field, &info)) {
             retval = retval->getInstantiation(sym, index, insnPoint);
           }
         } else if (field->hasFlag(FLAG_PARAM)) {
-          Type* expected = resolveFieldTypeExpr(field);
-          Symbol* value = resolveFieldDefault(field);
+          Type* expected = resolveFieldTypeExpr(field, &info);
+          Symbol* value = resolveFieldDefault(field, &info);
 
           if (expected != NULL && value != NULL) {
             if (getInstantiationType(value->type, expected) == NULL) {
@@ -1102,7 +1133,7 @@ void AggregateType::resolveConcreteType() {
 
   for_fields(field, this) {
     if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
-      if (Type* type = resolveFieldTypeForInstantiation(field)) {
+      if (Type* type = resolveFieldTypeForInstantiation(field, NULL)) {
         field->type = type->getValType();
       }
     }
@@ -1372,7 +1403,6 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Expr* insnPoint) 
 
   if (retval->setNextGenericField() == false) {
     retval->symbol->removeFlag(FLAG_GENERIC);
-    //retval->resolveStatus = RESOLVED;
   }
 
   instantiations.push_back(retval);
