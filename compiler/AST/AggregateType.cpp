@@ -1093,6 +1093,7 @@ void AggregateType::resolveConcreteType() {
   }
 
   this->resolveStatus = RESOLVING;
+  this->symbol->instantiationPoint = getInstantiationPoint(this->symbol->defPoint);
 
   if (isClass() == true && symbol->hasFlag(FLAG_NO_OBJECT) == false) {
     AggregateType* parent = dispatchParents.v[0];
