@@ -763,17 +763,17 @@ int FnSymbol::hasGenericFormals(SymbolMap* map) const {
       isGeneric = true;
 
     } else if (formal->type->symbol->hasFlag(FLAG_GENERIC) == true) {
-      bool formalInstantiated = false;
+      bool formalWasInstantiated = false;
       if (map != NULL && formal->hasFlag(FLAG_TYPE_VARIABLE)) {
         form_Map(SymbolMapElem, e, *map) {
           if (e->key->name == formal->name) {
-            formalInstantiated = true;
+            formalWasInstantiated = true;
             break;
           }
         }
       }
 
-      if (!formalInstantiated) {
+      if (!formalWasInstantiated) {
         bool typeHasGenericDefaults = false;
         if (AggregateType* at = toAggregateType(formal->type))
           typeHasGenericDefaults = at->isGenericWithDefaults();

@@ -230,6 +230,8 @@ private:
   void                        addClassToHierarchy(
                                           std::set<AggregateType*>& seen);
 
+  void                        renameInstantiation();
+
   AggregateType*              instantiationWithParent(AggregateType* parent, Expr* insnPoint = NULL);
 
   Symbol*                     substitutionForField(Symbol*    field,

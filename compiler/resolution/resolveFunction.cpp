@@ -1178,10 +1178,10 @@ void resolveReturnTypeAndYieldedType(FnSymbol* fn, Type** yieldedType) {
 
     fn->retType = retType;
 
-    if (retType->symbol->hasFlag(FLAG_GENERIC) &&
-        fn->retTag == RET_TYPE) {
-      USR_FATAL_CONT(fn, "returning a generic type variable is not supported");
-    }
+    //if (retType->symbol->hasFlag(FLAG_GENERIC) &&
+    //    fn->retTag == RET_TYPE) {
+    //  USR_FATAL_CONT(fn, "returning a generic type variable is not supported");
+    //}
 
   } else {
 
