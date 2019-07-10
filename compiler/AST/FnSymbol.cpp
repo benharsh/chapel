@@ -722,11 +722,11 @@ CallExpr* FnSymbol::singleInvocation() const {
 //      1) Update some flags
 //      2) Return true to indicate the status has been modified
 //
-bool FnSymbol::tagIfGeneric() {
+bool FnSymbol::tagIfGeneric(SymbolMap* map) {
   bool retval = false;
 
   if (hasFlag(FLAG_GENERIC) == false) {
-    int result = hasGenericFormals();
+    int result = hasGenericFormals(map);
 
     // If this function has at least 1 generic formal
     if (result > 0) {
@@ -749,7 +749,7 @@ bool FnSymbol::tagIfGeneric() {
 //
 //   0 if there are no generic formals
 //
-int FnSymbol::hasGenericFormals() const {
+int FnSymbol::hasGenericFormals(SymbolMap* map) const {
   bool hasGenericFormal   = false;
   bool hasGenericDefaults =  true;
   int  retval             =     0;
@@ -761,15 +761,27 @@ int FnSymbol::hasGenericFormals() const {
       isGeneric = true;
 
     } else if (formal->type->symbol->hasFlag(FLAG_GENERIC) == true) {
-      bool typeHasGenericDefaults = false;
-      if (AggregateType* at = toAggregateType(formal->type))
-        typeHasGenericDefaults = at->isGenericWithDefaults();
+      bool formalWasInstantiated = false;
+      if (formal->hasFlag(FLAG_TYPE_VARIABLE) && map != NULL) {
+        form_Map(SymbolMapElem, e, *map) {
+          if (strcmp(e->key->name, formal->name) == 0) {
+            formalWasInstantiated = true;
+            break;
+          }
+        }
+      }
 
-      if (typeHasGenericDefaults               == false ||
-          formal->hasFlag(FLAG_MARKED_GENERIC) == true ||
-          formal                               == _this) {
-        if (!(formal == _this && (isInitializer() || isCopyInit()))) {
-          isGeneric = true;
+      if (formalWasInstantiated == false) {
+        bool typeHasGenericDefaults = false;
+        if (AggregateType* at = toAggregateType(formal->type))
+          typeHasGenericDefaults = at->isGenericWithDefaults();
+
+        if (typeHasGenericDefaults               == false ||
+            formal->hasFlag(FLAG_MARKED_GENERIC) == true ||
+            formal                               == _this) {
+          if (!(formal == _this && (isInitializer() || isCopyInit()))) {
+            isGeneric = true;
+          }
         }
       }
 

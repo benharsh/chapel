@@ -118,6 +118,14 @@ AggregateType* AggregateType::copyInner(SymbolMap* map) {
     copy_type->forwardingTo.insertAtTail(COPY_INT(delegate));
   }
 
+  for_vector(Symbol, field, genericFields) {
+    if (toAggregateType(field->defPoint->parentSymbol->type)->getRootInstantiation() == getRootInstantiation()) {
+      copy_type->genericFields.push_back(copy_type->getField(field->name));
+    } else {
+      //copy_type->genericFields.push_back(field);
+    }
+  }
+
   copy_type->genericField = genericField;
 
   return copy_type;
@@ -739,14 +747,14 @@ static void checkNumArgsErrors(AggregateType* at, CallExpr* call, const char* ca
     USR_PRINT(at, "but type '%s' only has %d generic %s", symbol->name, genericFields.size(), plural);
     USR_STOP();
   } else if (numArgs < numWithoutDefaults) {
-    if (numArgs != 0) {
-      USR_FATAL_CONT(call, "invalid type specifier '%s'", callString);
-      USR_PRINT(call, "type specifier did not match: %s", typeSignature);
-      USR_PRINT(call, "type was specified with %d arguments", numArgs);
-      const char* atLeast = numWithoutDefaults < genericFields.size() ? "at least " : "";
-      USR_PRINT(at, "but type '%s' must be instantiated with %s%d arguments", symbol->name, atLeast, numWithoutDefaults);
-      USR_STOP();
-    }
+    //if (numArgs != 0) {
+    //  USR_FATAL_CONT(call, "invalid type specifier '%s'", callString);
+    //  USR_PRINT(call, "type specifier did not match: %s", typeSignature);
+    //  USR_PRINT(call, "type was specified with %d arguments", numArgs);
+    //  const char* atLeast = numWithoutDefaults < genericFields.size() ? "at least " : "";
+    //  USR_PRINT(at, "but type '%s' must be instantiated with %s%d arguments", symbol->name, atLeast, numWithoutDefaults);
+    //  USR_STOP();
+    //}
   }
 }
 
@@ -881,6 +889,54 @@ static Expr* resolveFieldExpr(Expr* expr, bool addCopy) {
   return tail;
 }
 
+static void checkValidPartial(Expr* expr, Expr* errExpr, const char* errTypeString) {
+  std::vector<SymExpr*> ses;
+  collectSymExprs(expr, ses);
+  std::set<Symbol*> syms;
+  for_vector(SymExpr, se, ses) {
+    syms.insert(se->symbol());
+  }
+
+  DefExpr* def = toDefExpr(expr->parentExpr);
+
+  AggregateType* at = toAggregateType(expr->parentSymbol->type);
+  if (strcmp(at->symbol->name, "D") == 0) gdbShouldBreakHere();
+  std::string fields;
+  bool error = false;
+  bool first = true;
+  for_set(Symbol, sym, syms) {
+    if (sym->defPoint->parentSymbol == at->symbol) {
+      if (sym->type == dtUnknown || sym->type->symbol->hasFlag(FLAG_GENERIC)) {
+        error = true;
+        if (first) {
+          first = false;
+        } else {
+          fields += ", ";
+        }
+
+        fields += "'";
+        if (sym->hasFlag(FLAG_TYPE_VARIABLE)) {
+          fields += "type ";
+        } else if (sym->hasFlag(FLAG_PARAM)) {
+          fields += "param ";
+        } else if (sym->hasFlag(FLAG_CONST)) {
+          fields += "const ";
+        } else {
+          fields += "var ";
+        }
+        fields += sym->name;
+        fields += "'";
+      }
+    }
+  }
+
+  if (error) {
+    USR_FATAL_CONT(errExpr, "Unable to resolve partial instantiation '%s'", errTypeString);
+    USR_PRINT(errExpr, "Instantiation of field '%s' depends on uninstantiated fields: %s", def->sym->name, fields.c_str());
+    USR_STOP();
+  }
+}
+
 static Type* resolveFieldTypeExpr(Symbol* field, CallExpr* call, const char* callString) {
   Type* ret = NULL;
   Expr* expr = field->defPoint->exprType;
@@ -898,6 +954,7 @@ static Type* resolveFieldTypeExpr(Symbol* field, CallExpr* call, const char* cal
 
   if (expr != NULL) {
 
+    checkValidPartial(expr, errExpr, errTypeString);
     Expr* tail = resolveFieldExpr(expr, false);
 
     if (SymExpr* se = toSymExpr(tail)) {
@@ -1093,19 +1150,19 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallExpr* call, cons
             retval = retval->getInstantiation(value, index, insnPoint);
           } else if (expected == NULL && value != NULL) {
             retval = retval->getInstantiation(value, index, insnPoint);
-          } else if (expected != NULL && value == NULL) {
-            USR_FATAL_CONT(call, "invalid type specifier '%s'", callString);
-            USR_PRINT(call, "type specifier did not match: %s", typeSignature);
-            USR_PRINT(call, "param field '%s : %s' was not explicitly instantiated and does not have a default value", field->name, expected->symbol->name);
-            USR_STOP();
-          } else {
-            USR_FATAL_CONT(call, "invalid type specifier '%s'", callString);
-            USR_PRINT(call, "type specifier did not match: %s", typeSignature);
-            USR_PRINT(call, "param field '%s' was not explicitly instantiated and does not have a type expression or default value", field->name);
-            USR_STOP();
+          //} else if (expected != NULL && value == NULL) {
+          //  USR_FATAL_CONT(call, "invalid type specifier '%s'", callString);
+          //  USR_PRINT(call, "type specifier did not match: %s", typeSignature);
+          //  USR_PRINT(call, "param field '%s : %s' was not explicitly instantiated and does not have a default value", field->name, expected->symbol->name);
+          //  USR_STOP();
+          //} else {
+          //  USR_FATAL_CONT(call, "invalid type specifier '%s'", callString);
+          //  USR_PRINT(call, "type specifier did not match: %s", typeSignature);
+          //  USR_PRINT(call, "param field '%s' was not explicitly instantiated and does not have a type expression or default value", field->name);
+          //  USR_STOP();
           }
         } else {
-          INT_FATAL("Can only default-instantiate type and param fields");
+          //INT_FATAL("Can only default-instantiate type and param fields");
         }
       }
     }
@@ -1230,6 +1287,195 @@ Symbol* AggregateType::substitutionForField(Symbol*    field,
   return retval;
 }
 
+static const char* prettyPrintString(VarSymbol* var, bool cname) {
+  std::string ret;
+  const size_t bufSize = 128;
+  char immediate[bufSize];
+  snprint_imm(immediate, bufSize, *var->immediate);
+
+  // escape quote characters in name string
+  char name[bufSize];
+  char * name_p = &name[0];
+  char * immediate_p = &immediate[0];
+  for ( ;
+        name_p < &name[bufSize-1] && // don't overflow buffer
+          '\0' != *immediate_p;      // stop at null in source
+        name_p++, immediate_p++) {
+    if ('"' == *immediate_p) { // escape quotes
+      *name_p++ = '\\';
+    }
+    *name_p = *immediate_p;
+  }
+  *name_p = '\0';
+  ret += name;
+
+  // add ellipsis if too long for buffer
+  if (name_p == &name[bufSize-1]) {
+    ret += "...";
+  }
+
+  if (!cname) {
+    return astr(ret);
+  }
+
+  // filter unacceptable characters for cname string
+  char cstr[bufSize];
+  char * cstr_p = &cstr[0];
+  immediate_p = &immediate[0];
+  size_t maxNameLength = 32; // add "_etc" after this many characters
+
+  for ( ; immediate_p < &immediate_p[bufSize-1] &&  // don't overflow buffer
+          cstr_p < &cstr[maxNameLength-1] &&      // stop at max length
+          '\0' != *immediate_p;
+        immediate_p++ ) {
+    if (('A' <= *immediate_p && *immediate_p <= 'Z') ||
+        ('a' <= *immediate_p && *immediate_p <= 'z') ||
+        ('0' <= *immediate_p && *immediate_p <= '9') ||
+        ('_' == *immediate_p)) {
+      *cstr_p = *immediate_p;
+      cstr_p++;
+    }
+  }
+  *cstr_p = '\0';
+  ret = cstr;
+
+  // add _etc if too long
+  if (immediate_p == &immediate[bufSize-1] || // too long for buffer
+      cstr_p == &cstr[maxNameLength-1]) {   // exceeds max length
+    ret += "_etc";
+  }
+
+  return astr(ret);
+}
+
+static const char* buildValueName(Symbol* field, bool cname) {
+  if (field->hasFlag(FLAG_PARAM)) {
+    Symbol* sym = paramMap.get(field);
+    if (VarSymbol* var = toVarSymbol(sym)) {
+      std::string ret;
+      Type* type = var->type;
+
+      Immediate* imm = var->immediate;
+      if (var->type == dtString || var->type == dtStringC) {
+        ret += prettyPrintString(var, cname);
+      } else if (imm->const_kind == NUM_KIND_BOOL) {
+        const char* tn = cname ? "T" : "true";
+        const char* fn = cname ? "F" : "false";
+        ret += imm->bool_value() ? tn : fn;
+      } else {
+        char buf[128];
+        snprint_imm(buf, sizeof(buf), *var->immediate);
+        ret += buf;
+      }
+
+      if (is_int_type(type) ||
+          is_uint_type(type) ||
+          is_bool_type(type) ||
+          is_real_type(type) ||
+          is_imag_type(type) ||
+          is_complex_type(type)) {
+        if (!isNumericParamDefaultType(type)) {
+          if (cname) {
+            ret += ":";
+            ret += toString(type);
+          } else {
+            // TODO: The result of this is kind of weird. For example, if I have
+            // a param uint(8) of '100' the string will be '1008'.
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%i", get_width(type));
+            ret += buf;
+          }
+        }
+      }
+
+      return astr(ret);
+    } else {
+      // Might be an enum
+      return (cname ? sym->cname : sym->name);
+    }
+  } else {
+    return (cname ? field->type->symbol->cname : field->type->symbol->name);
+  }
+}
+
+static bool buildFieldNames(AggregateType* at, std::string& str, bool cname) {
+  bool parentIsPartial = false;
+  bool parentHasGenerics = false;
+  if (at->dispatchParents.n > 0) {
+    AggregateType* parent = at->dispatchParents.v[0];
+    unsigned int beforeLen = str.size();
+    parentIsPartial = buildFieldNames(parent, str, cname);
+    parentHasGenerics = str.size() > beforeLen;
+  }
+
+  bool useNamed = parentIsPartial;
+
+  AggregateType* root = at->getRootInstantiation();
+  if (root->genericFields.size() > 0) {
+    if (parentHasGenerics) {
+      str += cname ? "_" : ",";
+    }
+
+    if (at->genericFields.size() == 0) {
+      bool isFirst = true;
+      for (unsigned int i = 0; i < root->genericFields.size(); i++) {
+
+        if (isFirst) {
+          isFirst = false;
+        } else {
+          str += cname ? "_" : ",";
+        }
+
+        Symbol* field = at->getField(root->genericFields[i]->name);
+        if (useNamed) {
+          str += field->name;
+          str += "=";
+        }
+        str += buildValueName(field, cname);
+      }
+    } else {
+      unsigned int curIdx = 0;
+      bool isFirst = true;
+      for (unsigned int i = 0; i < root->genericFields.size(); i++) {
+        if (curIdx < at->genericFields.size() &&
+            root->genericFields[i]->name == at->genericFields[curIdx]->name) {
+          useNamed = true;
+          curIdx += 1;
+        } else {
+          if (isFirst) {
+            isFirst = false;
+          } else {
+            str += cname ? "_" : ",";
+          }
+
+          Symbol* field = at->getField(root->genericFields[i]->name);
+          if (useNamed) {
+            str += field->name;
+            str += "=";
+          }
+          str += buildValueName(field, cname);
+        }
+      }
+    }
+  }
+
+  return useNamed;
+}
+
+void AggregateType::renameInstantiation() {
+  std::string name = getRootInstantiation()->symbol->name;
+  std::string cname = name + "_";
+  name += "(";
+
+  buildFieldNames(this, name, false);
+  buildFieldNames(this, cname, true);
+
+  name += ")";
+
+  symbol->name = astr(name);
+  symbol->cname = astr(cname);
+}
+
 // Returns an instantiation of this AggregateType at the given index.
 //
 // If the index is earlier than this AggregateType's first unsubstituted
@@ -1245,19 +1491,25 @@ Symbol* AggregateType::substitutionForField(Symbol*    field,
 AggregateType* AggregateType::getInstantiation(Symbol* sym, int index, Expr* insnPoint) {
   AggregateType* retval = NULL;
 
-  if (index < genericField) {
-    retval = this;
-
-  } else if (index == genericField) {
+    this->genericField = index;
     if (AggregateType* at = getCurInstantiation(sym)) {
       retval = at;
     } else {
       retval = getNewInstantiation(sym, insnPoint);
     }
+  //if (index < genericField) {
+  //  retval = this;
 
-  } else {
-    INT_FATAL(this, "trying to set a later generic field %d", index);
-  }
+  //} else if (index == genericField) {
+  //  if (AggregateType* at = getCurInstantiation(sym)) {
+  //    retval = at;
+  //  } else {
+  //    retval = getNewInstantiation(sym, insnPoint);
+  //  }
+
+  //} else {
+  //  INT_FATAL(this, "trying to set a later generic field %d", index);
+  //}
 
   return retval;
 }
@@ -1325,6 +1577,16 @@ AggregateType* AggregateType::getCurInstantiation(Symbol* sym) {
 AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Expr* insnPoint) {
   AggregateType* retval = toAggregateType(symbol->copy()->type);
   Symbol*        field  = retval->getField(genericField);
+  
+  {
+    unsigned int idx = 0;
+    for (idx = 0; idx < retval->genericFields.size(); idx++) {
+      if (retval->genericFields[idx] == field) {
+        retval->genericFields.erase(retval->genericFields.begin() + idx);
+        break;
+      }
+    }
+  }
 
   symbol->defPoint->insertBefore(new DefExpr(retval->symbol));
 
@@ -1337,7 +1599,7 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Expr* insnPoint) 
 
   retval->substitutions.copy(substitutions);
 
-  for (int i = 1; i < genericField; i++) {
+  for (int i = 1; i <= fields.length; i++) {
     Symbol* before = getField(i);
     Symbol* after = retval->getField(i);
 
@@ -1398,7 +1660,10 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Expr* insnPoint) 
     at->dispatchChildren.add_exclusive(retval);
   }
 
-  if (retval->setNextGenericField() == false) {
+  retval->renameInstantiation();
+
+  //if (retval->setNextGenericField() == false) {
+  if (retval->genericFields.size() == 0) {
     retval->symbol->removeFlag(FLAG_GENERIC);
   }
 

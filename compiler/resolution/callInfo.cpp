@@ -94,6 +94,9 @@ bool CallInfo::isWellFormed(CallExpr* callExpr) {
       if (isInit && i == 2) {
         actuals.add(sym);
 
+      } else if (sym->hasFlag(FLAG_TYPE_VARIABLE)) {
+        actuals.add(sym);
+
       } else {
         retval = false;
       }
@@ -126,7 +129,8 @@ void CallInfo::haltNotWellFormed() const {
                 "type unknown",
                 sym->name);
 
-    } else if (t->symbol->hasFlag(FLAG_GENERIC) == true) {
+    } else if (t->symbol->hasFlag(FLAG_GENERIC) == true &&
+               sym->hasFlag(FLAG_TYPE_VARIABLE) == false) {
       INT_FATAL(call,
                 "the type of the actual argument '%s' is generic",
                 sym->name);

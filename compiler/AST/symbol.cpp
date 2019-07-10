@@ -1237,36 +1237,6 @@ void TypeSymbol::accept(AstVisitor* visitor) {
   }
 }
 
-void TypeSymbol::renameInstantiatedMulti(SymbolMap& subs, FnSymbol* fn) {
-  renameInstantiatedStart();
-
-  bool notFirst = false;
-  for_formals(formal, fn) {
-    if (Symbol* value = subs.get(formal)) {
-      if (!notFirst) {
-        if (TypeSymbol* ts = toTypeSymbol(value)) {
-          if (this->hasFlag(FLAG_TUPLE)) {
-            if (this->hasFlag(FLAG_STAR_TUPLE)) {
-              this->name = astr(istr(fn->numFormals()-1), "*", ts->name);
-              this->cname = astr(this->cname, "star_", ts->cname);
-              return;
-            } else {
-              this->name = astr("(");
-            }
-          }
-        }
-        notFirst = true;
-      } else {
-        this->name = astr(this->name, ",");
-        this->cname = astr(this->cname, "_");
-      }
-      renameInstantiatedIndividual(value);
-    }
-  }
-
-  renameInstantiatedEnd();
-}
-
 void TypeSymbol::renameInstantiatedSingle(Symbol* sym) {
   renameInstantiatedStart();
   if (this->hasFlag(FLAG_TUPLE)) {

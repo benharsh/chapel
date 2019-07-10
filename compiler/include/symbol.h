@@ -523,7 +523,6 @@ class TypeSymbol : public Symbol {
   DECLARE_SYMBOL_COPY(TypeSymbol);
   void replaceChild(BaseAST* old_ast, BaseAST* new_ast);
 
-  void renameInstantiatedMulti(SymbolMap& subs, FnSymbol* fn);
   void renameInstantiatedSingle(Symbol* sym);
   void renameInstantiatedFromSuper(TypeSymbol* superSym);
 
