@@ -1375,7 +1375,7 @@ static const char* buildValueName(Symbol* field, bool cname) {
           is_imag_type(type) ||
           is_complex_type(type)) {
         if (!isNumericParamDefaultType(type)) {
-          if (cname) {
+          if (!cname) {
             ret += ":";
             ret += toString(type);
           } else {
