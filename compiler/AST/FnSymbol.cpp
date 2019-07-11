@@ -779,7 +779,7 @@ int FnSymbol::hasGenericFormals(SymbolMap* map) const {
         if (typeHasGenericDefaults               == false ||
             formal->hasFlag(FLAG_MARKED_GENERIC) == true ||
             formal                               == _this) {
-          if (!(formal == _this && (isInitializer() || isCopyInit()))) {
+          if (!(map != NULL && formal == _this && (isInitializer() || isCopyInit()))) {
             isGeneric = true;
           }
         }
@@ -787,7 +787,7 @@ int FnSymbol::hasGenericFormals(SymbolMap* map) const {
 
     // init= on generic types need to be considered generic so that 'this.type'
     // stuff will resolve.
-    } else if (isCopyInit() && _this->type->symbol->hasFlag(FLAG_GENERIC)) {
+    } else if (formal == _this && isCopyInit() && _this->type->symbol->hasFlag(FLAG_GENERIC)) {
       isGeneric = true;
     }
 

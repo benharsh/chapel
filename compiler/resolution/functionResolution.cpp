@@ -249,7 +249,7 @@ void resolveFnForCall(FnSymbol* fn, CallExpr* call) {
   callStack.add(call);
 
   // do real work
-  resolveFunction(fn);
+  resolveFunction(fn, call);
 
   callStack.pop();
 }
@@ -5290,9 +5290,9 @@ static void resolveInitVar(CallExpr* call) {
       // if the type of <expr> is not an instantiation of 'MyGenericType'.
       // Left as future work until 'init=' design finalized.
       if (inst == NULL) {
-        USR_FATAL(call, "Could not coerce '%s' to '%s' in initialization",
-                  srcType->symbol->name,
-                  targetType->symbol->name);
+        //USR_FATAL(call, "Could not coerce '%s' to '%s' in initialization",
+        //          srcType->symbol->name,
+        //          targetType->symbol->name);
       } else if (inst != NULL) {
         targetType = inst;
       }

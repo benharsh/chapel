@@ -502,6 +502,11 @@ void resolveFunction(FnSymbol* fn, CallExpr* forCall) {
         ensureInMethodList(fn);
       }
 
+      if (fn->isCopyInit()) {
+        Symbol* act = toSymExpr(forCall->get(2))->symbol();
+        act->type = fn->_this->getValType();
+      }
+
       if (forCall != NULL) {
         resolveAlsoParallelIterators(fn, forCall);
       }
