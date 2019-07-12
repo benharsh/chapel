@@ -1488,9 +1488,7 @@ static Expr* preFoldNamed(CallExpr* call) {
       Type* rt = call->get(2)->getValType();
 
       if (lt                                != dtUnknown &&
-          rt                                != dtUnknown &&
-          lt->symbol->hasFlag(FLAG_GENERIC) == false     &&
-          rt->symbol->hasFlag(FLAG_GENERIC) == false) {
+          rt                                != dtUnknown) {
         retval = (lt != rt) ? new SymExpr(gTrue) : new SymExpr(gFalse);
         call->replace(retval);
       }
