@@ -710,6 +710,8 @@ static void addVirtualMethodTableEntry(Type*     type,
   Vec<FnSymbol*>* fns   = virtualMethodTable.get(type);
   bool            found = false;
 
+  if (type->symbol->hasFlag(FLAG_GENERIC)) return;
+
   if (fns == NULL) {
     fns = new Vec<FnSymbol*>();
 
@@ -725,6 +727,7 @@ static void addVirtualMethodTableEntry(Type*     type,
   if (found == false) {
     fns->add(fn);
 
+    if (type->symbol->id == 937796) gdbShouldBreakHere();
     virtualMethodTable.put(type, fns);
   }
 }

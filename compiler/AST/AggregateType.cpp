@@ -118,11 +118,13 @@ AggregateType* AggregateType::copyInner(SymbolMap* map) {
     copy_type->forwardingTo.insertAtTail(COPY_INT(delegate));
   }
 
+  if (dispatchParents.n > 0) {
+    std::vector<Symbol*>& parentGenerics = dispatchParents.v[0]->genericFields;
+    copy_type->genericFields.insert(copy_type->genericFields.end(), parentGenerics.begin(), parentGenerics.end());
+  }
   for_vector(Symbol, field, genericFields) {
     if (toAggregateType(field->defPoint->parentSymbol->type)->getRootInstantiation() == getRootInstantiation()) {
       copy_type->genericFields.push_back(copy_type->getField(field->name));
-    } else {
-      //copy_type->genericFields.push_back(field);
     }
   }
 
@@ -899,13 +901,12 @@ static void checkValidPartial(Expr* expr, Expr* errExpr, const char* errTypeStri
 
   DefExpr* def = toDefExpr(expr->parentExpr);
 
-  AggregateType* at = toAggregateType(expr->parentSymbol->type);
-  if (strcmp(at->symbol->name, "D") == 0) gdbShouldBreakHere();
+  //AggregateType* at = toAggregateType(expr->parentSymbol->type);
   std::string fields;
   bool error = false;
   bool first = true;
   for_set(Symbol, sym, syms) {
-    if (sym->defPoint->parentSymbol == at->symbol) {
+    if (isTypeSymbol(sym->defPoint->parentSymbol)) {
       if (sym->type == dtUnknown || sym->type->symbol->hasFlag(FLAG_GENERIC)) {
         error = true;
         if (first) {
@@ -1135,7 +1136,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallExpr* call, cons
           if (Symbol* sym = resolveFieldDefault(field, call, callString)) {
             retval = retval->getInstantiation(sym, index, insnPoint);
           }
-        } else if (field->hasFlag(FLAG_PARAM)) {
+        } else if (field->hasFlag(FLAG_PARAM) && field->defPoint->init != NULL) {
           Type* expected = resolveFieldTypeExpr(field, call, callString);
           Symbol* value = resolveFieldDefault(field, call, callString);
 
@@ -1235,6 +1236,24 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent, Exp
     buildParentSubMap(parent, parentFieldMap);
 
     retval = toAggregateType(symbol->copy(&parentFieldMap)->type);
+    retval->genericFields.clear();
+    retval->genericFields.insert(retval->genericFields.end(), parent->genericFields.begin(), parent->genericFields.end());
+    for_vector(Symbol, field, this->genericFields) {
+      if (toAggregateType(field->defPoint->parentSymbol->type)->getRootInstantiation() == getRootInstantiation()) {
+        retval->genericFields.push_back(getField(field->name));
+      }
+    }
+  // TODO: confirm field is instantiated
+  for (int i = 1; i <= fields.length; i++) {
+    Symbol* before = getField(i);
+    Symbol* after = retval->getField(i);
+
+    if (after->hasFlag(FLAG_PARAM)) {
+      if (Symbol* val = paramMap.get(before)) {
+        paramMap.put(after, val);
+      }
+    }
+  }
 
     // Update the name/cname based on the parent's name/cname
     sym        = retval->symbol;
@@ -1264,6 +1283,8 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent, Exp
     if (retval->setFirstGenericField() == false) {
       retval->symbol->removeFlag(FLAG_GENERIC);
     }
+
+    retval->renameInstantiation();
 
     symbol->defPoint->insertBefore(new DefExpr(retval->symbol));
 
@@ -1401,12 +1422,12 @@ static const char* buildValueName(Symbol* field, bool cname) {
 static bool buildFieldNames(AggregateType* at, std::string& str, bool cname) {
   bool parentIsPartial = false;
   bool parentHasGenerics = false;
-  if (at->dispatchParents.n > 0) {
-    AggregateType* parent = at->dispatchParents.v[0];
-    unsigned int beforeLen = str.size();
-    parentIsPartial = buildFieldNames(parent, str, cname);
-    parentHasGenerics = str.size() > beforeLen;
-  }
+  //if (at->dispatchParents.n > 0) {
+  //  AggregateType* parent = at->dispatchParents.v[0];
+  //  unsigned int beforeLen = str.size();
+  //  parentIsPartial = buildFieldNames(parent, str, cname);
+  //  parentHasGenerics = str.size() > beforeLen;
+  //}
 
   bool useNamed = parentIsPartial;
 
@@ -1702,7 +1723,8 @@ AggregateType::getInstantiationParent(AggregateType* parentType) {
 
   Symbol* field = newInstance->getField(1);
   newInstance->substitutions.put(field, parentType->symbol);
-  newInstance->symbol->renameInstantiatedFromSuper(parentType->symbol);
+  newInstance->renameInstantiation();
+  //newInstance->symbol->renameInstantiatedFromSuper(parentType->symbol);
 
   field->type = parentType;
 
