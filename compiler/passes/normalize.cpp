@@ -3213,11 +3213,32 @@ static bool doesCallContainGenericActual(CallExpr* call) {
   return false;
 }
 
+static bool isPartialTypeCall(CallExpr* call) {
+  bool ret = false;
+
+  // TODO: Do we ever need to recurse into the call?
+  //   - Example: x : Outer(Partial(int))
+  if (SymExpr* se = toSymExpr(call->baseExpr)) {
+    if (TypeSymbol* ts = toTypeSymbol(se->symbol())) {
+      if (AggregateType* at = toAggregateType(canonicalDecoratedClassType(ts->type))) {
+        if (at->isGeneric() && !at->isGenericWithDefaults()) {
+          if (at->genericFields.size() != call->numActuals()) {
+            ret = true;
+          }
+        }
+      }
+    }
+  }
+
+  return ret;
+}
+
 static bool isQueryForGenericTypeSpecifier(ArgSymbol* formal) {
   bool retval = false;
 
   if (CallExpr* call = toCallExpr(formal->typeExpr->body.tail)) {
-    retval = doesCallContainGenericActual(call);
+    retval = doesCallContainGenericActual(call) ||
+             isPartialTypeCall(call);
   }
 
   return retval;

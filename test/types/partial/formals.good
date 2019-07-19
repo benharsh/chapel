@@ -1,0 +1,27 @@
+int version
+R(int(64),100)
+
+real version
+R(real(64),123.456)
+
+generic version
+R(string,"hello")
+
+--------------------
+bar(P(int,U=int))
+P(int(64),100,int(64),100)
+
+bar(P(U=bool))
+P(int(64),100,bool,false)
+
+bar(P(U=bool))
+P(string,"hello",bool,true)
+
+bar(P)
+P(string,"hello",string,"world")
+
+--------------------
+baz(P(U=real,y=1.0))
+P(int(64),123,real(64),1.0)
+
+baz(P)
