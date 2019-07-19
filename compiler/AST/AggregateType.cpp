@@ -1226,10 +1226,10 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent, Exp
 
   // If nothing was found then create a new instantiation
   if (retval == NULL) {
-    const char* parentName  = parent->symbol->name;
-    const char* parentCname = parent->symbol->cname;
-    const char* paren       = strchr(parentName, '(');
-    int         rootLen     = (int) (paren - parentName);
+    //const char* parentName  = parent->symbol->name;
+    //const char* parentCname = parent->symbol->cname;
+    //const char* paren       = strchr(parentName, '(');
+    //int         rootLen     = (int) (paren - parentName);
     Symbol*     sym         = NULL;
 
     SymbolMap parentFieldMap;
@@ -1257,8 +1257,8 @@ AggregateType* AggregateType::instantiationWithParent(AggregateType* parent, Exp
 
     // Update the name/cname based on the parent's name/cname
     sym        = retval->symbol;
-    sym->name  = astr(sym->name,  parentName  + rootLen);
-    sym->cname = astr(sym->cname, parentCname + rootLen);
+    //sym->name  = astr(sym->name,  parentName  + rootLen);
+    //sym->cname = astr(sym->cname, parentCname + rootLen);
     if (retval->symbol->instantiationPoint == NULL) {
       retval->symbol->instantiationPoint = toBlockStmt(insnPoint);
     }
