@@ -509,6 +509,20 @@ static Expr* preFoldPrimOp(CallExpr* call) {
     break;
   }
 
+  case PRIM_IS_BOUND: {
+    AggregateType* at = toAggregateType(call->get(1)->typeInfo());
+    Immediate* imm = toVarSymbol(toSymExpr(call->get(2))->symbol())->immediate;
+    Symbol* field = at->getField(imm->v_string);
+    if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
+      retval = new SymExpr(gFalse);
+    } else {
+      retval = new SymExpr(gTrue);
+    }
+
+    call->replace(retval);
+    break;
+  }
+
   case PRIM_IS_EXTERN_TYPE: {
     if (call->get(1)->typeInfo()->symbol->hasFlag(FLAG_EXTERN)) {
       retval = new SymExpr(gTrue);
