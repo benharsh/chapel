@@ -510,7 +510,7 @@ static Expr* preFoldPrimOp(CallExpr* call) {
   }
 
   case PRIM_IS_BOUND: {
-    AggregateType* at = toAggregateType(call->get(1)->typeInfo());
+    AggregateType* at = toAggregateType(call->get(1)->getValType());
     Immediate* imm = toVarSymbol(toSymExpr(call->get(2))->symbol())->immediate;
     Symbol* field = at->getField(imm->v_string);
     if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
@@ -1493,6 +1493,9 @@ static Expr* preFoldNamed(CallExpr* call) {
         retval = (lt == rt) ? new SymExpr(gTrue) : new SymExpr(gFalse);
         call->replace(retval);
       }
+    } else if (call->get(2)->getValType() == dtUninstantiated) {
+      retval = (call->get(1)->getValType() == dtUninstantiated) ? new SymExpr(gTrue) : new SymExpr(gFalse);
+      call->replace(retval);
     }
 
 
@@ -1506,6 +1509,9 @@ static Expr* preFoldNamed(CallExpr* call) {
         retval = (lt != rt) ? new SymExpr(gTrue) : new SymExpr(gFalse);
         call->replace(retval);
       }
+    } else if (call->get(2)->getValType() == dtUninstantiated) {
+      retval = (call->get(1)->getValType() != dtUninstantiated) ? new SymExpr(gTrue) : new SymExpr(gFalse);
+      call->replace(retval);
     }
 
 

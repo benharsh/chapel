@@ -2978,6 +2978,8 @@ static bool typeSpecifierUnnamedQuery(CallExpr* typeSpecifier) {
   if (typeSpecifier->numActuals()      ==    1) {
     if (DefExpr* de = toDefExpr(typeSpecifier->get(1))) {
       return strncmp("chpl__query", de->sym->name, strlen("chpl__query")) == 0;
+    } else if (SymExpr* se = toSymExpr(typeSpecifier->get(1))) {
+      return se->symbol() == gUninstantiated;
     }
   }
   return false;
@@ -3158,11 +3160,14 @@ static void replaceUsesWithPrimTypeof(FnSymbol* fn, ArgSymbol* formal) {
 static bool isGenericActual(Expr* expr) {
   if (isDefExpr(expr))
     return true;
-  if (SymExpr* se = toSymExpr(expr))
-    if (TypeSymbol* ts = toTypeSymbol(se->symbol()))
+  if (SymExpr* se = toSymExpr(expr)) {
+    if (se->symbol() == gUninstantiated) {
+      return true;
+    } else if (TypeSymbol* ts = toTypeSymbol(se->symbol()))
       if (AggregateType* at = toAggregateType(canonicalDecoratedClassType(ts->type)))
         if (at->isGeneric() && !at->isGenericWithDefaults())
           return true;
+  }
 
   return false;
 }
@@ -3327,12 +3332,16 @@ static void expandQueryForActual(FnSymbol*  fn,
     if (DefExpr* def = toDefExpr(actual)) {
       replaceQueryUses(formal, def, query, symExprs);
     } else if (SymExpr* se = toSymExpr(actual)) {
-      TypeSymbol* ts = toTypeSymbol(se->symbol());
-      INT_ASSERT(ts);
-      Expr* subtype = new SymExpr(ts);
-      addToWhereClause(fn, formal,
-                       new CallExpr(PRIM_IS_SUBTYPE_ALLOW_VALUES,
-                                    subtype, query->copy()));
+      if (se->symbol() == gUninstantiated) {
+        se->replace(query->copy());
+      } else {
+        TypeSymbol* ts = toTypeSymbol(se->symbol());
+        INT_ASSERT(ts);
+        Expr* subtype = new SymExpr(ts);
+        addToWhereClause(fn, formal,
+                         new CallExpr(PRIM_IS_SUBTYPE_ALLOW_VALUES,
+                                      subtype, query->copy()));
+      }
     } else {
       INT_FATAL("case not handled");
     }

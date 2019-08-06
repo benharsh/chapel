@@ -6502,7 +6502,7 @@ static Type* resolveGenericActual(SymExpr* se) {
 
   } else if (VarSymbol* vs = toVarSymbol(se->symbol())) {
     if (vs->hasFlag(FLAG_TYPE_VARIABLE) == true) {
-      Type* origType = vs->typeInfo();
+      //Type* origType = vs->typeInfo();
 
       // Fix for complicated extern vars like
       //   extern var x: c_ptr(c_int);
@@ -6513,7 +6513,7 @@ static Type* resolveGenericActual(SymExpr* se) {
         vs->type = resolveTypeAlias(se);
       }
 
-      retval = resolveGenericActual(se, origType);
+      //retval = resolveGenericActual(se, origType);
     }
   }
 
@@ -7320,7 +7320,7 @@ static bool isObviousType(Type* type) {
 }
 
 static bool isObviousValue(Symbol* val) {
-  return val->isImmediate() || isEnumSymbol(val) || paramMap.get(val);
+  return val->isImmediate() || isEnumSymbol(val) || val == gUninstantiated || paramMap.get(val);
 }
 
 //
