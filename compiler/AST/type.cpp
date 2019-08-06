@@ -773,6 +773,11 @@ void initPrimitiveTypes() {
   dtModuleToken = createInternalType("tmodule=", "tmodule=");
 
   CREATE_DEFAULT_SYMBOL(dtModuleToken, gModuleToken, "module=");
+
+  dtUninstantiated = createInternalType("_uninstantiated", "_uninstantiated");
+
+  CREATE_DEFAULT_SYMBOL(dtUninstantiated, gUninstantiated, "?");
+  gUninstantiated->addFlag(FLAG_PARAM);
 }
 
 static PrimitiveType* createPrimitiveType(const char* name, const char* cname) {

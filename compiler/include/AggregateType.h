@@ -117,7 +117,7 @@ public:
   AggregateType*              getInstantiationParent(AggregateType* pt);
 
   AggregateType*              generateType(CallExpr* call, const char* callString);
-  AggregateType*              generateType(SymbolMap& subs, CallExpr* call, const char* callString, Expr* insnPoint = NULL);
+  AggregateType*              generateType(SymbolMap& subs, CallExpr* call, const char* callString, bool evalDefaults, Expr* insnPoint = NULL);
   void                        resolveConcreteType();
 
   bool                        isInstantiatedFrom(const AggregateType* base)

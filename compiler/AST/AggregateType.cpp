@@ -776,6 +776,8 @@ AggregateType* AggregateType::generateType(CallExpr* call, const char* callStrin
 
   AggregateType* ret = this;
 
+  bool evalDefaults = true;
+
   // Separate named and positional args, storing named-exprs in a map
   SymbolMap map;
   std::queue<Symbol*> notNamed;
@@ -791,7 +793,12 @@ AggregateType* AggregateType::generateType(CallExpr* call, const char* callStrin
       }
       map.put(field, toSymExpr(ne->actual)->symbol());
     } else {
-      notNamed.push(toSymExpr(actual)->symbol());
+      SymExpr* se = toSymExpr(actual);
+      if (se->symbol() == gUninstantiated) {
+        evalDefaults = false;
+      } else {
+        notNamed.push(toSymExpr(actual)->symbol());
+      }
     }
   }
 
@@ -805,7 +812,7 @@ AggregateType* AggregateType::generateType(CallExpr* call, const char* callStrin
 
   INT_ASSERT(notNamed.size() == 0);
 
-  ret = ret->generateType(map, call, callString, getInstantiationPoint(call));
+  ret = ret->generateType(map, call, callString, evalDefaults, getInstantiationPoint(call));
 
   if (ret != this) {
     ret->instantiatedFrom = this;
@@ -834,13 +841,15 @@ AggregateType* AggregateType::generateType(CallExpr* call, const char* callStrin
       //
 
       // Resolve the remaining non-generic fields
-      for (int index = 1; index <= numFields(); index = index + 1) {
-        Symbol* field = ret->getField(index);
-        if (field->hasFlag(FLAG_PARAM) == false &&
-            field->hasFlag(FLAG_TYPE_VARIABLE) == false &&
-            field->type == dtUnknown) {
-          if (Type* type = resolveFieldTypeForInstantiation(field, call, callString)) {
-            field->type = type;
+      if (ret->symbol->hasFlag(FLAG_GENERIC) == false) {
+        for (int index = 1; index <= numFields(); index = index + 1) {
+          Symbol* field = ret->getField(index);
+          if (field->hasFlag(FLAG_PARAM) == false &&
+              field->hasFlag(FLAG_TYPE_VARIABLE) == false &&
+              field->type == dtUnknown) {
+            if (Type* type = resolveFieldTypeForInstantiation(field, call, callString)) {
+              field->type = type;
+            }
           }
         }
       }
@@ -1105,7 +1114,7 @@ static void checkTypesForInstantiation(AggregateType* at, CallExpr* call, const 
   }
 }
 
-AggregateType* AggregateType::generateType(SymbolMap& subs, CallExpr* call, const char* callString, Expr* insnPoint) {
+AggregateType* AggregateType::generateType(SymbolMap& subs, CallExpr* call, const char* callString, bool evalDefaults, Expr* insnPoint) {
   AggregateType* retval = this;
 
   // Determine if there is a generic parent class
@@ -1114,7 +1123,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallExpr* call, cons
 
     // Is the parent generic?
     if (parent->genericFields.size() > 0) {
-      AggregateType* instantiatedParent = parent->generateType(subs, call, callString, insnPoint);
+      AggregateType* instantiatedParent = parent->generateType(subs, call, callString, evalDefaults, insnPoint);
 
       retval = instantiationWithParent(instantiatedParent, insnPoint);
     }
@@ -1133,7 +1142,7 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallExpr* call, cons
         checkTypesForInstantiation(this, call, callString, field, val);
 
         retval = retval->getInstantiation(val, index, insnPoint);
-      } else {
+      } else if (evalDefaults) {
         // Attempt to instantiate a field with a default value
         retval->genericField = index;
 
