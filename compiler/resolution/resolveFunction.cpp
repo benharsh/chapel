@@ -1658,6 +1658,7 @@ static void insertCasts(BaseAST* ast, FnSymbol* fn, Vec<CallExpr*>& casts) {
             bool typesDiffer = (rhsType          != lhsType &&
                                 rhsType->refType != lhsType &&
                                 rhsType          != lhsType->refType);
+            bool isTypeOf = rhsCall && rhsCall->isPrimitive(PRIM_TYPEOF);
 
             SET_LINENO(rhs);
 
@@ -1803,7 +1804,7 @@ static void insertCasts(BaseAST* ast, FnSymbol* fn, Vec<CallExpr*>& casts) {
                 casts.add(cast);
               }
 
-            } else {
+            } else if (!isTypeOf) {
               // handle adding casts for a regular PRIM_MOVE
 
               if (typesDiffer) {

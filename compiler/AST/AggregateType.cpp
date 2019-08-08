@@ -1132,11 +1132,13 @@ AggregateType* AggregateType::generateType(SymbolMap& subs, CallExpr* call, cons
 
     if (fieldIsGeneric(field, ignoredHasDefault)) {
       if (Symbol* val = substitutionForField(field, subs)) {
-        retval->genericField = index;
+        if (val != gUninstantiated) {
+          retval->genericField = index;
 
-        checkTypesForInstantiation(this, call, callString, field, val);
+          checkTypesForInstantiation(this, call, callString, field, val);
 
-        retval = retval->getInstantiation(val, index, insnPoint);
+          retval = retval->getInstantiation(val, index, insnPoint);
+        }
       } else if (evalDefaults) {
         // Attempt to instantiate a field with a default value
         retval->genericField = index;

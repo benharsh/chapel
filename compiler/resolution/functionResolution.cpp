@@ -5436,6 +5436,8 @@ static void resolveInitVar(CallExpr* call) {
         call->setUnresolvedFunction(astrInitEquals);
 
         resolveCall(call);
+
+        dst->type = call->resolvedFunction()->_this->getValType();
       } else {
         FnSymbol* fn = call->resolvedFunction();
         if (oldStyleInitCopyFns.find(fn) == oldStyleInitCopyFns.end()) {
