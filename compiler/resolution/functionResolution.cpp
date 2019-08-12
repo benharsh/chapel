@@ -615,6 +615,40 @@ Type* getConcreteParentForGenericFormal(Type* actualType, Type* formalType) {
   return retval;
 }
 
+static bool instantiatedFieldsMatch(Type* actualType, Type* formalType) {
+
+  AggregateType* actual = toAggregateType(actualType);
+  AggregateType* formal = toAggregateType(formalType);
+  if (actual == NULL || formal == NULL) {
+    return false;
+  }
+  if (actual == formal) {
+    return true;
+  }
+
+  AggregateType* root = actual->getRootInstantiation();
+  if (root == formal->getRootInstantiation()) {
+    unsigned int formalIdx = 0;
+    std::vector<Symbol*>& fields = root->genericFields;
+    std::vector<Symbol*>& formalFields = formal->genericFields;
+    bool ret = true;
+    for (unsigned int i = 0; i < fields.size(); i++) {
+      if (formalIdx < formalFields.size() &&
+          fields[i]->name == formalFields[formalIdx]->name) {
+        formalIdx += 1;
+      } else {
+        const char* name = fields[i]->name;
+        bool cur = actual->getField(name)->type == formal->getField(name)->type;
+        ret = ret && cur;
+      }
+    }
+
+    return ret;
+  }
+
+  return false;
+}
+
 // Returns true iff dispatching the actualType to the formalType
 // results in an instantiation.
 bool canInstantiate(Type* actualType, Type* formalType) {
@@ -737,16 +771,19 @@ bool canInstantiate(Type* actualType, Type* formalType) {
               return true;
 
   if (AggregateType* atActual = toAggregateType(actualType)) {
+    if (instantiatedFieldsMatch(actualType, formalType)) {
+      return true;
+    }
 
-    if (AggregateType* atFrom = atActual->instantiatedFrom) {
-      if (canInstantiate(atFrom, formalType) == true) {
-        return true;
-      }
+    //if (AggregateType* atFrom = atActual->instantiatedFrom) {
+    //  if (canInstantiate(atFrom, formalType) == true) {
+    //    return true;
+    //  }
+    //}
 
-      if (formalType->symbol->hasFlag(FLAG_GENERIC)                 == true &&
-          getConcreteParentForGenericFormal(actualType, formalType) != NULL) {
-        return true;
-      }
+    if (formalType->symbol->hasFlag(FLAG_GENERIC)                 == true &&
+        getConcreteParentForGenericFormal(actualType, formalType) != NULL) {
+      return true;
     }
   }
 

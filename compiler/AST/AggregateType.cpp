@@ -1726,26 +1726,35 @@ AggregateType::getInstantiationParent(AggregateType* parentType) {
   // Otherwise, we need to create an instantiation for that type
   AggregateType* newInstance = toAggregateType(this->symbol->copy(&parentMap)->type);
 
+  newInstance->genericFields.clear();
+  newInstance->genericFields.insert(newInstance->genericFields.end(), parentType->genericFields.begin(), parentType->genericFields.end());
+  for_vector(Symbol, field, this->genericFields) {
+    if (toAggregateType(field->defPoint->parentSymbol->type)->getRootInstantiation() == getRootInstantiation()) {
+      newInstance->genericFields.push_back(getField(field->name));
+    }
+  }
+
   this->symbol->defPoint->insertBefore(new DefExpr(newInstance->symbol));
 
   newInstance->symbol->copyFlags(this->symbol);
 
   newInstance->substitutions.copy(this->substitutions);
 
+  newInstance->instantiatedFrom = this;
+
   Symbol* field = newInstance->getField(1);
   newInstance->substitutions.put(field, parentType->symbol);
-  newInstance->renameInstantiation();
   //newInstance->symbol->renameInstantiatedFromSuper(parentType->symbol);
 
   field->type = parentType;
 
   instantiations.push_back(newInstance);
-  newInstance->instantiatedFrom = this;
 
   // Handle dispatch parent
   newInstance->dispatchParents.add(parentType);
 
   bool inserted = parentType->dispatchChildren.add_exclusive(newInstance);
+  newInstance->renameInstantiation();
 
   INT_ASSERT(inserted);
 
