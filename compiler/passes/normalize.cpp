@@ -2931,10 +2931,11 @@ static void fixupArrayElementExpr(FnSymbol*                    fn,
 
 static bool isParameterizedPrimitive(CallExpr* typeSpecifier);
 
-static void cloneParameterizedPrimitive(FnSymbol* fn, CallExpr* typeSpecifier);
+static void cloneParameterizedPrimitive(FnSymbol* fn, ArgSymbol* formal, CallExpr* typeSpecifier);
 
 static void cloneParameterizedPrimitive(FnSymbol* fn,
-                                        DefExpr*  def,
+                                        ArgSymbol* formal,
+                                        Expr*     query,
                                         int       width);
 
 static bool includesParameterizedPrimitive(FnSymbol* fn) {
@@ -2959,7 +2960,7 @@ static void replaceFunctionWithInstantiationsOfPrimitive(FnSymbol* fn) {
     if (BlockStmt* typeExpr = formal->typeExpr) {
       if (CallExpr* typeSpecifier = toCallExpr(typeExpr->body.tail)) {
         if (isParameterizedPrimitive(typeSpecifier) == true) {
-          cloneParameterizedPrimitive(fn, typeSpecifier);
+          cloneParameterizedPrimitive(fn, formal, typeSpecifier);
 
           break;
         }
@@ -2973,17 +2974,20 @@ static bool isParameterizedPrimitive(CallExpr* typeSpecifier) {
   bool retval = false;
 
   if (SymExpr* callFnSymExpr = toSymExpr(typeSpecifier->baseExpr)) {
-    if (typeSpecifier->numActuals()      ==    1 &&
-        isDefExpr(typeSpecifier->get(1)) == true) {
-      Symbol* callFnSym = callFnSymExpr->symbol();
+    if (typeSpecifier->numActuals() == 1) {
+      Expr* first = typeSpecifier->get(1);
+      SymExpr* query = toSymExpr(first);
+      if (isDefExpr(first) || (query && query->symbol() == gUninstantiated)) {
+        Symbol* callFnSym = callFnSymExpr->symbol();
 
-      if (callFnSym == dtBools[BOOL_SIZE_DEFAULT]->symbol ||
-          callFnSym == dtInt[INT_SIZE_DEFAULT]->symbol    ||
-          callFnSym == dtUInt[INT_SIZE_DEFAULT]->symbol   ||
-          callFnSym == dtReal[FLOAT_SIZE_DEFAULT]->symbol ||
-          callFnSym == dtImag[FLOAT_SIZE_DEFAULT]->symbol ||
-          callFnSym == dtComplex[COMPLEX_SIZE_DEFAULT]->symbol) {
-        retval = true;
+        if (callFnSym == dtBools[BOOL_SIZE_DEFAULT]->symbol ||
+            callFnSym == dtInt[INT_SIZE_DEFAULT]->symbol    ||
+            callFnSym == dtUInt[INT_SIZE_DEFAULT]->symbol   ||
+            callFnSym == dtReal[FLOAT_SIZE_DEFAULT]->symbol ||
+            callFnSym == dtImag[FLOAT_SIZE_DEFAULT]->symbol ||
+            callFnSym == dtComplex[COMPLEX_SIZE_DEFAULT]->symbol) {
+          retval = true;
+        }
       }
     }
   }
@@ -3007,9 +3011,9 @@ static bool typeSpecifierUnnamedQuery(CallExpr* typeSpecifier) {
 
 
 // 'formal' is certain to be a parameterized primitive e.g int(?w)
-static void cloneParameterizedPrimitive(FnSymbol* fn, CallExpr* typeSpecifier) {
-  Symbol*    callFnSym     = toSymExpr(typeSpecifier->baseExpr)->symbol();
-  DefExpr*   def           = toDefExpr(typeSpecifier->get(1));
+static void cloneParameterizedPrimitive(FnSymbol* fn, ArgSymbol* formal, CallExpr* typeSpecifier) {
+  Symbol* callFnSym = toSymExpr(typeSpecifier->baseExpr)->symbol();
+  Expr*   query     = typeSpecifier->get(1);
 
   if (callFnSym == dtBools[BOOL_SIZE_DEFAULT]->symbol) {
     // If 'bool(?)', instantiate for 'bool', and all 'bool(w)'
@@ -3017,26 +3021,26 @@ static void cloneParameterizedPrimitive(FnSymbol* fn, CallExpr* typeSpecifier) {
     int start = typeSpecifierUnnamedQuery(typeSpecifier) ? BOOL_SIZE_SYS
                                                          : BOOL_SIZE_8;
     for (int i = start; i < BOOL_SIZE_NUM; i++) {
-      cloneParameterizedPrimitive(fn, def, ((i == BOOL_SIZE_SYS) ?
-                                            BOOL_SYS_WIDTH :
-                                            get_width(dtBools[i])));
+      cloneParameterizedPrimitive(fn, formal, query, ((i == BOOL_SIZE_SYS) ?
+                                             BOOL_SYS_WIDTH :
+                                             get_width(dtBools[i])));
     }
 
   } else if (callFnSym == dtInt [INT_SIZE_DEFAULT]->symbol ||
              callFnSym == dtUInt[INT_SIZE_DEFAULT]->symbol) {
     for (int i = INT_SIZE_8; i < INT_SIZE_NUM; i++) {
-      cloneParameterizedPrimitive(fn, def, get_width(dtInt[i]));
+      cloneParameterizedPrimitive(fn, formal, query, get_width(dtInt[i]));
     }
 
   } else if (callFnSym == dtReal[FLOAT_SIZE_DEFAULT]->symbol ||
              callFnSym == dtImag[FLOAT_SIZE_DEFAULT]->symbol) {
     for (int i = FLOAT_SIZE_32; i < FLOAT_SIZE_NUM; i++) {
-      cloneParameterizedPrimitive(fn, def, get_width(dtReal[i]));
+      cloneParameterizedPrimitive(fn, formal, query, get_width(dtReal[i]));
     }
 
   } else if (callFnSym == dtComplex[COMPLEX_SIZE_DEFAULT]->symbol) {
     for (int i = COMPLEX_SIZE_64; i < COMPLEX_SIZE_NUM; i++) {
-      cloneParameterizedPrimitive(fn, def, get_width(dtComplex[i]));
+      cloneParameterizedPrimitive(fn, formal, query, get_width(dtComplex[i]));
     }
   }
 
@@ -3044,21 +3048,29 @@ static void cloneParameterizedPrimitive(FnSymbol* fn, CallExpr* typeSpecifier) {
 }
 
 static void cloneParameterizedPrimitive(FnSymbol* fn,
-                                        DefExpr*  def,
+                                        ArgSymbol* formal,
+                                        Expr*     query,
                                         int       width) {
-  SymbolMap             map;
-  FnSymbol*             newFn  = fn->copy(&map);
-  Symbol*               newSym = map.get(def->sym);
-  std::vector<SymExpr*> symExprs;
+  SymbolMap map;
+  FnSymbol* newFn = fn->copy(&map);
 
-  newSym->defPoint->replace(new SymExpr(new_IntSymbol(width)));
+  if (DefExpr* def = toDefExpr(query)) {
+    Symbol* newSym = map.get(def->sym);
+    std::vector<SymExpr*> symExprs;
 
-  collectSymExprs(newFn, symExprs);
+    newSym->defPoint->replace(new SymExpr(new_IntSymbol(width)));
 
-  for_vector(SymExpr, se, symExprs) {
-    if (se->symbol() == newSym) {
-      se->setSymbol(new_IntSymbol(width));
+    collectSymExprs(newFn, symExprs);
+
+    for_vector(SymExpr, se, symExprs) {
+      if (se->symbol() == newSym) {
+        se->setSymbol(new_IntSymbol(width));
+      }
     }
+  } else {
+    ArgSymbol* newFormal = toArgSymbol(map.get(formal));
+    CallExpr* typeSpecifier = toCallExpr(newFormal->typeExpr->body.tail);
+    typeSpecifier->get(1)->replace(new SymExpr(new_IntSymbol(width)));
   }
 
   fn->defPoint->insertAfter(new DefExpr(newFn));
