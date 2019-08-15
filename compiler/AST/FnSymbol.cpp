@@ -779,7 +779,7 @@ int FnSymbol::hasGenericFormals(SymbolMap* map) const {
         if (typeHasGenericDefaults               == false ||
             formal->hasFlag(FLAG_MARKED_GENERIC) == true ||
             formal                               == _this) {
-          if (!(map != NULL && formal == _this && (isInitializer() || isCopyInit()))) {
+          if (!(formal == _this && (isInitializer() || isCopyInit()))) {
             isGeneric = true;
           }
         }
