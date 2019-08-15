@@ -6510,11 +6510,11 @@ static void resolveCoerce(CallExpr* call) {
 *                                                                             *
 ************************************** | *************************************/
 
-static Type* resolveGenericActual(SymExpr* se);
+static Type* resolveGenericActual(SymExpr* se, bool resolvePartials = false);
 static Type* resolveGenericActual(SymExpr* se, Type* type);
 
 Type* resolveDefaultGenericTypeSymExpr(SymExpr* se) {
-  return resolveGenericActual(se);
+  return resolveGenericActual(se, true);
 }
 
 void resolveGenericActuals(CallExpr* call) {
@@ -6533,7 +6533,7 @@ void resolveGenericActuals(CallExpr* call) {
   }
 }
 
-static Type* resolveGenericActual(SymExpr* se) {
+static Type* resolveGenericActual(SymExpr* se, bool resolvePartials) {
   Type* retval = se->typeInfo();
 
   if (TypeSymbol* ts = toTypeSymbol(se->symbol())) {
@@ -6541,7 +6541,6 @@ static Type* resolveGenericActual(SymExpr* se) {
 
   } else if (VarSymbol* vs = toVarSymbol(se->symbol())) {
     if (vs->hasFlag(FLAG_TYPE_VARIABLE) == true) {
-      //Type* origType = vs->typeInfo();
 
       // Fix for complicated extern vars like
       //   extern var x: c_ptr(c_int);
@@ -6552,7 +6551,10 @@ static Type* resolveGenericActual(SymExpr* se) {
         vs->type = resolveTypeAlias(se);
       }
 
-      //retval = resolveGenericActual(se, origType);
+      if (resolvePartials) {
+        Type* origType = vs->typeInfo();
+        retval = resolveGenericActual(se, origType);
+      }
     }
   }
 
