@@ -1389,7 +1389,8 @@ static const char* prettyPrintString(VarSymbol* var, bool cname) {
 static const char* buildValueName(Symbol* field, bool cname) {
   if (field->hasFlag(FLAG_PARAM)) {
     Symbol* sym = paramMap.get(field);
-    if (VarSymbol* var = toVarSymbol(sym)) {
+    VarSymbol* var = toVarSymbol(sym);
+    if (var && var->immediate) {
       std::string ret;
       Type* type = var->type;
 
