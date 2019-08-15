@@ -1972,6 +1972,12 @@ static void normalizeTypeAlias(DefExpr* defExpr) {
   INT_ASSERT(type == NULL);
   INT_ASSERT(init != NULL);
 
+  if (SymExpr* se = toSymExpr(init)) {
+    if (isTypeSymbol(se->symbol()) && isAggregateType(se->typeInfo())) {
+      init = new CallExpr(se->symbol());
+    }
+  }
+
   CallExpr* move = new CallExpr(PRIM_MOVE, var, init->copy());
 
   if (var->hasFlag(FLAG_EXTERN)) {
