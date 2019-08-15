@@ -6932,11 +6932,11 @@ static void resolveCoerce(CallExpr* call) {
 *                                                                             *
 ************************************** | *************************************/
 
-static Type* resolveGenericActual(SymExpr* se, bool decayToBorrow);
+static Type* resolveGenericActual(SymExpr* se, bool decayToBorrow, bool resolvePartials = false);
 static Type* resolveGenericActual(SymExpr* se, Type* type, bool decayToBorrow);
 
 Type* resolveDefaultGenericTypeSymExpr(SymExpr* se) {
-  return resolveGenericActual(se, false);
+  return resolveGenericActual(se, false, true);
 }
 
 void resolveGenericActuals(CallExpr* call) {
@@ -6961,7 +6961,7 @@ void resolveGenericActuals(CallExpr* call) {
   }
 }
 
-static Type* resolveGenericActual(SymExpr* se, bool decayToBorrow) {
+static Type* resolveGenericActual(SymExpr* se, bool decayToBorrow, bool resolvePartials) {
   Type* retval = se->typeInfo();
 
   if (TypeSymbol* ts = toTypeSymbol(se->symbol())) {
@@ -6969,7 +6969,6 @@ static Type* resolveGenericActual(SymExpr* se, bool decayToBorrow) {
 
   } else if (VarSymbol* vs = toVarSymbol(se->symbol())) {
     if (vs->hasFlag(FLAG_TYPE_VARIABLE) == true) {
-      //Type* origType = vs->typeInfo();
 
       // Fix for complicated extern vars like
       //   extern var x: c_ptr(c_int);
@@ -6980,7 +6979,10 @@ static Type* resolveGenericActual(SymExpr* se, bool decayToBorrow) {
         vs->type = resolveTypeAlias(se);
       }
 
-      //retval = resolveGenericActual(se, origType);
+      if (resolvePartials) {
+        Type* origType = vs->typeInfo();
+        retval = resolveGenericActual(se, origType);
+      }
     }
   }
 
