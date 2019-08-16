@@ -3142,6 +3142,11 @@ static void fixupQueryFormals(FnSymbol* fn) {
 
       } else if (isQueryForGenericTypeSpecifier(formal) == true) {
         expandQueryForGenericTypeSpecifier(fn, formal);
+      } else if (SymExpr* se = toSymExpr(tail)) {
+        if (se->symbol() == gUninstantiated) {
+          formal->typeExpr->remove();
+          formal->type = dtAny;
+        }
       }
     }
   }
