@@ -1,6 +1,1 @@
-$CHPL_HOME/modules/internal/ChapelIteratorSupport.chpl:202: error: returning a generic type variable is not supported
-$CHPL_HOME/modules/internal/ChapelTuple.chpl:85: error: returning a generic type variable is not supported
-$CHPL_HOME/modules/internal/ChapelIteratorSupport.chpl:98: error: returning a generic type variable is not supported
-$CHPL_HOME/modules/internal/ChapelBase.chpl:931: error: returning a generic type variable is not supported
-$CHPL_HOME/modules/internal/ChapelArray.chpl:4512: error: the type of the actual argument 'elt' is generic
-note: generic actual arguments are not currently supported
+yieldGeneric.chpl:14: error: Cannot assign to _ddata(unmanaged C) from _ddata(unmanaged C)
