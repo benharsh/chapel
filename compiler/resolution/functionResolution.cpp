@@ -5326,10 +5326,10 @@ static void resolveInitVar(CallExpr* call) {
       //   var x : MyGenericType = <expr>;
       // if the type of <expr> is not an instantiation of 'MyGenericType'.
       // Left as future work until 'init=' design finalized.
-      if (inst == NULL) {
-        //USR_FATAL(call, "Could not coerce '%s' to '%s' in initialization",
-        //          srcType->symbol->name,
-        //          targetType->symbol->name);
+      if (inst == NULL && isRecord(targetType) == false) {
+        USR_FATAL(call, "Could not coerce '%s' to '%s' in initialization",
+                  srcType->symbol->name,
+                  targetType->symbol->name);
       } else if (inst != NULL) {
         targetType = inst;
       }
