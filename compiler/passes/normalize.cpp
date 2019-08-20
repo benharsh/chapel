@@ -3421,8 +3421,10 @@ static void expandQueryForGenericTypeSpecifier(FnSymbol*  fn,
                                                BaseAST* queried) {
 
   int position = 1;
+  bool isTuple = false;
 
   if (call->isNamed("_build_tuple")) {
+    isTuple = true;
     Expr*     actual = new SymExpr(new_IntSymbol(call->numActuals()));
     CallExpr* query  = makePrimQuery(queried, new_CStringSymbol("size"));
 
@@ -3506,8 +3508,23 @@ static void expandQueryForGenericTypeSpecifier(FnSymbol*  fn,
     // not a NamedExpr? handled in next loop.
   }
 
+  bool foundUninstantiated = false;
   for_actuals(actual, call) {
     if (isNamedExpr(actual) == false) {
+      if (isSymExpr(actual) && toSymExpr(actual)->symbol() == gUninstantiated) {
+        if (!isTuple) {
+          if (foundUninstantiated) {
+            USR_FATAL_CONT(call, "formal '%s' may not have a type expression with multiple '?'", formal->name);
+            USR_PRINT(call, "'?' cannot be used to positionally indicate uninstantiated fields");
+          } else {
+            foundUninstantiated = true;
+          }
+        }
+      } else if (foundUninstantiated) {
+        USR_FATAL_CONT(call, "type expression of formal '%s' cannot use '?' before other arguments to a type specifier", formal->name);
+        USR_PRINT(call, "'?' cannot be used to positionally indicate uninstantiated fields");
+      }
+
       CallExpr* query = gatheringNamedArgs->copy();
       query->insertAtTail(new SymExpr(new_IntSymbol(position)));
 

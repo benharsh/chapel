@@ -919,7 +919,7 @@ static void checkValidPartial(Expr* expr, Expr* errExpr, const char* errTypeStri
   bool error = false;
   bool first = true;
   for_set(Symbol, sym, syms) {
-    if (isTypeSymbol(sym->defPoint->parentSymbol)) {
+    if (isTypeSymbol(sym->defPoint->parentSymbol) && sym->defPoint->parentExpr == NULL) {
       if (sym->type == dtUnknown || sym->type->symbol->hasFlag(FLAG_GENERIC)) {
         error = true;
         if (first) {

@@ -548,7 +548,14 @@ static Expr* preFoldPrimOp(CallExpr* call) {
   }
 
   case PRIM_IS_BOUND: {
-    AggregateType* at = toAggregateType(call->get(1)->getValType());
+    AggregateType* at = NULL;
+    Type* thisType = call->get(1)->getValType();
+    if (AggregateType* type = toAggregateType(thisType)) {
+      at = type;
+    } else if (DecoratedClassType* dc = toDecoratedClassType(thisType)) {
+      at = dc->getCanonicalClass();
+    }
+
     Immediate* imm = toVarSymbol(toSymExpr(call->get(2))->symbol())->immediate;
     Symbol* field = at->getField(imm->v_string);
     if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
