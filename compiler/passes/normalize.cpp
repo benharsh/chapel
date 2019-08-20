@@ -3509,19 +3509,23 @@ static void expandQueryForGenericTypeSpecifier(FnSymbol*  fn,
   }
 
   bool foundUninstantiated = false;
+  bool multipleQuestionError = false;
+  bool positionalQuestionError = false;
   for_actuals(actual, call) {
     if (isNamedExpr(actual) == false) {
       if (isSymExpr(actual) && toSymExpr(actual)->symbol() == gUninstantiated) {
         if (!isTuple) {
-          if (foundUninstantiated) {
+          if (foundUninstantiated && !multipleQuestionError) {
+            multipleQuestionError = true;
             USR_FATAL_CONT(call, "formal '%s' may not have a type expression with multiple '?'", formal->name);
             USR_PRINT(call, "'?' cannot be used to positionally indicate uninstantiated fields");
           } else {
             foundUninstantiated = true;
           }
         }
-      } else if (foundUninstantiated) {
-        USR_FATAL_CONT(call, "type expression of formal '%s' cannot use '?' before other arguments to a type specifier", formal->name);
+      } else if (foundUninstantiated && !positionalQuestionError) {
+        positionalQuestionError = true;
+        USR_FATAL_CONT(call, "type expression of formal '%s' cannot use '?' before unnamed arguments to a type specifier", formal->name);
         USR_PRINT(call, "'?' cannot be used to positionally indicate uninstantiated fields");
       }
 
