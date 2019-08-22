@@ -293,6 +293,9 @@ module SharedObject {
       then
         compilerError("cannot create a non-nilable shared variable from a nilable class instance");
 
+      if isSubtype(src.chpl_t, this.type.chpl_t) == false then
+        compilerError("'", src.type:string, "' is not a subtype of '", this.type:string, "'");
+
       this.chpl_t = this.type.chpl_t;
       this.chpl_p = src.chpl_p;
       this.chpl_pn = src.chpl_pn;

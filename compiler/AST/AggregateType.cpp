@@ -817,8 +817,6 @@ AggregateType* AggregateType::generateType(CallExpr* call, const char* callStrin
   if (ret != this) {
     ret->instantiatedFrom = this;
 
-    makeRefType(ret);
-
     if (ret->resolveStatus != RESOLVED) {
       ret->resolveStatus = RESOLVED;
       // TODO: How to handle cases where generic fields lean on non-generic
@@ -840,8 +838,18 @@ AggregateType* AggregateType::generateType(CallExpr* call, const char* callStrin
       // concrete fields after generic fields are resolved.
       //
 
+      for_fields(field, ret) {
+        if (field->hasFlag(FLAG_TYPE_VARIABLE) && field->type->symbol->hasFlag(FLAG_GENERIC)) {
+          ret->symbol->addFlag(FLAG_GENERIC);
+          break;
+        }
+      }
+
       // Resolve the remaining non-generic fields
       if (ret->symbol->hasFlag(FLAG_GENERIC) == false) {
+
+        makeRefType(ret);
+
         for (int index = 1; index <= numFields(); index = index + 1) {
           Symbol* field = ret->getField(index);
           if (field->hasFlag(FLAG_PARAM) == false &&
@@ -905,6 +913,7 @@ static Expr* resolveFieldExpr(Expr* expr, bool addCopy) {
 }
 
 static void checkValidPartial(Expr* expr, Expr* errExpr, const char* errTypeString) {
+  return;
   std::vector<SymExpr*> ses;
   collectSymExprs(expr, ses);
   std::set<Symbol*> syms;

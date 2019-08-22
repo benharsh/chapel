@@ -643,8 +643,19 @@ static bool instantiatedFieldsMatch(Type* actualType, Type* formalType) {
         formalIdx += 1;
       } else {
         const char* name = fields[i]->name;
-        bool cur = actual->getField(name)->type == formal->getField(name)->type;
-        ret = ret && cur;
+        Type* actualField = actual->getField(name)->type;
+        Type* formalField = formal->getField(name)->type;
+        if (actualField == formalField) {
+          ret = true;
+        } else if (formalField->symbol->hasFlag(FLAG_GENERIC) &&
+                   isAggregateType(formalField) &&
+                   isAggregateType(actualField) &&
+                   instantiatedFieldsMatch(actualField, formalField)) {
+          ret = true;
+        } else {
+          ret = false;
+          break;
+        }
       }
     }
 
@@ -1385,6 +1396,10 @@ bool canCoerce(Type*     actualType,
       // are the decorated class types the same?
       if (actualC == formalC)
         return true;
+      else if (formalC->symbol->hasFlag(FLAG_GENERIC) &&
+               instantiatedFieldsMatch(actualC, formalC)) {
+        return true;
+      }
 
       // are we passing a subclass?
       AggregateType* actualParent = actualC;

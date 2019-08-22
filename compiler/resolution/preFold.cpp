@@ -558,7 +558,8 @@ static Expr* preFoldPrimOp(CallExpr* call) {
 
     Immediate* imm = toVarSymbol(toSymExpr(call->get(2))->symbol())->immediate;
     Symbol* field = at->getField(imm->v_string);
-    if (field->type == dtUnknown || field->type->symbol->hasFlag(FLAG_GENERIC)) {
+    if (at->symbol->hasFlag(FLAG_GENERIC) &&
+        std::find(at->genericFields.begin(), at->genericFields.end(), field) != at->genericFields.end()) {
       retval = new SymExpr(gFalse);
     } else {
       retval = new SymExpr(gTrue);
