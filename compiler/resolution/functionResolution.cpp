@@ -2834,6 +2834,16 @@ static Type* resolveTypeSpecifier(CallInfo& info) {
     if (ret && dt) {
       ret = getDecoratedClass(ret, dt->getDecorator());
       INT_ASSERT(ret);
+    } else if (ret && isManagedPtrType(ts->typeInfo())) {
+      AggregateType* managed = toAggregateType(ts->typeInfo());
+      if (managed->instantiatedFrom) {
+        AggregateType* root = managed->getRootInstantiation();
+        CallExpr* again = new CallExpr(root->symbol, ret->symbol);
+        info.call->getStmtExpr()->insertBefore(again);
+        resolveCall(again);
+        ret = again->typeInfo();
+        again->remove();
+      }
     }
   }
 
