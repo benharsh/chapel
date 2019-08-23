@@ -90,3 +90,57 @@ proc baz(x : P) {
 // should add more overloads of 'baz' with different param instantiations.
 baz(new P(123, 1.0));
 baz(new P(123, 99.99));
+
+writeln("--------------------");
+
+class C {
+  type T;
+  param n : int;
+  var x : T;
+}
+
+proc foobar(x : owned C(int)) {
+  writeln("foobar(owned C(int))");
+  writeln(x.type:string, ": ", x);
+  writeln();
+}
+
+proc foobar(x : owned C(real)) {
+  writeln("foobar(owned C(real))");
+  writeln(x.type:string, ": ", x);
+  writeln();
+}
+
+proc foobar(x) {
+  writeln("foobar(?)");
+  writeln(x.type:string, ": ", x);
+  writeln();
+}
+
+foobar(new owned C(int, 4));
+foobar(new owned C(int, 100));
+foobar(new owned C(real, 3));
+foobar(new owned C(string, 10));
+
+proc barfoo(x : owned C(n=4)) {
+  writeln("barfoo(owned C(n=4))");
+  writeln(x.type:string, ": ", x);
+  writeln();
+}
+
+proc barfoo(x : owned C(n=100)) {
+  writeln("barfoo(owned C(n=100))");
+  writeln(x.type:string, ": ", x);
+  writeln();
+}
+
+proc barfoo(x) {
+  writeln("barfoo(?)");
+  writeln(x.type:string, ": ", x);
+  writeln();
+}
+
+barfoo(new owned C(string, 4));
+barfoo(new owned C(int, 4));
+barfoo(new owned C(int, 100));
+barfoo(new owned C(real, 1));

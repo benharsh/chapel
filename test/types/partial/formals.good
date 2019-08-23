@@ -25,3 +25,28 @@ baz(P(U=real,y=1.0))
 P(int(64),123,real(64),1.0)
 
 baz(P)
+--------------------
+foobar(owned C(int))
+owned C(int(64),4): {x = 0}
+
+foobar(owned C(int))
+owned C(int(64),100): {x = 0}
+
+foobar(owned C(real))
+owned C(real(64),3): {x = 0.0}
+
+foobar(?)
+owned C(string,10): {x = }
+
+barfoo(owned C(n=4))
+owned C(string,4): {x = }
+
+barfoo(owned C(n=4))
+owned C(int(64),4): {x = 0}
+
+barfoo(owned C(n=100))
+owned C(int(64),100): {x = 0}
+
+barfoo(?)
+owned C(real(64),1): {x = 0.0}
+

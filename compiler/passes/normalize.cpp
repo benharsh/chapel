@@ -3215,6 +3215,8 @@ static bool isGenericActual(Expr* expr) {
   return false;
 }
 
+static bool isPartialTypeCall(CallExpr* call);
+
 // 2 types of generic actuals:
 //  1. Generic type symbol as a leaf, where that type does not have
 //     defaults for every field)
@@ -3232,7 +3234,7 @@ static bool doesCallContainGenericActual(CallExpr* call) {
       }
 
     } else if (CallExpr* subcall = toCallExpr(actual)) {
-      if (doesCallContainGenericActual(subcall)) {
+      if (doesCallContainGenericActual(subcall) || isPartialTypeCall(subcall)) {
         return true;
       }
     }
@@ -3388,7 +3390,7 @@ static void expandQueryForActual(FnSymbol*  fn,
     } else {
       INT_FATAL("case not handled");
     }
-  } else if (subcall && doesCallContainGenericActual(subcall)) {
+  } else if (subcall && (doesCallContainGenericActual(subcall) || isPartialTypeCall(subcall))) {
     Expr* subtype = NULL;
     if (TypeSymbol* ts = getTypeForSpecialConstructor(subcall)) {
       subtype = new SymExpr(ts);
