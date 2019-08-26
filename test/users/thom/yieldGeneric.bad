@@ -1,1 +1,1 @@
-yieldGeneric.chpl:14: error: Cannot assign to _ddata(unmanaged C) from _ddata(unmanaged C)
+$CHPL_HOME/modules/internal/ChapelArray.chpl:4558: error: Could not coerce 'nil' to '_ddata(unmanaged C)' in initialization

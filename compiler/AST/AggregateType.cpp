@@ -913,7 +913,6 @@ static Expr* resolveFieldExpr(Expr* expr, bool addCopy) {
 }
 
 static void checkValidPartial(Expr* expr, Expr* errExpr, const char* errTypeString) {
-  return;
   std::vector<SymExpr*> ses;
   collectSymExprs(expr, ses);
   std::set<Symbol*> syms;
