@@ -1512,14 +1512,24 @@ static bool buildFieldNames(AggregateType* at, std::string& str, bool cname) {
 void AggregateType::renameInstantiation() {
   std::string name = getRootInstantiation()->symbol->name;
   std::string cname = name + "_";
-  name += "(";
 
-  buildFieldNames(this, name, false);
-  buildFieldNames(this, cname, true);
-
-  name += ")";
+  if (!developer && isManagedPtrType(this)) {
+    name = toString(this, false);
+  } else if (!developer && symbol->hasFlag(FLAG_SYNC)) {
+    name = "sync ";
+    buildFieldNames(this, name, false);
+  } else if (!developer && symbol->hasFlag(FLAG_SINGLE)) {
+    name = "single ";
+    buildFieldNames(this, name, false);
+  } else {
+    name += "(";
+    buildFieldNames(this, name, false);
+    name += ")";
+  }
 
   symbol->name = astr(name);
+
+  buildFieldNames(this, cname, true);
   symbol->cname = astr(cname);
 }
 
