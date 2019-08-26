@@ -90,6 +90,12 @@ static void removeUnusedFunctions() {
           clearDefaultInitFns(fn);
 
           fn->defPoint->remove();
+        } else if (fn->isResolved() && fn->retTag == RET_TYPE) {
+          Type* type = fn->retType;
+          if (type->symbol->hasFlag(FLAG_RUNTIME_TYPE_VALUE) == false &&
+              type->symbol->hasFlag(FLAG_EXTERN) == false) {
+            fn->defPoint->remove();
+          }
         }
       }
     }
