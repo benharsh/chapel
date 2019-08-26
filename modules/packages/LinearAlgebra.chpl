@@ -433,6 +433,31 @@ proc eye(Dom: domain(2), type eltType=real) {
 // Matrix Operations
 //
 
+
+/* Sets the value of a diagonal in a matrix. If the matrix is sparse, 
+    indices on the diagonal will be added to its domain
+
+    ``k > 0``, represents an upper diagonal starting
+    from the ``k``th column, ``k == 0`` represents the main 
+    diagonal, ``k < 0`` represents a lower diagonal starting
+    from the ``-k``th row. ``k`` is 0-indexed.
+*/
+proc setDiag (ref X: [?D] ?eltType, in k: int = 0, val: eltType = 0) 
+              where isDenseMatrix(X) {
+  var start, end = 0;
+  if (k >= 0) { // upper or main diagonal
+    start = 1;
+    end = D.shape(1) - k;
+  }
+  else { // lower diagonal
+    start = 1 - k;
+    end = D.shape(1);
+  }
+  forall row in {start..end} {
+    X(row, row+k) = val;
+  }
+}
+
 pragma "no doc"
 inline proc transpose(D: domain(1)) {
   return D;
@@ -631,15 +656,61 @@ private proc _matmatMult(A: [?Adom] ?eltType, B: [?Bdom] eltType)
   return C;
 }
 
+pragma "no doc"
+/* Returns ``true`` if the domain is distributed */
+private proc isDistributed(a) param {
+  return !isSubtype(a.domain.dist.type, DefaultDist);
+}
 
 /* Inner product of 2 vectors. */
-proc inner(A: [?Adom], B: [?Bdom]) {
+proc inner(const ref A: [?Adom] ?eltType, const ref B: [?Bdom]) {
   if Adom.rank != 1 || Bdom.rank != 1 then
     compilerError("Rank sizes are not 1");
   if Adom.size != Bdom.size then
     halt("Mismatched size in inner multiplication");
+    
+  var result: eltType = 0;
+  
+  if !isDistributed(A) {
+    result = + reduce (A*B);
+  }
+  else {
+    // Replaces `+ reduce (A*B)` for improved distributed performance
 
-  return + reduce(A[..]*B[..]);
+    var localResults: [Locales.domain] eltType = 0;
+
+    coforall l in Locales do on l {
+      const maxThreads = if dataParTasksPerLocale==0 
+                         then here.maxTaskPar else dataParTasksPerLocale;
+      const localDomain = A.localSubdomain();
+      const iterPerThread = divceil(localDomain.size, maxThreads);
+      var localResult: eltType = 0; 
+      var threadResults: [0..#maxThreads] eltType = 0;
+
+      coforall tid in 0..#maxThreads {
+        const startid = localDomain.low + tid * iterPerThread;
+        const temp_endid = startid + iterPerThread - 1;
+        const endid = if localDomain.high < temp_endid
+                      then  localDomain.high else temp_endid;
+        var myResult: eltType = 0;
+        for ind in startid..endid {
+          myResult += A.localAccess(ind) * B.localAccess(ind);
+        }
+        threadResults[tid] = myResult;
+      }
+
+      for tr in threadResults {
+        localResult += tr;
+      }
+      localResults[here.id] = localResult;
+    }
+
+    for r in localResults {
+      result += r;
+    }
+  }
+  
+  return result;
 }
 
 
@@ -702,6 +773,37 @@ proc _matmatMult(A: [?Adom] ?eltType, B: [?Bdom] eltType)
   return C;
 }
 
+/*
+  Returns the inverse of ``A`` square matrix A.
+  
+  
+    .. note::
+
+      This procedure depends on the :mod:`LAPACK` module, and will generate a
+      compiler error if ``lapackImpl`` is ``none``.
+*/
+proc inv (ref A: [?Adom] ?eltType, overwrite=false) where usingLAPACK {
+  if Adom.rank != 2 then
+    halt("Wrong rank for matrix inverse");
+
+  if !isSquare(A) then
+    halt("Matrix inverse only supports square matrices");
+
+  const n = Adom.shape(1);
+  var ipiv : [1..n] c_int;
+  
+  if (!overwrite) {
+    var A_clone = A;
+    LAPACK.getrf(lapack_memory_order.row_major, A_clone, ipiv);
+    LAPACK.getri(lapack_memory_order.row_major, A_clone, ipiv);
+    return A_clone;
+  }
+  
+  LAPACK.getrf(lapack_memory_order.row_major, A, ipiv);
+  LAPACK.getri(lapack_memory_order.row_major, A, ipiv);
+
+  return A;
+}
 
 /*
   Return the matrix ``A`` to the ``bth`` power, where ``b`` is a positive
@@ -1042,6 +1144,192 @@ proc trace(A: [?D] ?eltType) {
   return trace;
 }
 
+private proc _lu (in A: [?Adom] ?eltType) {
+  const n = Adom.shape(1);
+  const LUDom = {1..n, 1..n};
+
+  // TODO: Reduce memory usage
+  var L, U, LU: [LUDom] eltType;
+
+  var ipiv: [{1..n}] int = [i in {1..n}] i;
+  
+  var numSwap: int = 0;
+
+  for i in 1..n { 
+
+    var max = A[i,i], swaprow = i;
+    for row in (i+1)..n {
+      if (abs(A[row,i]) > abs(max)) {
+        max = A[row,i];
+        swaprow = row;
+      }
+    }
+    if (swaprow != i) {
+      A[i,..] <=> A[swaprow,..];
+      L[i,..] <=> L[swaprow,..];
+      ipiv[i] <=> ipiv[swaprow];
+      numSwap+=1;
+    }
+
+    forall k in i..n {
+      var sum = + reduce (L[i,..] * U[..,k]);
+      U[i,k] = A[i,k] - sum;
+    }
+
+    L[i,i] = 1;
+
+    forall k in (i+1)..n {
+      var sum = + reduce (L[k,..] * U[..,i]);
+      L[k,i] = (A[k,i] - sum) / U[i,i];
+    }
+  } 
+
+  LU = L + U;
+  forall i in 1..n {
+    LU(i,i) = U(i,i);
+  }
+
+  return (LU,ipiv,numSwap);
+}
+
+/*
+  Compute an LU factorization of square matrix `A` 
+  using partial pivoting, such that `A = P * L * U` where P
+  is a permutation matrix. Return a tuple of size 2 `(LU, ipiv)`.
+  
+  `L` and `U` are stored in the same matrix `LU` where 
+  the unit diagonal elements of L are not stored.
+  
+  `ipiv` contains the pivot indices such that row i of `A` 
+  was interchanged with row `ipiv(i)`.
+  
+*/
+proc lu (A: [?Adom] ?eltType) {
+  if Adom.rank != 2 then
+    halt("Wrong rank for LU factorization");
+
+  if Adom.shape(1) != Adom.shape(2) then
+    halt("LU factorization only supports square matrices");
+
+  var (LU, ipiv, numSwap) = _lu(A);
+  return (LU,ipiv);
+}
+
+/* Return a new array as the permuted form of `A` according to 
+    permutation array `ipiv`.*/
+private proc permute (ipiv: [] int, A: [?Adom] ?eltType, transpose=false) {
+  const n = Adom.shape(1);
+  
+  var B: [Adom] eltType;
+  
+  if Adom.rank == 1 {
+    if transpose {
+      forall (i,pi) in zip(1..n, ipiv) {
+        B[i] = A[pi];
+      }
+    }
+    else {
+      forall (i,pi) in zip(1..n, ipiv) {
+        B[pi] = A[i];
+      }
+    }
+  }
+  else if Adom.rank == 2 {
+    if transpose {
+      forall (i,pi) in zip(1..n, ipiv) {
+        B[i, ..] = A[pi, ..];
+      }
+    }
+    else {
+      forall (i,pi) in zip(1..n, ipiv) {
+        B[pi, ..] = A[i, ..];
+      }
+    }
+  }
+  return B;
+}
+
+/* Return the determinant of a square matrix.
+
+    .. note::
+
+      This procedure performs LU factorization to compute the 
+      determinant. In certain cases, e.g. having a lower/upper
+      triangular matrix, it is more desirable to compute the 
+      determinant manually.
+*/
+
+proc det (A: [?Adom] ?eltType) {
+  if Adom.rank != 2 then
+    halt("Wrong rank for computing determinant");
+
+  if Adom.shape(1) != Adom.shape(2) then
+    halt("Determinant can only be computed from square matrices");
+
+  var (LU,ipiv,numSwap) = _lu(A);
+  const pdet = if numSwap % 2 == 0 then 1 else -1;
+
+  // L[i,i] always = 1, so we only need to take the 
+  // diagonal product of U
+
+  return (* reduce [i in Adom.dim(1)] LU[i,i]) * pdet;
+}
+
+/* Return the solution ``x`` to the linear system `` L * x = b `` 
+    where ``L`` is a lower triangular matrix. Setting `unit_diag` to true
+    will assume the diagonal elements as `1` and will not be referenced 
+    within this procedure.
+*/
+proc solve_tril (const ref L: [?Ldom] ?eltType, const ref b: [?bdom] eltType, 
+                  unit_diag = true) {
+  const n = Ldom.shape(1);
+  var y = b;
+  
+  for i in 1..n {
+    const sol = if unit_diag then y(i) else y(i) / L(i,i);
+    y(i) = sol;
+    
+    if (i < n) {
+      forall j in (i+1)..n {
+        y(j) -= L(j,i) * sol;
+      }
+    }
+  }
+  
+  return y;
+}
+
+/* Return the solution ``x`` to the linear system `` U * x = b `` 
+    where ``U`` is an upper triangular matrix.
+*/
+proc solve_triu (const ref U: [?Udom] ?eltType, const ref b: [?bdom] eltType) {
+  const n = Udom.shape(1);
+  var y = b;
+  
+  for i in 1..n by -1 {
+    const sol = y(i) / U(i,i);
+    y(i) = sol;
+    
+    if (i > 1) {
+      forall j in 1..(i-1) by -1 {
+        y(j) -= U(j,i) * sol;
+      }
+    }
+  }
+  
+  return y;
+}
+
+/* Return the solution ``x`` to the linear system ``A * x = b``.
+*/
+proc solve (A: [?Adom] ?eltType, b: [?bdom] eltType) {
+  var (LU, ipiv) = lu(A);
+  b = permute (ipiv, b, true);
+  var z = solve_tril(LU, b);
+  var x = solve_triu(LU, z);
+  return x;
+}
+
 
 /* Perform a Cholesky factorization on matrix ``A``.  ``A`` must be square.
    Argument ``lower`` indicates whether to return the lower or upper
@@ -1283,6 +1571,49 @@ proc svd(A: [?Adom] ?t) throws
   return (u, s, vt);
 }
 
+/* 
+  Compute the approximate solution to ``A * x = b`` using the Jacobi method.
+  iteration will stop when ``maxiter`` is reached or error is smaller than
+  ``tol``, whichever comes first. Return the number of iterations performed.
+  
+  .. note::
+    ``X`` is passed as a reference, meaning the initial solution guess can be
+    stored in ``X`` before calling the procedure, and the approximate solution 
+    will be stored in the same array.
+    
+    Dense and CSR arrays are supported.
+*/
+proc jacobi(A: [?Adom] ?eltType, ref X: [?Xdom] eltType, 
+            b: [Xdom] eltType, tol = 0.0001, maxiter = 1000) {
+  if Adom.rank != 2 || X.rank != 1 || b.rank != 1 then
+    halt("Wrong shape of input matrix or vector");
+  if !isSquare(A) then
+    halt("Matrix A is not a square");
+  if Adom.shape(1) != Xdom.shape(1) then
+    halt("Mismatch shape between matrix side length and vector length");
+
+  var itern = 0, err: eltType = 1;
+
+  var t: [Xdom] eltType = 0;
+
+  while (itern < maxiter) {
+    itern = itern + 1;
+    forall i in Adom.dim(1) {
+      var sigma = 0.0;
+      for j in Adom.dim(2) {
+        if i!=j then sigma += A(i,j) * X(j);
+      }
+      t(i) = (b(i) - sigma) / A(i,i);
+    }
+    err = max reduce abs(t - X);
+    X = t;
+    if err < tol {
+      break;
+    }
+  }
+  return itern;
+}
+
 
 pragma "no doc"
 proc eig(A: [] ?t, param left = false, param right = false)
@@ -1335,14 +1666,28 @@ proc isDenseArr(A: [?D]) param : bool {
 pragma "no doc"
 /* Returns ``true`` if the domain is dense N-dimensional non-distributed domain. */
 proc isDenseDom(D: domain) param : bool {
-  return isRectangularDom(D) && (D.dist.type == defaultDist.type || D.dist.type < ArrayViewRankChangeDist);
+  return isRectangularDom(D);
+}
+
+// TODO: Add this to public interface eventually
+pragma "no doc"
+/* Returns ``true`` if the array is N-dimensional non-distributed array. */
+proc isLocalArr(A: [?D]) param : bool {
+  return isLocalDom(D);
+}
+
+// TODO: Add this to public interface eventually
+pragma "no doc"
+/* Returns ``true`` if the domain is dense N-dimensional non-distributed domain. */
+proc isLocalDom(D: domain) param : bool {
+  return (D.dist.type == defaultDist.type || D.dist.type < ArrayViewRankChangeDist);
 }
 
 // TODO: Add this to public interface eventually
 pragma "no doc"
 /* Returns ``true`` if the array is dense 2-dimensional non-distributed array. */
 proc isDenseMatrix(A: []) param : bool {
-  return A.rank == 2 && isDenseArr(A);
+  return A.rank == 2 && isDenseArr(A) && isLocalArr(A);
 }
 
 // Work-around for #8543
@@ -1491,7 +1836,9 @@ module Sparse {
 
   pragma "no doc"
   /* Return a CSR matrix over domain: ``Dom`` - Dense case */
-  proc CSRMatrix(Dom: domain, type eltType=real) where Dom.rank == 2 && isDenseDom(Dom) {
+  proc CSRMatrix(Dom: domain, type eltType=real) where Dom.rank == 2 && 
+                                                       isDenseDom(Dom) &&
+                                                       isLocalDom(Dom) {
     var csrDom = CSRDomain(Dom);
     var M: [csrDom] eltType;
     return M;
@@ -1832,7 +2179,7 @@ module Sparse {
 
   /* Transpose CSR domain */
   proc transpose(D: domain) where isCSDom(D) {
-    use Lists;
+    use List;
     var indices: list(2*D.idxType);
     for i in D.dim(1) {
       for j in D.dimIter(2, i) {
@@ -1951,6 +2298,66 @@ module Sparse {
       A[i,i] = 1 : eltType;
     }
     return A;
+  }
+  
+  pragma "no doc"
+  proc jacobi(A: [?Adom] ?eltType, ref X: [?Xdom] eltType, 
+              b: [Xdom] eltType, tol = 0.0001, maxiter = 1000) where isCSArr(A) {
+    if Adom.rank != 2 || X.rank != 1 || b.rank != 1 then
+      halt("Wrong shape of input matrix or vector");
+    if Adom.shape(1) != Adom.shape(2) then
+      halt("Matrix A is not a square");
+    if Adom.shape(1) != Xdom.shape(1) then
+      halt("Mismatch shape between matrix side length and vector length");
+  
+    var itern = 0, err: eltType = 1;
+  
+    var t: [Xdom] eltType = 0;
+  
+    while (itern < maxiter) {
+      itern = itern + 1;
+      forall i in Adom.dim(1) {
+        var sigma = 0.0;
+        for j in Adom.dimIter(2,i) {
+          if i!=j then sigma += A(i,j) * X(j);
+        }
+        t(i) = (b(i) - sigma) / A(i,i);
+      }
+      err = max reduce abs(t - X);
+      X = t;
+      if err < tol {
+        break;
+      }
+    }
+    return itern;
+  }
+
+  pragma "no doc"
+  proc setDiag (ref X: [?D] ?eltType, in k: int = 0, val: eltType = 0)
+                where isSparseArr(X) { 
+      if D.rank != 2 then
+        halt("Wrong rank for setDiag");
+
+      if D.shape(1) != D.shape(2) then
+        halt("setDiag only supports square matrices");
+        
+      var start, end = 0;
+      if (k >= 0) { // upper or main diagonal
+        start = 1;
+        end = D.shape(1) - k;
+      }
+      else { // lower diagonal
+        start = 1 - k;
+        end = D.shape(1);
+      }
+      var indices : [start..end] (D.idxType, D.idxType);
+      forall ind in {start..end} {
+        indices[ind] = (ind, ind+k);
+      }
+      D.bulkAdd(indices, dataSorted=true, isUnique=true, preserveInds=false);
+      forall ind in indices {
+        X(ind) = val;
+      }
   }
 
   //

@@ -275,7 +275,7 @@ module SharedObject {
     pragma "no doc"
     proc init=(pragma "nil from arg" in take: owned) {
       if isNonNilableClass(this.type) && isNilableClass(take) &&
-         !chpl_legacyNilClasses
+         !chpl_legacyClasses
       then
         compilerError("cannot create a non-nilable shared variable from a nilable class instance");
 
@@ -289,7 +289,7 @@ module SharedObject {
      */
     proc init=(pragma "nil from arg" const ref src:_shared(?)) {
       if isNonNilableClass(this.type) && isNilableClass(src) &&
-         !chpl_legacyNilClasses
+         !chpl_legacyClasses
       then
         compilerError("cannot create a non-nilable shared variable from a nilable class instance");
 
@@ -319,7 +319,7 @@ module SharedObject {
     proc init=(src : _nilType) {
       this.init(this.type.chpl_t);
 
-      if _to_nilable(chpl_t) != chpl_t && !chpl_legacyNilClasses {
+      if _to_nilable(chpl_t) != chpl_t && !chpl_legacyClasses {
         compilerError("Assigning non-nilable shared to nil");
       }
 
@@ -384,7 +384,7 @@ module SharedObject {
     proc /*const*/ borrow() {
       if _to_nilable(chpl_t) == chpl_t {
         return chpl_p;
-      } else if chpl_legacyNilClasses {
+      } else if chpl_legacyClasses {
         return _to_nonnil(chpl_p);
       } else {
         return chpl_p!;
@@ -402,11 +402,10 @@ module SharedObject {
      no other :record:`shared` referring to it. On return,
      ``lhs`` will refer to the same object as ``rhs``.
    */
-  proc =(ref lhs:_shared, rhs: _shared) {
-    if !chpl_legacyNilClasses && isNonNilableClass(lhs)
-                              && isNilableClass(rhs) then
-      compilerError("cannot assign to a non-nilable shared from a nilable shared");
-
+  proc =(ref lhs:_shared, rhs: _shared)
+    where chpl_legacyClasses ||
+          ! (isNonNilableClass(lhs) && isNilableClass(rhs))
+  {
     // retain-release
     if rhs.chpl_pn != nil then
       rhs.chpl_pn!.retain();
@@ -422,18 +421,16 @@ module SharedObject {
      On return, ``lhs`` will refer to the object previously
      managed by ``rhs``, and ``rhs`` will refer to `nil`.
    */
-  proc =(ref lhs:_shared, in rhs:owned) {
-    if isNonNilableClass(lhs) && isNilableClass(rhs) then
-      compilerError("cannot assign to a non-nilable shared variable from a nilable owned");
-
+  proc =(ref lhs:_shared, in rhs:owned)
+    where ! (isNonNilableClass(lhs) && isNilableClass(rhs))
+  {
     lhs.retain(rhs.release());
   }
 
   pragma "no doc"
-  proc =(ref lhs:shared, rhs:_nilType) {
-    if _to_nilable(lhs.chpl_t) != lhs.chpl_t && !chpl_legacyNilClasses {
-      compilerError("Assigning non-nilable shared to nil");
-    }
+  proc =(ref lhs:shared, rhs:_nilType)
+    where chpl_legacyClasses || ! isNonNilableClass(lhs)
+  {
     lhs.clear();
   }
 
@@ -468,15 +465,15 @@ module SharedObject {
 
   // cast to shared?, no class downcast
   pragma "no doc"
-  inline proc _cast(type t:shared?, pragma "nil from arg" in x:shared!)
-    where isSubtype(_to_nonnil(x.chpl_t),t.chpl_t)
+  inline proc _cast(type t:shared class?, pragma "nil from arg" in x:shared class)
+    where isSubtype(x.chpl_t,_to_nonnil(t.chpl_t))
   {
     return new _shared(true, _to_nilable(t.chpl_t), x);
   }
 
   // cast to shared?, no class downcast
   pragma "no doc"
-  inline proc _cast(type t:shared?, pragma "nil from arg" in x:shared?)
+  inline proc _cast(type t:shared class?, pragma "nil from arg" in x:shared class?)
     where isSubtype(x.chpl_t,t.chpl_t)
   {
     return new _shared(true, t.chpl_t, x);
@@ -484,7 +481,7 @@ module SharedObject {
 
   // cast to shared!, no class downcast, no casting away nilability
   pragma "no doc"
-  inline proc _cast(type t:shared!, pragma "nil from arg" in x:shared!)
+  inline proc _cast(type t:shared class, pragma "nil from arg" in x:shared class)
     where isSubtype(x.chpl_t,t.chpl_t)
   {
     return new _shared(true, t.chpl_t, x);
@@ -492,7 +489,7 @@ module SharedObject {
 
   // cast to shared!, no class downcast, casting away nilability
   pragma "no doc"
-  inline proc _cast(type t:shared!, pragma "nil from arg" in x:shared?) throws
+  inline proc _cast(type t:shared class, pragma "nil from arg" in x:shared class?) throws
     where isSubtype(_to_nonnil(x.chpl_t),t.chpl_t)
   {
     if x.chpl_p == nil {
@@ -503,7 +500,7 @@ module SharedObject {
   }
 
   // this version handles downcast to non-nil shared
-  inline proc _cast(type t:shared!, const ref x:shared?) throws
+  inline proc _cast(type t:shared class, const ref x:shared class?) throws
     where isProperSubtype(t.chpl_t,_to_nonnil(x.chpl_t))
   {
     if x.chpl_p == nil {
@@ -514,7 +511,7 @@ module SharedObject {
 
     return new _shared(true, _to_borrowed(p.type), p, x.chpl_pn);
   }
-  inline proc _cast(type t:shared!, const ref x:shared!) throws
+  inline proc _cast(type t:shared class, const ref x:shared class) throws
     where isProperSubtype(t.chpl_t,x.chpl_t)
   {
     // the following line can throw ClassCastError
@@ -525,14 +522,14 @@ module SharedObject {
 
 
   // this version handles downcast to nilable shared
-  inline proc _cast(type t:shared?, const ref x:shared?)
+  inline proc _cast(type t:shared class?, const ref x:shared class?)
     where isProperSubtype(t.chpl_t,x.chpl_t)
   {
     // this cast returns nil if the dynamic type is not compatible
     var p = x.chpl_p:_to_nilable(_to_unmanaged(t.chpl_t));
     return new _shared(true, _to_borrowed(p.type), p, x.chpl_pn);
   }
-  inline proc _cast(type t:shared?, const ref x:shared!)
+  inline proc _cast(type t:shared class?, const ref x:shared class)
     where isProperSubtype(t.chpl_t,_to_nilable(x.chpl_t))
   {
     // this cast returns nil if the dynamic type is not compatible
@@ -543,7 +540,7 @@ module SharedObject {
   // cast from nil to shared
   pragma "no doc"
   inline proc _cast(type t:_shared, pragma "nil from arg" x:_nilType) {
-    if _to_nilable(t.chpl_t) != t.chpl_t && !chpl_legacyNilClasses then
+    if _to_nilable(t.chpl_t) != t.chpl_t && !chpl_legacyClasses then
       compilerError("Illegal cast from nil to non-nilable shared type");
 
     var tmp:t;
@@ -565,6 +562,6 @@ module SharedObject {
     return _to_nonnil(x.chpl_p);
   }
   inline proc postfix!(type t:_shared) type {
-    return _shared(_to_nonnil(t.chpl_t));
+    return _to_borrowed(_to_nonnil(t.chpl_t));
   }
 }

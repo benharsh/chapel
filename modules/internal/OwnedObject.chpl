@@ -246,7 +246,7 @@ module OwnedObject {
      */
     proc init=(pragma "leaves arg nil" pragma "nil from arg" ref src:_owned) {
       if isNonNilableClass(this.type) && isNilableClass(src) &&
-         !chpl_legacyNilClasses
+         !chpl_legacyClasses
       then
         compilerError("cannot create a non-nilable owned variable from a nilable class instance");
 
@@ -278,7 +278,7 @@ module OwnedObject {
     proc init=(src : _nilType) {
       this.init(this.type.chpl_t);
 
-      if isNonNilableClass(chpl_t) && !chpl_legacyNilClasses {
+      if isNonNilableClass(chpl_t) && !chpl_legacyClasses {
         compilerError("Assigning non-nilable owned to nil");
       }
     }
@@ -342,7 +342,7 @@ module OwnedObject {
 
       if _to_nilable(chpl_t) == chpl_t {
         return _to_unmanaged(oldPtr);
-      } else if chpl_legacyNilClasses {
+      } else if chpl_legacyClasses {
         return _to_unmanaged(_to_nonnil(oldPtr));
       } else {
         return _to_unmanaged(oldPtr!);
@@ -361,7 +361,7 @@ module OwnedObject {
     proc /*const*/ borrow() {
       if _to_nilable(chpl_t) == chpl_t {
         return chpl_p;
-      } else if chpl_legacyNilClasses {
+      } else if chpl_legacyClasses {
         return _to_nonnil(chpl_p);
       } else {
         return chpl_p!;
@@ -384,12 +384,10 @@ module OwnedObject {
   */
   proc =(ref lhs:_owned,
          pragma "leaves arg nil"
-         ref rhs: _owned) {
-
-    if !chpl_legacyNilClasses && isNonNilableClass(lhs)
-                              && isNilableClass(rhs) then
-      compilerError("cannot assign to a non-nilable owned from a nilable owned");
-
+         ref rhs: _owned)
+    where chpl_legacyClasses ||
+          ! (isNonNilableClass(lhs) && isNilableClass(rhs))
+  {
     // Work around issues in associative arrays of owned
     // TODO: remove this workaround
     if lhs.chpl_p == nil && rhs.chpl_p == nil then
@@ -411,10 +409,9 @@ module OwnedObject {
   }
 
   pragma "no doc"
-  proc =(ref lhs:_owned, rhs:_nilType) {
-    if _to_nilable(lhs.chpl_t) != lhs.chpl_t && !chpl_legacyNilClasses {
-      compilerError("Assigning non-nilable owned to nil");
-    }
+  proc =(ref lhs:_owned, rhs:_nilType)
+    where chpl_legacyClasses || ! isNonNilableClass(lhs)
+  {
     lhs.clear();
   }
   /*
@@ -460,8 +457,8 @@ module OwnedObject {
 
   // cast to owned?, no class downcast
   pragma "no doc"
-  inline proc _cast(type t:owned?, pragma "nil from arg" in x:owned!)
-    where isSubtype(x.chpl_t,t.chpl_t)
+  inline proc _cast(type t:owned class?, pragma "nil from arg" in x:owned class)
+    where isSubtype(x.chpl_t,_to_nonnil(t.chpl_t))
   {
     var castPtr = x.chpl_p:_to_nilable(_to_unmanaged(t.chpl_t));
     x.chpl_p = nil;
@@ -471,7 +468,7 @@ module OwnedObject {
 
   // cast to owned?, no class downcast
   pragma "no doc"
-  inline proc _cast(type t:owned?, pragma "nil from arg" in x:owned?)
+  inline proc _cast(type t:owned class?, pragma "nil from arg" in x:owned class?)
     where isSubtype(x.chpl_t,t.chpl_t)
   {
     var castPtr = x.chpl_p:_to_nilable(_to_unmanaged(t.chpl_t));
@@ -482,7 +479,7 @@ module OwnedObject {
 
   // cast to owned!, no class downcast, no casting away nilability
   pragma "no doc"
-  inline proc _cast(type t:owned!, pragma "nil from arg" in x:owned!)
+  inline proc _cast(type t:owned class, pragma "nil from arg" in x:owned class)
     where isSubtype(x.chpl_t,t.chpl_t)
   {
     var castPtr = x.chpl_p:_to_nilable(_to_unmanaged(t.chpl_t));
@@ -493,7 +490,7 @@ module OwnedObject {
 
   // cast to owned!, no class downcast, casting away nilability
   pragma "no doc"
-  inline proc _cast(type t:owned!, pragma "nil from arg" in x:owned?) throws
+  inline proc _cast(type t:owned class, pragma "nil from arg" in x:owned class?) throws
     where isSubtype(_to_nonnil(x.chpl_t),t.chpl_t)
   {
     var castPtr = x.chpl_p:_to_nilable(_to_unmanaged(t.chpl_t));
@@ -506,7 +503,7 @@ module OwnedObject {
   }
 
   // this version handles downcast to non-nil owned
-  inline proc _cast(type t:owned!, ref x:owned?) throws
+  inline proc _cast(type t:owned class, ref x:owned class?) throws
     where isProperSubtype(t.chpl_t,_to_nonnil(x.chpl_t))
   {
     if x.chpl_p == nil {
@@ -517,7 +514,7 @@ module OwnedObject {
     x.chpl_p = nil;
     return new _owned(castPtr);
   }
-  inline proc _cast(type t:owned!, ref x:owned!) throws
+  inline proc _cast(type t:owned class, ref x:owned class) throws
     where isProperSubtype(t.chpl_t,x.chpl_t)
   {
     // the following line can throw ClassCastError
@@ -528,7 +525,7 @@ module OwnedObject {
 
 
   // this version handles downcast to nilable owned
-  inline proc _cast(type t:owned?, ref x:owned?)
+  inline proc _cast(type t:owned class?, ref x:owned class?)
     where isProperSubtype(t.chpl_t,x.chpl_t)
   {
     // this cast returns nil if the dynamic type is not compatible
@@ -539,7 +536,7 @@ module OwnedObject {
     return new _owned(castPtr);
   }
   // this version handles downcast to nilable owned
-  inline proc _cast(type t:owned?, ref x:owned!)
+  inline proc _cast(type t:owned class?, ref x:owned class)
     where isProperSubtype(_to_nonnil(t.chpl_t),x.chpl_t)
   {
     // this cast returns nil if the dynamic type is not compatible
@@ -556,7 +553,7 @@ module OwnedObject {
   // cast from nil to owned
   pragma "no doc"
   inline proc _cast(type t:_owned, pragma "nil from arg" x:_nilType) {
-    if _to_nilable(t.chpl_t) != t.chpl_t && !chpl_legacyNilClasses then
+    if _to_nilable(t.chpl_t) != t.chpl_t && !chpl_legacyClasses then
       compilerError("Illegal cast from nil to non-nilable owned type");
 
     var tmp:t;
@@ -578,6 +575,6 @@ module OwnedObject {
     return _to_nonnil(x.chpl_p);
   }
   inline proc postfix!(type t:_owned) type {
-    return _owned(_to_nonnil(t.chpl_t));
+    return _to_borrowed(_to_nonnil(t.chpl_t));
   }
 }

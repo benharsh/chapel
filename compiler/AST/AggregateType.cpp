@@ -1632,6 +1632,7 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Type* symType, Ex
       }
     }
   }
+  Symbol*     renameTo  = NULL;
 
   symbol->defPoint->insertBefore(new DefExpr(retval->symbol));
 
@@ -1674,12 +1675,12 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Type* symType, Ex
     }
 
     retval->substitutions.put(field, sym);
-    retval->symbol->renameInstantiatedSingle(sym);
+    renameTo = sym;
     paramMap.put(field,sym);
 
   } else {
     retval->substitutions.put(field, symType->symbol);
-    retval->symbol->renameInstantiatedSingle(symType->symbol);
+    renameTo = symType->symbol;
   }
 
   if (field->hasFlag(FLAG_TYPE_VARIABLE) == true && givesType(sym) == true) {
@@ -1700,6 +1701,8 @@ AggregateType* AggregateType::getNewInstantiation(Symbol* sym, Type* symType, Ex
       INT_FATAL("unexpected type for field instantiation");
     }
   }
+
+  retval->symbol->renameInstantiatedSingle(renameTo);
 
   forv_Vec(AggregateType, at, dispatchParents) {
     retval->dispatchParents.add(at);
@@ -2286,7 +2289,11 @@ void AggregateType::fieldToArg(FnSymbol*              fn,
           } else {
             fieldToArgType(defPoint, arg);
 
-            CallExpr* def    = new CallExpr("_createFieldDefault",
+            CallExpr* def    = new CallExpr(PRIM_DEFAULT_INIT_FIELD,
+                    // It would be easiest to just put 'field' here, however
+                    // it is replaced with 'arg' in buildDefaultInitializer().
+                    new_StringSymbol(field->defPoint->parentSymbol->name),
+                                            new_StringSymbol(field->name),
                                             defPoint->exprType->copy(),
                                             defPoint->init->copy());
 

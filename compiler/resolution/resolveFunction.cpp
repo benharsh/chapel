@@ -378,7 +378,7 @@ static void handleParamCNameFormal(FnSymbol* fn, ArgSymbol* formal) {
     USR_FATAL(fn, "extern name expression must be param");
   }
   VarSymbol* var = toVarSymbol(se->symbol());
-  if (!var->isParameter()) {
+  if (!var || !var->isParameter()) {
     USR_FATAL(fn, "extern name expression must be param");
   }
   if (var->type == dtString || var->type == dtStringC) {
@@ -482,6 +482,9 @@ void resolveFunction(FnSymbol* fn, CallExpr* forCall) {
       if (fn->isIterator() == true) {
         markIterator(fn);
       }
+
+      if (needsCapture(fn))
+        convertFieldsOfRecordThis(fn);
 
       insertFormalTemps(fn);
 
