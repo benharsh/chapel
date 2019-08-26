@@ -1993,7 +1993,8 @@ static void normalizeTypeAlias(DefExpr* defExpr) {
   INT_ASSERT(init != NULL);
 
   if (SymExpr* se = toSymExpr(init)) {
-    if (isTypeSymbol(se->symbol()) && isAggregateType(se->typeInfo())) {
+    if (isTypeSymbol(se->symbol()) &&
+        (isAggregateType(se->typeInfo()) || isDecoratedClassType(se->typeInfo()))) {
       init = new CallExpr(se->symbol());
     }
   }
