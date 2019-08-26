@@ -250,8 +250,8 @@ module OwnedObject {
       then
         compilerError("cannot create a non-nilable owned variable from a nilable class instance");
 
-      if isSubtype(src.chpl_t, this.type.chpl_t) == false then
-        compilerError("'", src.type:string, "' is not a subtype of '", this.type:string, "'");
+      if isCoercible(src.chpl_t, this.type.chpl_t) == false then
+        compilerError("Cannot coerce '", src.type:string, "' to '", this.type:string, "' in initialization");
 
       // Use 'this.type.chpl_t' in case RHS is a subtype
       this.chpl_t = this.type.chpl_t;

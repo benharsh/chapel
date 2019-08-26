@@ -293,8 +293,8 @@ module SharedObject {
       then
         compilerError("cannot create a non-nilable shared variable from a nilable class instance");
 
-      if isSubtype(src.chpl_t, this.type.chpl_t) == false then
-        compilerError("'", src.type:string, "' is not a subtype of '", this.type:string, "'");
+      if isCoercible(src.chpl_t, this.type.chpl_t) == false then
+        compilerError("Cannot coerce '", src.type:string, "' to '", this.type:string, "' in initialization");
 
       this.chpl_t = this.type.chpl_t;
       this.chpl_p = src.chpl_p;
