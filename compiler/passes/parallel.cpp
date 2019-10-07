@@ -194,6 +194,8 @@ static void create_arg_bundle_class(FnSymbol* fn, CallExpr* fcall, ModuleSymbol*
     // If it's a record-wrapped type we can just bit-copy into the arg bundle.
     if (isRecordWrappedType(var->getValType()))
       field->qual = QUAL_VAL;
+    else if (isSyncType(var->getValType()) || isSingleType(var->getValType()))
+      field->qual = QUAL_VAL;
     // If it's an new 'in' intent to task fn, it should be stored by value
     else if (shouldAddFormalTempAtCallSite(formal, fn))
       field->qual = QUAL_VAL;
@@ -304,9 +306,9 @@ static bool needsAutoCopyAutoDestroyForArg(ArgSymbol* formal, Expr* arg,
   // where we might take the reference of a sync on the stack, and that stack
   // is about to go away.
   //
-  if (isSyncType(baseType) || isSingleType(baseType)) {
-    return true;
-  }
+  //if (isSyncType(baseType) || isSingleType(baseType)) {
+  //  return true;
+  //}
 
   // This applies only to arguments being passed to asynchronous task
   // functions. No need to increment+decrement the reference counters

@@ -2249,6 +2249,17 @@ static void setupDefaultFilenames() {
 
 
 void codegen() {
+  forv_Vec(CallExpr, call, gCallExprs) {
+    if (call->isResolved()) {
+      FnSymbol* fn = call->resolvedFunction();
+      if (fn->hasFlag(FLAG_AUTO_COPY_FN)) {
+        if (isSyncType(fn->retType->getValType()) ||
+            isSingleType(fn->retType->getValType())) {
+          INT_ASSERT(false);
+        }
+      }
+    }
+  }
   if (no_codegen)
     return;
 
