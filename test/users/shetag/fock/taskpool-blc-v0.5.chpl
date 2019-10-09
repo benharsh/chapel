@@ -14,7 +14,7 @@ class taskpool {
   proc remove() {
     const pos = head;
     head = (pos+1)%poolSize;
-    return taskarr(pos);
+    return taskarr(pos).readFE();
   }
 }
 }

@@ -8637,8 +8637,6 @@ static const char* autoCopyFnForType(AggregateType* at) {
       at->symbol->hasFlag(FLAG_TUPLE)        == false &&
       at->symbol->hasFlag(FLAG_ITERATOR_RECORD) == false &&
       isRecordWrappedType(at)                == false &&
-      isSyncType(at)                         == false &&
-      isSingleType(at)                       == false &&
       at->symbol->hasFlag(FLAG_COPY_MUTATES) == false) {
     retval = "chpl__initCopy";
   }
