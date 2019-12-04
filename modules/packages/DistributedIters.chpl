@@ -149,6 +149,7 @@ where tag == iterKind.leader
     assert(parDim <= c.rank, ("DistributedIters: Dynamic iterator (leader): "
                               + "parDim must be a dimension of the domain"));
     var parDimDim = c.dim(parDim);
+    type locDomType = domain(c.rank, c.idxType, c.stridable);
     for t in distributedDynamic(tag=iterKind.leader,
                                 c=parDimDim,
                                 chunkSize=chunkSize,
@@ -163,7 +164,7 @@ where tag == iterKind.leader
 
       // Does the same thing as densify, but densify makes a stridable domain,
       // which mismatches here if c (and thus cType) is non-stridable.
-      var tempDom : cType = computeZeroBasedDomain(c);
+      var tempDom : locDomType = computeZeroBasedDomain(c);
 
       // Rank-change slice the domain along parDim
       var tempTup = tempDom.dims();
