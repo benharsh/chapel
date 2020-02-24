@@ -351,6 +351,13 @@ static void checkIntentsMatch(FnSymbol* pfn, FnSymbol* cfn) {
       // to continue compiling beyond this pass.
       ca->originalIntent = pa->originalIntent;
     }
+
+    if (pa->originalIntent == INTENT_PARAM &&
+        ca->originalIntent == INTENT_PARAM &&
+        pa->defaultExpr != NULL &&
+        ca->defaultExpr != NULL) {
+      USR_FATAL(ca, "overriding methods do not currently support param arguments with default expressions");
+    }
   }
 }
 
