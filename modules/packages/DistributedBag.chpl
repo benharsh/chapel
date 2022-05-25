@@ -1153,13 +1153,14 @@ module DistributedBag {
                     var isEmpty : atomic bool;
                     isEmpty.write(true);
                     segment.releaseStatus();
+                    const parentPid = parentHandle.pid;
                     coforall segmentIdx in 0..#here.maxTaskPar {
                       var stolenWork : [{0..#numLocales}] (int, c_ptr(eltType));
                       coforall loc in parentHandle.targetLocalesNotHere() {
                         if loc != here then on loc {
                           // As we jumped to the target node, 'localBag' returns
                           // the target's bag that we are attempting to steal from.
-                          var targetBag = parentHandle.bag;
+                          var targetBag = chpl_getPrivatizedCopy(parentHandle.type, parentPid).bag;
 
                           // Only proceed if the target is not load balancing themselves...
                           if !targetBag!.loadBalanceInProgress.read() {
