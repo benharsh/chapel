@@ -1185,6 +1185,7 @@ struct Converter {
         Expr* ovar = convertAST(rd->iterand());
         Expr* riExpr = convertScanReduceOp(rd->op());
         svs = ShadowVarSymbol::buildFromReduceIntent(ovar, riExpr);
+        noteConvertedSym(rd->iterand(), svs);
       } else {
         INT_FATAL("Not handled!");
       }

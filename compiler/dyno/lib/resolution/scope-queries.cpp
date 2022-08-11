@@ -150,6 +150,26 @@ struct GatherDecls {
   }
   void exit(const Include* d) { }
 
+  // If we didn't have to worry about translating in convert-uast, would we
+  // want to still resolve to the outer symbol, but have some tagged information
+  // to go along with it??
+  //
+  // We can't just resolve these like normal. We need to know that they are
+  // shadowing the actual type name...
+  //
+  // Should we modify lookupInScope to 'skip' a name if it's shadowed?
+  // NamedDecl doesn't have an Identifier to deal with...
+  bool enter(const WithClause* with) {
+    for (auto expr : with->exprs()) {
+      if (auto reduce = expr->toReduce()) {
+        auto ident = reduce->iterand()->toIdentifier();
+        gather(declared, ident->name(), reduce);
+      }
+    }
+    return false;
+  }
+  void exit(const WithClause* with) { }
+
   // ignore other AST nodes
   bool enter(const AstNode* ast) {
     return false;
