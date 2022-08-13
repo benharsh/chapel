@@ -66,10 +66,12 @@ class Reduce final : public Call {
  private:
   static const int opChildNum_ = 0;
   static const int iterandExprChildNum_ = 1;
+  bool isReduceIntent_ = false;
 
-  Reduce(AstList children)
+  Reduce(AstList children, bool isReduceIntent)
       : Call(asttags::Reduce, std::move(children),
-             /*hasCalledExpression*/ false) {
+             /*hasCalledExpression*/ false),
+      isReduceIntent_(isReduceIntent) {
     assert(numChildren() == 2);
   }
 
@@ -92,7 +94,8 @@ class Reduce final : public Call {
   static owned<Reduce> build(Builder* builder,
                              Location loc,
                              owned<AstNode> op,
-                             owned<AstNode> iterand);
+                             owned<AstNode> iterand,
+                             bool isReduceIntent);
 
   /**
     Returns the reduce op expression, e.g. `minmax(int)` in the expression
@@ -108,6 +111,10 @@ class Reduce final : public Call {
   */
   const AstNode* iterand() const {
     return this->child(iterandExprChildNum_);
+  }
+
+  bool isReduceIntent() const {
+    return this->isReduceIntent_;
   }
 
 };

@@ -545,11 +545,13 @@ struct ParserContext {
 
   AstNode* buildReduce(YYLTYPE location, YYLTYPE locOp,
                        PODUniqueString op,
-                       AstNode* iterand);
+                       AstNode* iterand,
+                       bool isReduceIntent);
 
   AstNode* buildReduce(YYLTYPE location, YYLTYPE locOp,
                        AstNode* op,
-                       AstNode* iterand);
+                       AstNode* iterand,
+                       bool isReduceIntent);
 
   AstNode* buildScan(YYLTYPE location, YYLTYPE locOp,
                      PODUniqueString op,

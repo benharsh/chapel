@@ -1185,7 +1185,6 @@ struct Converter {
         Expr* ovar = convertAST(rd->iterand());
         Expr* riExpr = convertScanReduceOp(rd->op());
         svs = ShadowVarSymbol::buildFromReduceIntent(ovar, riExpr);
-        noteConvertedSym(rd->iterand(), svs);
       } else {
         INT_FATAL("Not handled!");
       }
@@ -1194,8 +1193,24 @@ struct Converter {
 
       if (parent->isBracketLoop() || parent->isForall() ||
           parent->isForeach()) {
+        noteConvertedSym(expr, svs);
         addForallIntent(ret, svs);
       } else {
+        // We don't actually use the shadow-variable here, so we need to
+        // find the original shadowed variable.
+        gdbShouldBreakHere();
+        auto r = symStack.back().resolved;
+        if (r != nullptr) {
+          const resolution::ResolvedExpression* rr = nullptr;
+          if (expr->isReduce()) {
+            rr = r->byAstOrNull(expr->toReduce()->iterand());
+          } else if (expr->isTaskVar()) {
+            rr = r->byAstOrNull(expr);
+          }
+          if (rr != nullptr) {
+            noteConvertedSym(expr, findConvertedSym(rr->toId()));
+          }
+        }
         addTaskIntent(ret, svs);
       }
     }
@@ -3918,6 +3933,7 @@ void Converter::noteAllContainedFixups(BaseAST* ast, int depth) {
   AST_CHILDREN_CALL(ast, noteAllContainedFixups, depth+1);
 
   if (SymExpr* se = toSymExpr(ast)) {
+    if (se->id == 182050) gdbShouldBreakHere();
     if (auto tcs = toTemporaryConversionSymbol(se->symbol())) {
       if (tcs->sig != nullptr) {
         noteCallFixupNeeded(se, tcs->sig);

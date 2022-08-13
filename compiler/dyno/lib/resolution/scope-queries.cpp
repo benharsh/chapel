@@ -164,6 +164,8 @@ struct GatherDecls {
       if (auto reduce = expr->toReduce()) {
         auto ident = reduce->iterand()->toIdentifier();
         gather(declared, ident->name(), reduce);
+      } else if (auto taskVar = expr->toTaskVar()) {
+        gather(declared, taskVar->name(), taskVar);
       }
     }
     return false;

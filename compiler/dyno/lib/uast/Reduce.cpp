@@ -27,12 +27,13 @@ namespace uast {
 owned<Reduce> Reduce::build(Builder* builder,
                             Location loc,
                             owned<AstNode> op,
-                            owned<AstNode> iterand) {
+                            owned<AstNode> iterand,
+                            bool isReduceIntent) {
   AstList children;
   children.push_back(std::move(op));
   children.push_back(std::move(iterand));
 
-  Reduce* ret = new Reduce(std::move(children));
+  Reduce* ret = new Reduce(std::move(children), isReduceIntent);
   builder->noteLocation(ret, loc);
   return toOwned(ret);
 }

@@ -2354,6 +2354,81 @@ void Resolver::exit(const IndexableLoop* loop) {
   }
 }
 
+bool Resolver::enter(const Reduce* reduce) {
+  if (reduce->isReduceIntent()) {
+    const Scope* scope = scopeStack.back();
+    scopeStack.pop_back();
+
+    reduce->op()->traverse(*this);
+    reduce->iterand()->traverse(*this);
+
+    scopeStack.push_back(scope);
+
+    return false;
+  } else {
+    return true;
+  }
+}
+
+void Resolver::exit(const Reduce* reduce) {
+}
+
+bool Resolver::enter(const TaskVar* taskVar) {
+  enterScope(taskVar);
+  if (taskVar->typeExpression() == nullptr &&
+      taskVar->initExpression() == nullptr) {
+    assert(scopeStack.size() > 1);
+    const Scope* origScope = scopeStack.back();
+    scopeStack.pop_back();
+    const Scope* useScope = scopeStack.back();
+
+    ResolvedExpression& result = byPostorder.byAst(taskVar);
+
+    LookupConfig config = LOOKUP_DECLS |
+                          LOOKUP_IMPORT_AND_USE |
+                          LOOKUP_PARENTS;
+
+    const Scope* receiverScope = methodReceiverScope();
+
+    auto vec = lookupNameInScope(context, useScope, receiverScope,
+                                 taskVar->name(), config);
+
+    if (vec.size() == 0) {
+      result.setType(QualifiedType());
+    } else if (vec.size() > 1 || vec[0].numIds() > 1) {
+      // can't establish the type. If this is in a function
+      // call, we'll establish it later anyway.
+    } else {
+      // vec.size() == 1 and vec[0].numIds() <= 1
+      const ID& resolvedId = vec[0].id(0);
+      QualifiedType type;
+      if (resolvedId.isEmpty()) {
+        // empty IDs from the scope resolution process are builtins
+        type = typeForBuiltin(context, taskVar->name());
+      } else {
+        // use the type established at declaration/initialization,
+        // but for things with generic type, use unknown.
+        type = typeForId(resolvedId, /*localGenericToUnknown*/ true);
+      }
+
+      QualifiedType taskVarType = QualifiedType(taskVar->storageKind(),
+                                                type.type());
+
+      result.setToId(resolvedId);
+      result.setType(taskVarType);
+    }
+
+    scopeStack.push_back(origScope);
+    return false;
+  } else {
+    return true;
+  }
+}
+
+void Resolver::exit(const TaskVar* taskVar) {
+  exitScope(taskVar);
+}
+
 bool Resolver::enter(const AstNode* ast) {
   enterScope(ast);
 

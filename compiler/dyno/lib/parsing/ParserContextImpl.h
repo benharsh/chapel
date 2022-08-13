@@ -2077,19 +2077,22 @@ ParserContext::buildAggregateTypeDecl(YYLTYPE location,
 AstNode* ParserContext::buildReduce(YYLTYPE location,
                                     YYLTYPE locOp,
                                     PODUniqueString op,
-                                    AstNode* iterand) {
+                                    AstNode* iterand,
+                                    bool isReduceIntent) {
   auto ident = buildIdent(locOp, op);
-  return buildReduce(location, locOp, ident, iterand);
+  return buildReduce(location, locOp, ident, iterand, isReduceIntent);
 }
 
 AstNode* ParserContext::buildReduce(YYLTYPE location,
                                     YYLTYPE locOp,
                                     AstNode* op,
-                                    AstNode* iterand) {
+                                    AstNode* iterand,
+                                    bool isReduceIntent) {
   (void) locOp;
   auto node = Reduce::build(builder, convertLocation(location),
                             toOwned(op),
-                            toOwned(iterand));
+                            toOwned(iterand),
+                            isReduceIntent);
   return node.release();
 }
 
