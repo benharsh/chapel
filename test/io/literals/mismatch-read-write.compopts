@@ -1,0 +1,7 @@
+-suseStrings=true -suseLiteral=true -suseAction=action.read
+-suseStrings=true -suseLiteral=true -suseAction=action.match
+-suseStrings=true -suseLiteral=true -suseAction=action.write
+
+-suseStrings=true -suseLiteral=false -suseAction=action.read
+-suseStrings=true -suseLiteral=false -suseAction=action.match
+-suseStrings=true -suseLiteral=false -suseAction=action.write
