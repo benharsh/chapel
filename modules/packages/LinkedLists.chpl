@@ -286,22 +286,22 @@ record LinkedList {
       f.write(size);
     }
     if isjson || ischpl {
-      f._writeLiteral("[");
+      f.writeLiteral("[");
     }
 
     var first = true;
     for e in this {
       if first then first = false;
       else {
-        if isspace then f._writeLiteral(" ");
-        else if isjson || ischpl then f._writeLiteral(", ");
+        if isspace then f.writeLiteral(" ");
+        else if isjson || ischpl then f.writeLiteral(", ");
       }
 
       f.write(e);
     }
 
     if isjson || ischpl {
-      f._writeLiteral("]");
+      f.writeLiteral("]");
     }
 
   }

@@ -1660,7 +1660,7 @@ module DefaultRectangular {
 
   proc DefaultRectangularDom.dsiSerialReadWrite(f /*: Reader or Writer*/) throws {
     inline proc rwLiteral(lit:string) throws {
-      if f.writing then f._writeLiteral(lit); else f._readLiteral(lit);
+      if f.writing then f.writeLiteral(lit); else f._readLiteral(lit);
     }
 
     rwLiteral("{");
@@ -1726,7 +1726,7 @@ module DefaultRectangular {
     const isNative = f.styleElement(QIO_STYLE_ELEMENT_IS_NATIVE_BYTE_ORDER): bool;
 
     inline proc rwLiteral(lit:string) throws {
-      if f.writing then f._writeLiteral(lit); else f._readLiteral(lit);
+      if f.writing then f.writeLiteral(lit); else f._readLiteral(lit);
     }
 
     proc rwSpaces(dim:int) throws {

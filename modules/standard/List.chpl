@@ -1732,13 +1732,13 @@ module List {
         // Write the number of elements
         ch.write(_size);
       } else {
-        ch._writeLiteral("[");
+        ch.writeLiteral("[");
       }
 
       for i in 0..(_size - 2) {
         ch.write(_getRef(i));
         if !isBinary {
-          ch._writeLiteral(", ");
+          ch.writeLiteral(", ");
         }
       }
 
@@ -1746,7 +1746,7 @@ module List {
         ch.write(_getRef(_size-1));
 
       if !isBinary {
-        ch._writeLiteral("]");
+        ch.writeLiteral("]");
       }
 
       _leave();

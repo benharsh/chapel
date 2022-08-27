@@ -598,7 +598,7 @@ module Map {
       _enter(); defer _leave();
       var first = true;
       proc rwLiteral(lit:string) throws {
-        if ch.writing then ch._writeLiteral(lit); else ch._readLiteral(lit);
+        if ch.writing then ch.writeLiteral(lit); else ch._readLiteral(lit);
       }
       rwLiteral("{");
       for slot in table.allSlots() {
