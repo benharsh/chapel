@@ -3434,6 +3434,14 @@ proc channel._readOne(param kind: iokind, ref x:?t,
   }
 }
 
+// TODO: Eventually use this with bytes overloads of read/match/writeLiteral
+// methods for better error messages.
+private proc escapedNonUTF8ErrorMessage() : string {
+  const ret = "Strings with escaped non-UTF8 bytes cannot be used with I/O. " +
+        "Try using string.encode(encodePolicy.unescape) first.\n";
+  return ret;
+}
+
 //
 // The channel must be locked and running on this.home.
 //
@@ -3445,8 +3453,8 @@ proc channel._writeOne(param kind: iokind, const x:?t, loc:locale) throws {
   if err != ENOERR {
     var msg = _constructIoErrorMsg(kind, x);
     if err == EILSEQ {
-      msg = "Strings with escaped non-UTF8 bytes cannot be used with I/O. " +
-            "Try using string.encode(encodePolicy.unescape) first." + msg;
+      // TODO: Is this error tested?
+      msg = escapedNonUTF8ErrorMessage() + msg;
     }
     try _ch_ioerror(err, msg);
   }
@@ -3741,30 +3749,84 @@ proc channel.writeIt(const x) throws {
       this.readIt(iolit);
   }
 
+  // non-unstable version we can use internally
   pragma "no doc"
   inline
-  proc channel._readLiteral(lit:string, ignoreWhitespace=true) throws {
-    var iolit = new ioLiteral(lit, ignoreWhitespace);
+  proc channel._readLiteral(literal:string,
+                            ignoreWhitespace=true) : void throws {
+    var iolit = new ioLiteral(literal, ignoreWhitespace);
     this.readIt(iolit);
   }
 
-  pragma "no doc"
+  @unstable "channel.readLiteral is unstable and subject to change."
   inline
-  proc channel._writeLiteral(lit:string) throws {
-    var iolit = new ioLiteral(lit);
-    this.writeIt(iolit);
+  proc channel.readLiteral(literal:string,
+                           ignoreWhitespace=true) : void throws {
+    if writing then compilerError("readLiteral on write-only channel");
+    this._readLiteral(literal, ignoreWhitespace);
   }
 
+  // non-unstable version we can use internally
   pragma "no doc"
-  inline
-  proc channel._readNewline() throws {
+  inline proc channel._readNewline() : void throws {
     var ionl = new ioNewline(true);
     this.readIt(ionl);
   }
 
-  pragma "no doc"
+  // TODO: How does this differ from readln() ?
+  @unstable "channel.readNewline is unstable and subject to change."
   inline
-  proc channel._writeNewline() throws {
+  proc channel.readNewline() : void throws {
+    if writing then compilerError("readNewline on write-only channel");
+    this._readNewline();
+  }
+
+  @unstable "channel.matchLiteral is unstable and subject to change."
+  inline
+  proc channel.matchLiteral(literal:string,
+                            ignoreWhitespace=true) : bool throws {
+    if writing then compilerError("matchLiteral on write-only channel");
+
+    try {
+      this.readLiteral(literal, ignoreWhitespace);
+    } catch e : BadFormatError {
+      return false;
+    } catch e : EofError {
+      return false;
+    }
+
+    return true;
+  }
+
+  @unstable "channel.matchNewline is unstable and subject to change."
+  inline
+  proc channel.matchNewline() : bool throws {
+    if writing then compilerError("matchNewline on write-only channel");
+
+    try {
+      this.readNewline();
+    } catch e : BadFormatError {
+      return false;
+    } catch e : EofError {
+      return false;
+    }
+
+    return true;
+  }
+
+  inline
+  proc channel.writeLiteral(literal:string) : void throws {
+    if !writing then compilerError("writeLiteral on read-only channel");
+
+    var iolit = new ioLiteral(literal);
+    this.writeIt(iolit);
+  }
+
+  // TODO: How does this differ from writeln() ?
+  inline
+  proc channel.writeNewline() : void throws {
+    if !writing then compilerError("writeNewline on read-only channel");
+
     var ionl = new ioNewline(true);
     this.writeIt(ionl);
   }
