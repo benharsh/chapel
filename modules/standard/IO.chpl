@@ -3434,9 +3434,9 @@ proc channel._readOne(param kind: iokind, ref x:?t,
   }
 }
 
-private proc escapedNonUTF8ErrorMessage(msg : string) : string {
+private proc escapedNonUTF8ErrorMessage() : string {
   const ret = "Strings with escaped non-UTF8 bytes cannot be used with I/O. " +
-        "Try using string.encode(encodePolicy.unescape) first." + msg;
+        "Try using string.encode(encodePolicy.unescape) first.\n";
   return ret;
 }
 
@@ -3452,7 +3452,7 @@ proc channel._writeOne(param kind: iokind, const x:?t, loc:locale) throws {
     var msg = _constructIoErrorMsg(kind, x);
     if err == EILSEQ {
       // TODO: Is this error tested?
-      msg = escapedNonUTF8ErrorMessage(msg);
+      msg = escapedNonUTF8ErrorMessage() + msg;
     }
     try _ch_ioerror(err, msg);
   }
@@ -3771,7 +3771,7 @@ proc channel.writeIt(const x) throws {
 
       if err == EILSEQ {
         // TODO: Is this error tested?
-        msg = escapedNonUTF8ErrorMessage(msg);
+        msg = escapedNonUTF8ErrorMessage() + "Error: " + msg;
       }
 
       try _ch_ioerror(err, msg);
