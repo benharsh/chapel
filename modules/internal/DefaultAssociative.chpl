@@ -115,15 +115,15 @@ module DefaultAssociative {
         }
       } else {
         var first = true;
-        f._writeLiteral("{");
+        f.writeLiteral("{");
         for idx in this {
           if first then
             first = false;
           else
-            f._writeLiteral(", ");
+            f.writeLiteral(", ");
           f.write(idx);
         }
-        f._writeLiteral("}");
+        f.writeLiteral("}");
       }
     }
     proc dsiSerialRead(f) throws {
@@ -650,7 +650,7 @@ module DefaultAssociative {
       printBraces &&= (isjson || ischpl);
 
       inline proc rwLiteral(lit:string) throws {
-        if f.writing then f._writeLiteral(lit); else f._readLiteral(lit);
+        if f.writing then f.writeLiteral(lit); else f._readLiteral(lit);
       }
 
       if printBraces then rwLiteral("[");
@@ -662,7 +662,7 @@ module DefaultAssociative {
 
         if f.writing && ischpl {
           f.write(key);
-          f._writeLiteral(" => ");
+          f.writeLiteral(" => ");
         }
 
         if f.writing then f.write(val);
@@ -855,7 +855,7 @@ module DefaultAssociative {
     }
 
     inline proc rwLiteral(lit:string) throws {
-      if f.writing then f._writeLiteral(lit); else f._readLiteral(lit);
+      if f.writing then f.writeLiteral(lit); else f._readLiteral(lit);
     }
 
     if isjson || ischpl then rwLiteral("[");
@@ -869,7 +869,7 @@ module DefaultAssociative {
 
       if f.writing && ischpl {
         f.write(key);
-        f._writeLiteral(" => ");
+        f.writeLiteral(" => ");
       }
 
       if f.writing then f.write(arr.dsiAccess(key));

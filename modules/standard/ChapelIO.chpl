@@ -206,10 +206,10 @@ module ChapelIO {
         for param i in 1..num_fields {
           if isIoField(x, i) {
             if !isBinary {
-              if !first then writer._writeLiteral(", ");
+              if !first then writer.writeLiteral(", ");
 
               const eq = ioFieldNameEqLiteral(writer, t, i);
-              writer._writeLiteral(eq);
+              writer.writeLiteral(eq);
             }
 
             writer.write(__primitive("field by num", x, i));
@@ -228,7 +228,7 @@ module ChapelIO {
               write(id);
             } else {
               const eq = ioFieldNameEqLiteral(writer, t, i);
-              writer._writeLiteral(eq);
+              writer.writeLiteral(eq);
             }
             writer.write(__primitive("field by num", x, i));
           }
@@ -255,7 +255,7 @@ module ChapelIO {
                       then "new " + t:string + "("
                       else if isClassType(t) then "{"
                       else "(";
-        writer._writeLiteral(start);
+        writer.writeLiteral(start);
       }
 
       var first = true;
@@ -268,7 +268,7 @@ module ChapelIO {
                     else if st == QIO_AGGREGATE_FORMAT_CHPL then ")"
                     else if isClassType(t) then "}"
                     else ")";
-        writer._writeLiteral(end);
+        writer.writeLiteral(end);
       }
     }
 
@@ -606,7 +606,7 @@ module ChapelIO {
     proc helper(ref arg) throws where !f.writing { arg = f.read(arg.type); }
 
     proc rwLiteral(lit:string) throws {
-      if f.writing then f._writeLiteral(lit); else f._readLiteral(lit);
+      if f.writing then f.writeLiteral(lit); else f._readLiteral(lit);
     }
 
     if !binary {
@@ -646,24 +646,24 @@ module ChapelIO {
 
     if hasLowBound() then
       f.write(lowBound);
-    f._writeLiteral("..");
+    f.writeLiteral("..");
     if hasHighBound() {
       if (chpl__singleValIdxType(this.idxType) && this._low != this._high) {
-        f._writeLiteral("<");
+        f.writeLiteral("<");
         f.write(lowBound);
       } else {
         f.write(highBound);
       }
     }
     if stride != 1 {
-      f._writeLiteral(" by ");
+      f.writeLiteral(" by ");
       f.write(stride);
     }
 
     // Write out the alignment only if it differs from natural alignment.
     // We take alignment modulo the stride for consistency.
     if ! alignCheckRange.isNaturallyAligned() && aligned {
-      f._writeLiteral(" align ");
+      f.writeLiteral(" align ");
       f.write(chpl_intToIdx(chpl__mod(chpl__idxToInt(alignment), stride)));
     }
   }
@@ -697,7 +697,7 @@ module ChapelIO {
 
   pragma "no doc"
   override proc LocaleModel.writeThis(f) throws {
-    f._writeLiteral("LOCALE");
+    f.writeLiteral("LOCALE");
     f.write(chpl_id());
   }
 
