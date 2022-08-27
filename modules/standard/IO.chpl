@@ -3786,7 +3786,8 @@ proc channel.writeIt(const x) throws {
 
     if writing {
       param name = if isMatch then "matchLiteral" else "readLiteral";
-      compilerError(name + " on write-only channel");
+      param depth = if isMatch then 3 else 2;
+      compilerError(name + " on write-only channel", depth);
     }
 
     const cstr = x.localize().c_str();
@@ -3830,7 +3831,7 @@ proc channel.writeIt(const x) throws {
   proc channel._readNewlineCommon(param isMatch:bool) throws {
     if writing {
       param name = if isMatch then "matchNewline" else "readNewline";
-      compilerError(name + " on write-only channel");
+      compilerError(name + " on write-only channel", 2);
     }
 
     const err = qio_channel_skip_past_newline(false, _channel_internal,
@@ -3850,7 +3851,7 @@ proc channel.writeIt(const x) throws {
   @unstable "channel.readNewline is unstable and subject to change."
   inline
   proc channel.readNewline() : void throws {
-    _readNewline();
+    _readNewlineCommon(isMatch=false);
   }
 
   pragma "no doc"
@@ -3901,7 +3902,7 @@ proc channel.writeIt(const x) throws {
     if t != string && t != bytes then
       compilerError("expecting string or bytes");
 
-    if !writing then compilerError("writeLiteral on read-only channel");
+    if !writing then compilerError("writeLiteral on read-only channel", 2);
 
     const cstr = x.localize().c_str();
     const err = qio_channel_print_literal(false, _channel_internal, cstr,
