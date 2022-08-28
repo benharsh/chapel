@@ -3790,13 +3790,16 @@ proc channel.writeIt(const x) throws {
       compilerError(name + " on write-only channel", depth);
     }
 
-    const cstr = x.localize().c_str();
-    const err = qio_channel_scan_literal(false, _channel_internal,
-                                         cstr, x.numBytes:c_ssize_t,
-                                         ignore);
+    on this.home {
+      try! this.lock(); defer { this.unlock(); }
+      const cstr = x.localize().c_str();
+      const err = qio_channel_scan_literal(false, _channel_internal,
+                                           cstr, x.numBytes:c_ssize_t,
+                                           ignore);
 
-    const action = if isMatch then "matching" else "reading";
-    try _checkLiteralError(x, err, action, isLiteral=true);
+      const action = if isMatch then "matching" else "reading";
+      try _checkLiteralError(x, err, action, isLiteral=true);
+    }
   }
 
   // non-unstable version we can use internally
@@ -3834,11 +3837,14 @@ proc channel.writeIt(const x) throws {
       compilerError(name + " on write-only channel", 2);
     }
 
-    const err = qio_channel_skip_past_newline(false, _channel_internal,
-                                              /*skipWhitespaceOnly=*/ true);
+    on this.home {
+      try! this.lock(); defer { this.unlock(); }
+      const err = qio_channel_skip_past_newline(false, _channel_internal,
+                                                /*skipWhitespaceOnly=*/ true);
 
-    const action = if isMatch then "matching" else "reading";
-    try _checkLiteralError("", err, action, isLiteral=false);
+      const action = if isMatch then "matching" else "reading";
+      try _checkLiteralError("", err, action, isLiteral=false);
+    }
   }
 
   // non-unstable version we can use internally
@@ -3904,11 +3910,13 @@ proc channel.writeIt(const x) throws {
 
     if !writing then compilerError("writeLiteral on read-only channel", 2);
 
-    const cstr = x.localize().c_str();
-    const err = qio_channel_print_literal(false, _channel_internal, cstr,
-                                          x.numBytes:c_ssize_t);
-
-    try _checkLiteralError(x, err, "writing", isLiteral=true);
+    on this.home {
+      try! this.lock(); defer { this.unlock(); }
+      const cstr = x.localize().c_str();
+      const err = qio_channel_print_literal(false, _channel_internal, cstr,
+                                            x.numBytes:c_ssize_t);
+      try _checkLiteralError(x, err, "writing", isLiteral=true);
+    }
   }
 
   inline
@@ -3926,8 +3934,11 @@ proc channel.writeIt(const x) throws {
   proc channel.writeNewline() : void throws {
     if !writing then compilerError("writeNewline on read-only channel");
 
-    const err = qio_channel_write_newline(false, _channel_internal);
-    try _checkLiteralError("", err, "writing", isLiteral=false);
+    on this.home {
+      try! this.lock(); defer { this.unlock(); }
+      const err = qio_channel_write_newline(false, _channel_internal);
+      try _checkLiteralError("", err, "writing", isLiteral=false);
+    }
   }
 
   /* Explicit call for reading or writing a newline as an
