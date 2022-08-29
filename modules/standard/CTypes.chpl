@@ -226,16 +226,16 @@ module CTypes {
 
     /* Print the elements */
     proc writeThis(ch) throws {
-      ch.readWriteLiteral("[");
+      ch.writeLiteral("[");
       var first = true;
       for i in 0..#size {
 
         ch.write(this(i));
 
         if i != size-1 then
-          ch.readWriteLiteral(", ");
+          ch.writeLiteral(", ");
       }
-      ch.readWriteLiteral("]");
+      ch.writeLiteral("]");
     }
 
     proc init=(other: c_array) {
