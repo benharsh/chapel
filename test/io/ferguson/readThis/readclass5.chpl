@@ -5,18 +5,17 @@ class mything {
   var y:int;
 
   proc readThis(r) throws {
-    readWriteHelper(r);
+    x = r.read(int);
+    r.readLiteral(" ");
+    y = r.read(int);
+    r.readNewline();
   }
 
   proc writeThis(w) throws {
-    readWriteHelper(w);
-  }
-
-  proc readWriteHelper(rw) throws {
-    if rw.writing then rw.write(x); else x = rw.read(int);
-    rw.readWriteLiteral(" ");
-    if rw.writing then rw.write(y); else y = rw.read(int);
-    rw.readWriteNewline();
+    w.write(x);
+    w.writeLiteral(" ");
+    w.write(y);
+    w.writeNewline();
   }
 }
 
