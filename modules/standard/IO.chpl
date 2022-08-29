@@ -3737,6 +3737,7 @@ proc channel.writeIt(const x) throws {
   /* Explicit call for reading or writing a literal as an
      alternative to using :type:`IO.ioLiteral`.
    */
+  deprecated "channel.readWriteLiteral is deprecated. Use channel.readLiteral or channel.writeLiteral instead"
   inline
   proc channel.readWriteLiteral(lit:string, ignoreWhiteSpace=true) throws
   {
@@ -3944,6 +3945,7 @@ proc channel.writeIt(const x) throws {
   /* Explicit call for reading or writing a newline as an
      alternative to using :type:`IO.ioNewline`.
    */
+  deprecated "channel.readWriteNewline is deprecated. Use channel.readNewline or channel.writeNewline instead"
   inline proc channel.readWriteNewline() throws
   {
     var ionl = new ioNewline();
