@@ -47,6 +47,10 @@ class Array final : public AstNode {
     : AstNode(asttags::Array, std::move(children)) {
   }
 
+  Array(Deserializer& des)
+    : AstNode(asttags::Array, des) {
+  }
+
   bool contentsMatchInner(const AstNode* other) const override {
     return true;
   }
@@ -85,6 +89,12 @@ class Array final : public AstNode {
     const AstNode* ast = this->child(i);
     return ast;
   }
+
+  void serialize(Serializer& ser) const override {
+    AstNode::serializePart(ser);
+  }
+
+  DECLARE_STATIC_DES(Array);
 
 };
 
