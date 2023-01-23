@@ -45,6 +45,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <fstream>
 
 namespace chpl {
 namespace parsing {
@@ -98,6 +99,74 @@ static Parser helpMakeParser(Context* context,
   } else {
     return Parser::createForIncludedModule(context, parentSymbolPath);
   }
+}
+
+class LibraryFile {
+  public:
+    UniqueString path;
+    std::map<UniqueString, std::string> data;
+
+  void mark(Context* context) const { }
+
+  static bool update(LibraryFile& keep, LibraryFile& addin) {
+    bool changed = false;
+    changed |= defaultUpdate(keep.path, addin.path);
+    changed |= defaultUpdate(keep.data, addin.data);
+    return changed;
+  }
+};
+
+const LibraryFile&
+loadLibraryFile(Context* context, UniqueString libPath) {
+  QUERY_BEGIN(loadLibraryFile, context, libPath);
+  LibraryFile result;
+
+  const uint64_t magic = 0x4C5048434550487F;
+  const uint32_t version = 0x00000001;
+
+  std::ifstream myFile;
+  myFile.open(libPath.str(), std::ios::in | std::ios::binary);
+  chpl::Deserializer des(context, myFile);
+  assert(magic == des.read<uint64_t>());
+  assert(version == des.read<uint32_t>());
+  auto num = des.read<uint64_t>();
+  std::vector<std::pair<UniqueString, uint64_t>> offsets;
+
+  for (uint64_t i = 0; i < num; i++) {
+    auto path = des.read<UniqueString>();
+    auto offset = des.read<uint64_t>();
+    offsets.push_back({path, offset});
+  }
+
+  auto dataStart = myFile.tellg();
+
+  std::map<UniqueString, std::string> data;
+
+  for (const auto& pair : offsets) {
+    myFile.seekg(0, std::ios::beg);
+    std::streamoff off = pair.second;
+    myFile.seekg(dataStart + off);
+    auto str = des.read<std::string>();
+    data[pair.first] = str;
+  }
+
+  std::swap(result.path, libPath);
+  std::swap(result.data, data);
+
+  return QUERY_END(result);
+}
+
+const BuilderResult&
+loadBuilderResultFromFile(Context* context, UniqueString path,
+                          UniqueString libPath) {
+  QUERY_BEGIN(loadBuilderResultFromFile, context, path, libPath);
+  //BuilderResult result;
+
+  const auto& lib = loadLibraryFile(context, libPath);
+  std::stringstream ss(lib.data.at(path));
+  auto result = BuilderResult::deserialize(context, ss);
+
+  return QUERY_END(result);
 }
 
 const BuilderResult&

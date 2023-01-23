@@ -43,6 +43,7 @@
 #endif
 
 #include <cstdlib>
+#include <fstream>
 
 chpl::ID dynoIdForLastContainingDecl = chpl::ID();
 
@@ -78,6 +79,9 @@ static void          parseDependentModules(bool isInternal);
 
 static ModuleSymbol* parseMod(const char* modName,
                               bool        isInternal);
+
+std::vector<UniqueString> parsedPaths;
+static void generateLibraryFile(std::vector<UniqueString>, std::string);
 
 // TODO: Remove me.
 struct YYLTYPE {
@@ -428,6 +432,43 @@ static void parseCommandLineFiles() {
 
   forv_Vec(ModuleSymbol, mod, allModules) {
     mod->addDefaultUses();
+  }
+
+  if (strcmp(dynoBinFilename, "") != 0) {
+    if (fDynoSerialize) {
+      generateLibraryFile(parsedPaths, dynoBinFilename);
+    }
+  }
+}
+
+static void generateLibraryFile(std::vector<UniqueString> paths,
+                                std::string filename) {
+  std::ofstream myFile;
+  myFile.open(filename, std::ios::out | std::ios::trunc | std::ios::binary);
+  chpl::Serializer ser(myFile);
+  const uint64_t magic = 0x4C5048434550487F;
+  const uint32_t version = 0x00000001;
+  ser.write(magic);
+  ser.write(version);
+  ser.write((uint64_t)paths.size());
+  std::vector<std::pair<UniqueString, std::string>> data;
+
+  uint64_t offset = 0;
+  for (auto path : paths) {
+    UniqueString empty;
+    auto& result = chpl::parsing::parseFileToBuilderResult(gContext, path, empty);
+    std::stringstream ss;
+    result.serialize(ss);
+    const auto& str = ss.str();
+    data.push_back({path, str});
+    ser.write(path);
+    ser.write(offset);
+    printf("%s :: %llu\n", path.c_str(), offset);
+    offset += 8 + str.size();
+  }
+
+  for (const auto& pair : data) {
+    ser.write(pair.second);
   }
 }
 
@@ -961,27 +1002,14 @@ static ModuleSymbol* dynoParseFile(const char* fileName,
 
   if (dynoRealizeErrors()) USR_STOP();
 
+  parsedPaths.push_back(path);
 
-  if (fDynoSerialize) {
-
-    if (strcmp(dynoBinAstDir, "") != 0) {
-      auto sfname = builderResult.serialize(dynoBinAstDir);
-      if (fVerify) {
-        // 'res' = AstList for now - eventually will be a BuilderResult
-        auto result = chpl::uast::BuilderResult::deserialize(gContext, sfname);
-
-        if (builderResult.compare(result) == false) {
-          USR_FATAL("FAILED TO (DE)SERIALIZE %s\n", builderResult.filePath().c_str());
-        }
-      }
-    } else if (fVerify) {
-      // unspecified output directory, verify only
-      std::stringstream ss;
-      builderResult.serialize(ss);
-      auto res = chpl::uast::BuilderResult::deserialize(gContext, ss);
-      if (builderResult.compare(res) == false) {
-        USR_FATAL("FAILED TO (DE)SERIALIZE %s\n", builderResult.filePath().c_str());
-      }
+  if (strcmp(dynoBinFilename, "") != 0 && fVerify) {
+    chpl::UniqueString libPath = chpl::UniqueString::get(gContext, dynoBinFilename);
+    auto& result = chpl::parsing::loadBuilderResultFromFile(gContext, path,
+                                                            libPath);
+    if (builderResult.compare(result) == false) {
+      USR_FATAL("FAILED TO (DE)SERIALIZE %s\n", builderResult.filePath().c_str());
     }
   }
 
