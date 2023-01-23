@@ -162,9 +162,9 @@ class BuilderResult final {
 
   std::string serialize(const char* dirName) const;
   void serialize(std::ostream& os) const;
-  static AstList deserialize(Context* context, std::string& sfname);
-  static AstList deserialize(Context* context, std::istream& is);
-  bool compare(const AstList& other) const;
+  static BuilderResult deserialize(Context* context, std::string& sfname);
+  static BuilderResult deserialize(Context* context, std::istream& is);
+  bool compare(const BuilderResult& other) const;
 };
 
 

@@ -218,29 +218,55 @@ std::string BuilderResult::serialize(const char* dn) const {
   return fileName;
 }
 
+#define DYNO_BUILDER_RESULT_START_STR std::string("DYNO_BUILDER_RESULT_START")
+#define DYNO_BUILDER_RESULT_END_STR std::string("DYNO_BUILDER_RESULT_END")
+
 void BuilderResult::serialize(std::ostream& os) const {
   Serializer ser(os);
+  ser.write(DYNO_BUILDER_RESULT_START_STR);
   ser.write(magic);
   ser.write(version);
+  ser.write(filePath_);
   const uint32_t numEntries = numTopLevelExpressions();
   ser.write(numEntries);
 
   for (auto ast : topLevelExpressions()) {
     ast->serialize(ser);
   }
+  ser.write(idToParentId_);
+  ser.write(idToLocation_);
+  ser.write(commentIdToLocation_);
+  ser.write(DYNO_BUILDER_RESULT_END_STR);
 }
 
 // TODO: handle Locations
-AstList BuilderResult::deserialize(Context* context, std::string& sfname) {
+BuilderResult BuilderResult::deserialize(Context* context, std::string& sfname) {
   std::ifstream myFile;
   myFile.open(sfname, std::ios::in | std::ios::binary);
 
   return deserialize(context, myFile);
 }
 
-AstList BuilderResult::deserialize(Context* context, std::istream& is) {
-  AstList ret;
+static void assignIDsFromTree(llvm::DenseMap<ID, const AstNode*>& idToAst,
+                              const AstNode* node) {
+  if (node->isComment()) return;
+
+  idToAst[node->id()] = node;
+  for (auto child : node->children()) {
+    //AstNode* ptr = child->get();
+    assignIDsFromTree(idToAst, child);
+  }
+}
+
+BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
+  BuilderResult ret;
+  AstList alist;
   Deserializer des(context, is);
+
+  {
+    auto start = des.read<std::string>();
+    assert(start == DYNO_BUILDER_RESULT_START_STR);
+  }
 
   auto m = des.read<uint64_t>();
   auto v = des.read<uint32_t>();
@@ -248,29 +274,61 @@ AstList BuilderResult::deserialize(Context* context, std::istream& is) {
   (void)v; // silence unused variable warnings
   assert(m == magic);
   assert(v == version);
+  auto path = des.read<UniqueString>(); // path
 
   const auto numEntries = des.read<uint32_t>();
 
   for (uint32_t i = 0; i < numEntries; i++) {
-    ret.push_back(AstNode::deserialize(des));
+    alist.push_back(AstNode::deserialize(des));
   }
 
-  is.peek();
-  assert(is.eof());
+  auto idToParent = des.read<llvm::DenseMap<ID,ID>>();
+  auto idToLocation = des.read<llvm::DenseMap<ID,Location>>();
+  auto commentLocation = des.read<std::vector<Location>>();
+
+  {
+    auto end = des.read<std::string>();
+    assert(end == DYNO_BUILDER_RESULT_END_STR);
+  }
+  //is.peek();
+  //assert(is.eof());
+
+  llvm::DenseMap<ID, const AstNode*> idToAst;
+  for (auto& node : alist) {
+    AstNode* ptr = node.get();
+    assignIDsFromTree(idToAst, ptr);
+  }
+  std::swap(ret.filePath_, path);
+  std::swap(ret.topLevelExpressions_, alist);
+  std::swap(ret.idToAst_, idToAst);
+  std::swap(ret.idToParentId_, idToParent);
+  std::swap(ret.idToLocation_, idToLocation);
+  std::swap(ret.commentIdToLocation_, commentLocation);
 
   return ret;
 }
 
-bool BuilderResult::compare(const AstList& other) const {
+bool BuilderResult::compare(const BuilderResult& other) const {
+  if (idToParentId_ != other.idToParentId_) {
+    return false;
+  }
+  if (idToLocation_ != other.idToLocation_) {
+    return false;
+  }
+  if (commentIdToLocation_ != other.commentIdToLocation_) {
+    return false;
+  }
+
+  auto& alist = other.topLevelExpressions_;
   const int n = numTopLevelExpressions();
-  if (other.size() != (size_t)n) {
+  if (alist.size() != (size_t)n) {
     return false;
   }
   for (int i = 0; i < n; i++) {
-    if (other[i] == nullptr) {
+    if (alist[i] == nullptr) {
       return false;
     }
-    if (other[i]->completeMatch(topLevelExpression(i)) == false) {
+    if (alist[i]->completeMatch(topLevelExpression(i)) == false) {
       return false;
     }
   }
