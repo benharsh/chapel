@@ -182,6 +182,7 @@ const char* Context::getOrCreateUniqueString(const char* str, size_t len) {
   chpl::detail::StringAndLength key = {str, len};
   auto search = this->uniqueStringsTable.find(key);
   if (search != this->uniqueStringsTable.end()) {
+    printf("DUP: %s\n", str);
     const char* ret = search->str;
     // update the GC mark
     this->markUniqueCString(ret);
@@ -479,6 +480,42 @@ void Context::setFilePathForModuleId(ID moduleID, UniqueString path) {
       CHPL_ASSERT(realPath == realGotPath);
     }
   #endif
+}
+
+static
+const UniqueString& libPathForFilePathQuery(Context* context,
+                                            UniqueString filePath) {
+  QUERY_BEGIN(libPathForFilePathQuery, context, filePath);
+
+  UniqueString result;
+
+  return QUERY_END(result);
+}
+
+bool Context::libPathForFilePath(const UniqueString& filePath,
+                                 UniqueString& pathOut) {
+  auto tupleOfArgs = std::make_tuple(filePath);
+
+  bool got = hasCurrentResultForQuery(libPathForFilePathQuery,
+                                      tupleOfArgs);
+
+  if (got) {
+    pathOut = libPathForFilePathQuery(this, filePath);
+    return true;
+  }
+
+  pathOut = UniqueString::get(this, "<unknown lib path>");
+  return false;
+}
+
+void Context::setLibPathForFilePath(const UniqueString& filePath, const UniqueString& libPath) {
+  auto tupleOfArgs = std::make_tuple(filePath);
+
+  updateResultForQuery(libPathForFilePathQuery,
+                       tupleOfArgs, libPath,
+                       "libPathForFilePathQuery",
+                       /* isInputQuery */ false,
+                       /* forSetter */ true);
 }
 
 void Context::advanceToNextRevision(bool prepareToGC) {

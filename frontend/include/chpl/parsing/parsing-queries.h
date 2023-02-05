@@ -75,6 +75,8 @@ void setFileText(Context* context, UniqueString path, std::string text);
  */
 bool hasFileText(Context* context, const std::string& path);
 
+void processLibraryFileForFilePaths(Context* context, UniqueString& libPath);
+
 const uast::BuilderResult&
 loadBuilderResultFromFile(Context* context, UniqueString path,
                           UniqueString libPath);

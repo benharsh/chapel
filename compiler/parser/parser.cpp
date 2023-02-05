@@ -71,6 +71,8 @@ static const char* stdGenModulesPath;
 
 static void          countTokensInCmdLineFiles();
 
+static void          addDynoLibFiles();
+
 static void          parseInternalModules();
 
 static void          parseCommandLineFiles();
@@ -176,6 +178,8 @@ static Vec<const char*> sModNameList;
 static Vec<const char*> sModDoneSet;
 static Vec<VisibilityStmt*> sModReqdByInt;
 
+static std::set<std::string> gDynoGenLibPaths;
+
 void addInternalModulePath(const ArgumentDescription* desc, const char* newpath) {
   sIntModPath.add(astr(newpath));
   gDynoPrependInternalModulePaths.push_back(newpath);
@@ -184,6 +188,10 @@ void addInternalModulePath(const ArgumentDescription* desc, const char* newpath)
 void addStandardModulePath(const ArgumentDescription* desc, const char* newpath) {
   sStdModPath.add(astr(newpath));
   gDynoPrependInternalModulePaths.push_back(newpath);
+}
+
+void addDynoGenLib(const ArgumentDescription* desc, const char* newpath) {
+  gDynoGenLibPaths.insert(std::string(newpath));
 }
 
 void setupModulePaths() {
@@ -310,6 +318,17 @@ static void countTokensInCmdLineFiles() {
   clean_exit(0);
 }
 
+static void addDynoLibFiles() {
+  const char* inputFileName = NULL;
+  int fileNum = 0;
+  while ((inputFileName = nthFilename(fileNum++))) {
+    if (isDynoLib(inputFileName)) {
+      auto libPath = chpl::UniqueString::get(gContext, inputFileName);
+      chpl::parsing::processLibraryFileForFilePaths(gContext, libPath);
+    }
+  }
+}
+
 /************************************* | **************************************
 *                                                                             *
 *                                                                             *
@@ -434,9 +453,24 @@ static void parseCommandLineFiles() {
     mod->addDefaultUses();
   }
 
-  if (strcmp(dynoBinFilename, "") != 0) {
-    if (fDynoSerialize) {
-      generateLibraryFile(parsedPaths, dynoBinFilename);
+  if (gDynoGenLibPaths.size() != 0) {
+    // TODO: add option like "<standard>" or something that tells the compiler
+    // to generate everything in internal/ and standard/
+    for (std::string path : gDynoGenLibPaths) {
+      if (path == "<standard>") {
+        std::vector<UniqueString> todo;
+        for (auto& path : parsedPaths) {
+          const auto& modulePrefix = chpl::parsing::bundledModulePath(gContext);
+          if (path.startsWith(modulePrefix)) {
+            todo.push_back(path);
+          }
+        }
+        generateLibraryFile(todo, "chpl_standard.dyno");
+      } else {
+        // TODO: AAAAAAAAAAAAAAAAAAAARGH!
+        auto ustr = chpl::UniqueString::get(gContext, "./" + path);
+        generateLibraryFile({ustr}, path + ".dyno");
+      }
     }
   }
 }
@@ -463,7 +497,7 @@ static void generateLibraryFile(std::vector<UniqueString> paths,
     data.push_back({path, str});
     ser.write(path);
     ser.write(offset);
-    printf("%s :: %llu\n", path.c_str(), offset);
+    //printf("%s :: %llu\n", path.c_str(), offset);
     offset += 8 + str.size();
   }
 
@@ -1004,14 +1038,14 @@ static ModuleSymbol* dynoParseFile(const char* fileName,
 
   parsedPaths.push_back(path);
 
-  if (strcmp(dynoBinFilename, "") != 0 && fVerify) {
-    chpl::UniqueString libPath = chpl::UniqueString::get(gContext, dynoBinFilename);
-    auto& result = chpl::parsing::loadBuilderResultFromFile(gContext, path,
-                                                            libPath);
-    if (builderResult.compare(result) == false) {
-      USR_FATAL("FAILED TO (DE)SERIALIZE %s\n", builderResult.filePath().c_str());
-    }
-  }
+  //if (strcmp(dynoBinFilename, "") != 0 && fVerify) {
+  //  chpl::UniqueString libPath = chpl::UniqueString::get(gContext, dynoBinFilename);
+  //  auto& result = chpl::parsing::loadBuilderResultFromFile(gContext, path,
+  //                                                          libPath);
+  //  if (builderResult.compare(result) == false) {
+  //    USR_FATAL("FAILED TO (DE)SERIALIZE %s\n", builderResult.filePath().c_str());
+  //  }
+  //}
 
   ModuleSymbol* lastModSym = nullptr;
   int numModSyms = 0;
@@ -1195,7 +1229,11 @@ void parseAndConvertUast() {
 
   if (countTokens || printTokens) countTokensInCmdLineFiles();
 
+  gContext->beginQueryTimingTrace("dyno-timings.txt");
+  addDynoLibFiles();
+
   parseInternalModules();
+  gContext->endQueryTimingTrace();
 
   parseCommandLineFiles();
 

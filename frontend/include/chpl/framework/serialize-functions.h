@@ -267,8 +267,8 @@ struct serialize<llvm::DenseMap<K,V>> {
 template<typename K, typename V>
 struct deserialize<llvm::DenseMap<K,V>> {
   llvm::DenseMap<K,V> operator()(Deserializer& des) const {
-    llvm::DenseMap<K,V> ret;
     auto len = des.read<uint64_t>();
+    llvm::DenseMap<K,V> ret(len);
     for (uint64_t i = 0; i < len; i++) {
       K first = des.read<K>();
       V second = des.read<V>();

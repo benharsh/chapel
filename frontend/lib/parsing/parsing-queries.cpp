@@ -105,6 +105,7 @@ class LibraryFile {
   public:
     UniqueString path;
     std::map<UniqueString, std::string> data;
+    std::map<UniqueString, std::streamoff> offsets;
 
   void mark(Context* context) const { }
 
@@ -112,6 +113,7 @@ class LibraryFile {
     bool changed = false;
     changed |= defaultUpdate(keep.path, addin.path);
     changed |= defaultUpdate(keep.data, addin.data);
+    changed |= defaultUpdate(keep.offsets, addin.offsets);
     return changed;
   }
 };
@@ -143,11 +145,13 @@ loadLibraryFile(Context* context, UniqueString libPath) {
   std::map<UniqueString, std::string> data;
 
   for (const auto& pair : offsets) {
-    myFile.seekg(0, std::ios::beg);
-    std::streamoff off = pair.second;
-    myFile.seekg(dataStart + off);
-    auto str = des.read<std::string>();
-    data[pair.first] = str;
+    //myFile.seekg(0, std::ios::beg);
+    std::streamoff off = pair.second + 8;
+    //myFile.seekg(dataStart + off);
+    //auto str = des.read<std::string>();
+    //data[pair.first] = str;
+    data[pair.first] = "";
+    result.offsets[pair.first] = dataStart + off;
   }
 
   std::swap(result.path, libPath);
@@ -156,11 +160,18 @@ loadLibraryFile(Context* context, UniqueString libPath) {
   return QUERY_END(result);
 }
 
+void processLibraryFileForFilePaths(Context* context, UniqueString& libPath) {
+  const auto& lib = loadLibraryFile(context, libPath);
+  for (const auto& entry : lib.data) {
+    //printf("setting %s\n", entry.first.c_str());
+    context->setLibPathForFilePath(entry.first, libPath);
+  }
+}
+
 const BuilderResult&
 loadBuilderResultFromFile(Context* context, UniqueString path,
                           UniqueString libPath) {
   QUERY_BEGIN(loadBuilderResultFromFile, context, path, libPath);
-  //BuilderResult result;
 
   const auto& lib = loadLibraryFile(context, libPath);
   std::stringstream ss(lib.data.at(path));
@@ -174,20 +185,36 @@ parseFileToBuilderResult(Context* context, UniqueString path,
                          UniqueString parentSymbolPath) {
   QUERY_BEGIN(parseFileToBuilderResult, context, path, parentSymbolPath);
 
-  // Run the fileText query to get the file contents
-  const FileContents& contents = fileText(context, path);
-  const std::string& text = contents.text();
-  const ErrorBase* error = contents.error();
   BuilderResult result(path);
+  UniqueString libPath;
+  if (context->libPathForFilePath(path, libPath)) {
+    const auto& lib = loadLibraryFile(context, libPath);
 
-  if (error == nullptr) {
-    // if there was no error reading the file, proceed to parse
-    auto parser = helpMakeParser(context, parentSymbolPath);
-    const char* pathc = path.c_str();
-    const char* textc = text.c_str();
-    BuilderResult tmpResult = parser.parseString(pathc, textc);
+    //std::stringstream ss(lib.data.at(path));
+    //auto tmpResult = BuilderResult::deserialize(context, ss);
+
+    std::ifstream myFile;
+    myFile.open(libPath.str(), std::ios::in | std::ios::binary);
+    myFile.seekg(lib.offsets.at(path));
+    auto tmpResult = BuilderResult::deserialize(context, myFile);
+
     result.swap(tmpResult);
     BuilderResult::updateFilePaths(context, result);
+  } else {
+    // Run the fileText query to get the file contents
+    const FileContents& contents = fileText(context, path);
+    const std::string& text = contents.text();
+    const ErrorBase* error = contents.error();
+
+    if (error == nullptr) {
+      // if there was no error reading the file, proceed to parse
+      auto parser = helpMakeParser(context, parentSymbolPath);
+      const char* pathc = path.c_str();
+      const char* textc = text.c_str();
+      BuilderResult tmpResult = parser.parseString(pathc, textc);
+      result.swap(tmpResult);
+      BuilderResult::updateFilePaths(context, result);
+    }
   }
 
   return QUERY_END(result);

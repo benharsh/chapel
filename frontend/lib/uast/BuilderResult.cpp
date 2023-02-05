@@ -259,6 +259,7 @@ static void assignIDsFromTree(llvm::DenseMap<ID, const AstNode*>& idToAst,
 }
 
 BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
+  auto watch = querydetail::makePlainQueryTimingStopwatch(true);
   BuilderResult ret;
   AstList alist;
   Deserializer des(context, is);
@@ -282,8 +283,10 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
     alist.push_back(AstNode::deserialize(des));
   }
 
+  // TODO: repeatedly storing a 'path' with Locations is a bit unnecessary...
   auto idToParent = des.read<llvm::DenseMap<ID,ID>>();
   auto idToLocation = des.read<llvm::DenseMap<ID,Location>>();
+    //printf("  %u\n", idToParent.size());
   auto commentLocation = des.read<std::vector<Location>>();
 
   {
@@ -304,6 +307,8 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
   std::swap(ret.idToParentId_, idToParent);
   std::swap(ret.idToLocation_, idToLocation);
   std::swap(ret.commentIdToLocation_, commentLocation);
+  auto elapsed = watch.elapsed();
+  printf("%s %lld\n", ret.filePath_.c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
 
   return ret;
 }

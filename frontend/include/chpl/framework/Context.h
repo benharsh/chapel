@@ -481,6 +481,9 @@ class Context {
    */
   void setFilePathForModuleId(ID moduleID, UniqueString path);
 
+  bool libPathForFilePath(const UniqueString& filePath, UniqueString& pathOut);
+  void setLibPathForFilePath(const UniqueString& filePath, const UniqueString& libPath);
+
   /**
     This function increments the current revision number stored
     in the context. After it is called, the setters below can
@@ -725,7 +728,7 @@ class Context {
             base->timings.query.update(elapsed);
           }
           if (enableQueryTimingTrace) {
-            auto ticks = elapsed.count();
+            auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
             auto os = queryTimingTraceOutput.get();
             CHPL_ASSERT(os != nullptr);
             *os << depth << ' ' << base->queryName << ' ' << ticks << '\n';
