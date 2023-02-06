@@ -182,7 +182,7 @@ const char* Context::getOrCreateUniqueString(const char* str, size_t len) {
   chpl::detail::StringAndLength key = {str, len};
   auto search = this->uniqueStringsTable.find(key);
   if (search != this->uniqueStringsTable.end()) {
-    printf("DUP: %s\n", str);
+    //printf("DUP: %s\n", str);
     const char* ret = search->str;
     // update the GC mark
     this->markUniqueCString(ret);

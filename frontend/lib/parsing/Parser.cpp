@@ -172,8 +172,6 @@ BuilderResult Parser::parseFile(const char* path, ParserStats* parseStats) {
 
 BuilderResult Parser::parseString(const char* path, const char* str,
                                   ParserStats* parseStats) {
-  if (strcmp(path, "./MyMod.chpl") == 0)
-    gdbShouldBreakHere();
   printf("PARSING %s\n", path);
   owned<Builder> builder;
   if (parentSymbolPath_.isEmpty()) {

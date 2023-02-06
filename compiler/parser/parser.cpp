@@ -472,6 +472,7 @@ static void parseCommandLineFiles() {
         generateLibraryFile({ustr}, path + ".dyno");
       }
     }
+    exit(0);
   }
 }
 
