@@ -144,14 +144,14 @@ loadLibraryFile(Context* context, UniqueString libPath) {
   {
     uint64_t size = des.read<uint64_t>();
     for (uint64_t i = 0; i < size; i++) {
+      int id = des.read<int>();
       auto len = des.read<uint64_t>();
-      //printf("SUM: %lld\n", len + 8 + 8);
       if (len > 0) {
         auto buf = (char*)malloc(len+1);
         des.is().read(buf, len);
         buf[len] = '\0';
-        des.context()->uniqueCString(buf, len);
-        printf("GOT: %zu %s\n", chpl::hash(buf,len), buf);
+        auto unique = des.context()->uniqueCString(buf, len);
+        des.context()->insertCachedString(id, {unique,len});
         free(buf);
       }
     }

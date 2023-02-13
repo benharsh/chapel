@@ -152,10 +152,9 @@ class UniqueString final {
     //if (length() > 0) {
     //  ser.os().write(c_str(), length());
     //}
-    ser.cacheString(c_str(), length());
-    uint64_t hash = (uint64_t)chpl::hash(c_str(), length());
-    ser.write(hash);
-    printf("HASH: %llu\n", hash);
+    auto id = ser.cacheString(c_str(), length());
+    printf("CACHED: %d %s\n", id, c_str());
+    ser.write(id);
   }
 
   static UniqueString deserialize(Deserializer& des);

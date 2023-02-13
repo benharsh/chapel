@@ -202,8 +202,8 @@ std::ostream& operator<<(std::ostream& os, const chpl::UniqueString& uStr) {
 
 
 UniqueString UniqueString::deserialize(Deserializer& des) {
-  size_t hash = (size_t)des.read<uint64_t>();
-  auto strlen = des.context()->getUniqueStringByHash(hash);
+  int uid = des.read<int>();
+  auto strlen = des.context()->getUniqueStringByID(uid);
   return get(des.context(), strlen.str, strlen.len);
 
   // TODO: use to get {char*, size_t} pair, then get from normal table...
