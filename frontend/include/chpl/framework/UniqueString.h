@@ -153,7 +153,7 @@ class UniqueString final {
     //  ser.os().write(c_str(), length());
     //}
     auto id = ser.cacheString(c_str(), length());
-    printf("CACHED: %d %s\n", id, c_str());
+    //printf("CACHED: %d %s\n", id, c_str());
     ser.write(id);
   }
 
