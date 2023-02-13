@@ -289,7 +289,9 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
   std::swap(ret.idToLocation_, idToLocation);
   std::swap(ret.commentIdToLocation_, commentLocation);
   auto elapsed = watch.elapsed();
+  if (false) {
   printf("%s %lld\n", ret.filePath_.c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
+  }
 
   return ret;
 }

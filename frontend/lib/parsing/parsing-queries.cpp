@@ -181,7 +181,7 @@ loadLibraryFile(Context* context, UniqueString libPath) {
 void processLibraryFileForFilePaths(Context* context, UniqueString& libPath) {
   const auto& lib = loadLibraryFile(context, libPath);
   for (const auto& entry : lib.data) {
-    printf("setting %s\n", entry.first.c_str());
+    //printf("setting %s\n", entry.first.c_str());
     context->setLibPathForFilePath(entry.first, libPath);
   }
 }
