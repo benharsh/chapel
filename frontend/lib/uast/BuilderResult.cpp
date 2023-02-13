@@ -256,6 +256,7 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
   (void)v; // silence unused variable warnings
   assert(m == magic);
   assert(v == version);
+
   auto path = des.read<UniqueString>(); // path
 
   const auto numEntries = des.read<uint32_t>();
@@ -264,9 +265,31 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
     alist.push_back(AstNode::deserialize(des));
   }
 
+  // TODO: Need a textual file format picture to reason about this more easily
+  //
   // TODO: repeatedly storing a 'path' with Locations is a bit unnecessary...
+  // Notes:
+  // - try to recompute the IDs rather than storing them
+  // - could try storing the lines/column numbers with different bit-widths
+  //   - e.g. a variable-byte encoding
+  //     - might be an example in QIO that I can steal
+  //   - columns are probably relatively small numbers
+  // - variable-byte encoding for string lengths could save a lot of space
+  //   - high bit indicates whether there are more bytes to read/write
+  // - maybe take a look at differential encodings... eventually?
+  // 
+  // - if we recompute the IDs, don't need to store the 'idToParent' map
+  //
+  //
+  //
   auto idToParent = des.read<llvm::DenseMap<ID,ID>>();
+
+  // Unlikely that we'll actually need this up front
+  // Could leave it sitting in the file and only load it when needed
   auto idToLocation = des.read<llvm::DenseMap<ID,Location>>();
+
+
+
     //printf("  %u\n", idToParent.size());
   auto commentLocation = des.read<std::vector<Location>>();
 
@@ -277,11 +300,13 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
   //is.peek();
   //assert(is.eof());
 
+  // 
   llvm::DenseMap<ID, const AstNode*> idToAst;
   for (auto& node : alist) {
     AstNode* ptr = node.get();
     assignIDsFromTree(idToAst, ptr);
   }
+
   std::swap(ret.filePath_, path);
   std::swap(ret.topLevelExpressions_, alist);
   std::swap(ret.idToAst_, idToAst);
