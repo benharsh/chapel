@@ -51,7 +51,10 @@ template<typename T> struct deserialize;
 
 class Serializer {
 private:
+  using uniqueMapType = std::map<const char*, size_t>;
+
   std::ostream& os_;
+  uniqueMapType uniqueMap_;
 
 public:
   Serializer(std::ostream& os): os_(os) {
@@ -61,9 +64,23 @@ public:
     return os_;
   }
 
+  uniqueMapType uniqueMap() {
+    return uniqueMap_;
+  }
+
   template <typename T>
   void write(const T& data) {
     chpl::serialize<T>{}(*this, data);
+  }
+
+  void cacheString(const char* str, size_t len) {
+    auto idx = uniqueMap_.find(str);
+    if (idx == uniqueMap_.end()) {
+      printf("UNIQUE: %s :: %p :: %zu\n", str, str, len);
+      uniqueMap_.insert({str, len});
+    } else {
+      printf("CACHED: %s :: %p :: %zu\n", str, str, len);
+    }
   }
 };
 

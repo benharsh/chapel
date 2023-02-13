@@ -202,17 +202,23 @@ std::ostream& operator<<(std::ostream& os, const chpl::UniqueString& uStr) {
 
 
 UniqueString UniqueString::deserialize(Deserializer& des) {
-  auto len = des.read<uint64_t>();
-  if (len > 0) {
-    auto buf = (char*)malloc(len+1);
-    des.is().read(buf, len);
-    buf[len] = '\0';
-    auto unique = des.context()->uniqueCString(buf, len);
-    free(buf);
-    return UniqueString::get(des.context(), unique, len);
-  } else {
-    return UniqueString();
-  }
+  size_t hash = (size_t)des.read<uint64_t>();
+  auto strlen = des.context()->getUniqueStringByHash(hash);
+  return get(des.context(), strlen.str, strlen.len);
+
+  // TODO: use to get {char*, size_t} pair, then get from normal table...
+  //
+  //auto len = des.read<uint64_t>();
+  //if (len > 0) {
+  //  auto buf = (char*)malloc(len+1);
+  //  des.is().read(buf, len);
+  //  buf[len] = '\0';
+  //  auto unique = des.context()->uniqueCString(buf, len);
+  //  free(buf);
+  //  return UniqueString::get(des.context(), unique, len);
+  //} else {
+  //  return UniqueString();
+  //}
 }
 
 } // end namespace chpl

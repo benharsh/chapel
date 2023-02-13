@@ -195,34 +195,15 @@ ID BuilderResult::idToParentId(ID id) const {
 const uint64_t magic = 0x4C5048434550487F;
 const uint32_t version = 0x00000001;
 
-std::string BuilderResult::serialize(const char* dn) const {
-  std::string dirName = dn;
-  chpl::makeDir(dirName, true);
-  std::string baseName;
-  {
-    auto copy = this->filePath().str();
-    const char* fname = copy.c_str();
-    const char* right = strrchr(fname, '/');
-    if (right == NULL) {
-      baseName = fname;
-    } else {
-      baseName = right + 1;
-    }
-  }
-  auto fileName = dirName + "/" + baseName + ".ast.bin";
-  std::ofstream myFile;
-  myFile.open(fileName, std::ios::out | std::ios::trunc | std::ios::binary);
-
-  serialize(myFile);
-
-  return fileName;
-}
-
 #define DYNO_BUILDER_RESULT_START_STR std::string("DYNO_BUILDER_RESULT_START")
 #define DYNO_BUILDER_RESULT_END_STR std::string("DYNO_BUILDER_RESULT_END")
 
 void BuilderResult::serialize(std::ostream& os) const {
   Serializer ser(os);
+  serialize(ser, os);
+}
+
+void BuilderResult::serialize(Serializer& ser, std::ostream& os) const {
   ser.write(DYNO_BUILDER_RESULT_START_STR);
   ser.write(magic);
   ser.write(version);

@@ -132,12 +132,29 @@ loadLibraryFile(Context* context, UniqueString libPath) {
   assert(magic == des.read<uint64_t>());
   assert(version == des.read<uint32_t>());
   auto num = des.read<uint64_t>();
-  std::vector<std::pair<UniqueString, uint64_t>> offsets;
+  std::vector<std::pair<std::string, uint64_t>> offsets;
 
   for (uint64_t i = 0; i < num; i++) {
-    auto path = des.read<UniqueString>();
+    auto path = des.read<std::string>();
     auto offset = des.read<uint64_t>();
     offsets.push_back({path, offset});
+  }
+
+  // Read unique strings
+  {
+    uint64_t size = des.read<uint64_t>();
+    for (uint64_t i = 0; i < size; i++) {
+      auto len = des.read<uint64_t>();
+      //printf("SUM: %lld\n", len + 8 + 8);
+      if (len > 0) {
+        auto buf = (char*)malloc(len+1);
+        des.is().read(buf, len);
+        buf[len] = '\0';
+        des.context()->uniqueCString(buf, len);
+        printf("GOT: %zu %s\n", chpl::hash(buf,len), buf);
+        free(buf);
+      }
+    }
   }
 
   auto dataStart = myFile.tellg();
@@ -150,8 +167,9 @@ loadLibraryFile(Context* context, UniqueString libPath) {
     //myFile.seekg(dataStart + off);
     //auto str = des.read<std::string>();
     //data[pair.first] = str;
-    data[pair.first] = "";
-    result.offsets[pair.first] = dataStart + off;
+    auto ustr = UniqueString::get(context, pair.first);
+    data[ustr] = "";
+    result.offsets[ustr] = dataStart + off;
   }
 
   std::swap(result.path, libPath);
@@ -163,7 +181,7 @@ loadLibraryFile(Context* context, UniqueString libPath) {
 void processLibraryFileForFilePaths(Context* context, UniqueString& libPath) {
   const auto& lib = loadLibraryFile(context, libPath);
   for (const auto& entry : lib.data) {
-    //printf("setting %s\n", entry.first.c_str());
+    printf("setting %s\n", entry.first.c_str());
     context->setLibPathForFilePath(entry.first, libPath);
   }
 }

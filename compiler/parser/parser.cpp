@@ -486,20 +486,31 @@ static void generateLibraryFile(std::vector<UniqueString> paths,
   ser.write(magic);
   ser.write(version);
   ser.write((uint64_t)paths.size());
-  std::vector<std::pair<UniqueString, std::string>> data;
+  std::vector<std::pair<std::string, std::string>> data;
 
   uint64_t offset = 0;
+  std::stringstream ss;
+  chpl::Serializer builderSer(ss);
   for (auto path : paths) {
     UniqueString empty;
     auto& result = chpl::parsing::parseFileToBuilderResult(gContext, path, empty);
-    std::stringstream ss;
-    result.serialize(ss);
+    result.serialize(builderSer, ss);
     const auto& str = ss.str();
-    data.push_back({path, str});
-    ser.write(path);
+    data.push_back({path.str(), str});
+    ss.str(std::string());
+    ser.write(path.str());
     ser.write(offset);
-    //printf("%s :: %llu\n", path.c_str(), offset);
     offset += 8 + str.size();
+  }
+
+  const auto& uniqueMap = builderSer.uniqueMap();
+
+  ser.write((uint64_t)uniqueMap.size());
+  for (const auto& kv : uniqueMap) {
+    ser.write((uint64_t)kv.second);
+    if (kv.second > 0) {
+      ser.os().write(kv.first, kv.second);
+    }
   }
 
   for (const auto& pair : data) {

@@ -200,6 +200,7 @@ const char* Context::getOrCreateUniqueString(const char* str, size_t len) {
   // Add it to the table
   chpl::detail::StringAndLength ret = {s, len};
   this->uniqueStringsTable.insert(search, ret);
+  this->cachedUniqueStrings[chpl::hash(s, len)] = ret;
   return s;
 }
 

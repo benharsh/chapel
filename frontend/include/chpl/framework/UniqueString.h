@@ -148,10 +148,14 @@ class UniqueString final {
   void stringify(std::ostream& ss, chpl::StringifyKind stringKind) const;
 
   void serialize(Serializer& ser) const {
-    ser.write((uint64_t)length());
-    if (length() > 0) {
-      ser.os().write(c_str(), length());
-    }
+    //ser.write((uint64_t)length());
+    //if (length() > 0) {
+    //  ser.os().write(c_str(), length());
+    //}
+    ser.cacheString(c_str(), length());
+    uint64_t hash = (uint64_t)chpl::hash(c_str(), length());
+    ser.write(hash);
+    printf("HASH: %llu\n", hash);
   }
 
   static UniqueString deserialize(Deserializer& des);

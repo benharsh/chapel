@@ -119,6 +119,8 @@ class Context {
   using UniqueStringsTableType = std::unordered_set<chpl::detail::StringAndLength, chpl::detail::UniqueStrHash, chpl::detail::UniqueStrEqual>;
   UniqueStringsTableType uniqueStringsTable;
 
+  std::map<size_t, chpl::detail::StringAndLength> cachedUniqueStrings;
+
   // Map from a query function pointer to appropriate QueryMap object.
   // Maps to an 'owned' heap-allocated thing to manage having subclasses
   // without slicing.
@@ -401,6 +403,10 @@ class Context {
    is not the result of one of the uniqueCString calls.
    */
   static size_t lengthForUniqueString(const char* s);
+
+  chpl::detail::StringAndLength getUniqueStringByHash(size_t hash) {
+    return cachedUniqueStrings.at(hash);
+  }
 
   /**
 
