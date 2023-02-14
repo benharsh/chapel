@@ -1243,11 +1243,11 @@ void parseAndConvertUast() {
 
   if (countTokens || printTokens) countTokensInCmdLineFiles();
 
-  gContext->beginQueryTimingTrace("dyno-timings.txt");
+  //gContext->beginQueryTimingTrace("dyno-timings.txt");
   addDynoLibFiles();
 
   parseInternalModules();
-  gContext->endQueryTimingTrace();
+  //gContext->endQueryTimingTrace();
 
   parseCommandLineFiles();
 

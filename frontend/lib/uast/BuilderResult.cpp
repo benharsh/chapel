@@ -215,7 +215,20 @@ void BuilderResult::serialize(Serializer& ser, std::ostream& os) const {
     ast->serialize(ser);
   }
   ser.write(idToParentId_);
-  ser.write(idToLocation_);
+
+  {
+    //ser.write(idToLocation_);
+    ser.write((uint64_t)idToLocation_.size());
+    ser.write(filePath_);
+    for (const auto& pair : idToLocation_) {
+      ser.write(pair.first);
+      ser.write(pair.second.firstLine());
+      ser.write(pair.second.firstColumn());
+      ser.write(pair.second.lastLine());
+      ser.write(pair.second.lastColumn());
+    }
+  }
+
   ser.write(commentIdToLocation_);
   ser.write(DYNO_BUILDER_RESULT_END_STR);
 }
@@ -280,13 +293,26 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
   // 
   // - if we recompute the IDs, don't need to store the 'idToParent' map
   //
+  // NOTE: recomputing the IDs is a 'Builder' task, so... need to figure that out.
+  //
   //
   //
   auto idToParent = des.read<llvm::DenseMap<ID,ID>>();
 
   // Unlikely that we'll actually need this up front
   // Could leave it sitting in the file and only load it when needed
-  auto idToLocation = des.read<llvm::DenseMap<ID,Location>>();
+  //auto idToLocation = des.read<llvm::DenseMap<ID,Location>>();
+  auto maplen = des.read<uint64_t>();
+  llvm::DenseMap<ID,Location> idToLocation(maplen);
+  auto pathstr = des.read<UniqueString>();
+  for (uint64_t i = 0; i < maplen; i++) {
+    auto curid = des.read<ID>();
+    int fl = des.read<int>();
+    int fc = des.read<int>();
+    int ll = des.read<int>();
+    int lc = des.read<int>();
+    idToLocation.insert({curid, Location(pathstr, fl, fc, ll, lc)});
+  }
 
 
 
