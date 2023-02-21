@@ -1719,6 +1719,91 @@ module DefaultRectangular {
     chpl_serialReadWriteRectangularHelper(f, arr, dom);
   }
 
+  proc chpl_serialReadWriteRectangularHelper(f, arr, dom) throws
+  where f.fmtType != nothing {
+    if f.writing then
+      _writeHelper(f, arr, dom);
+    else
+      _readHelper(f, arr, dom);
+  }
+
+  proc _writeHelper(f, arr, dom) throws {
+    param rank = arr.rank;
+    type idxType = arr.idxType;
+    type idxSignedType = chpl__signedType(chpl__idxTypeToIntIdxType(idxType));
+    type eltType = arr.eltType;
+
+    const isNative = f.styleElement(QIO_STYLE_ELEMENT_IS_NATIVE_BYTE_ORDER): bool;
+
+    ref fmt = f.formatter;
+
+    inline proc rwLiteral(lit:string) throws {
+      if f.writing then f._writeLiteral(lit); else f._readLiteral(lit);
+    }
+
+    proc rwSpaces(dim:int) throws {
+      for i in 1..dim {
+        rwLiteral(" ");
+      }
+    }
+
+    proc recursiveArrayReaderWriter(in idx: rank*idxType, dim=0, in last=false) throws {
+
+      type strType = idxSignedType;
+      const makeStridePositive = if dom.dsiDim(dim).stride > 0 then 1:strType else (-1):strType;
+
+      // 1) start with the format you want for the 1D case
+      // 2) then write an 'array' of that output, with suitable separators
+      //    for each greater dimension
+
+      fmt.writeArrayStart(f);
+
+      // TODO: test for column-major ordering
+      // The simple 1D case
+      if dim == rank-1 {
+        for j in dom.dsiDim(dim) by makeStridePositive {
+          idx(dim) = j;
+          fmt.writeArrayElement(f, arr.dsiAccess(idx));
+        }
+      } else {
+        for j in dom.dsiDim(dim) by makeStridePositive {
+          var lastIdx =  dom.dsiDim(dim).last;
+          idx(dim) = j;
+
+          recursiveArrayReaderWriter(idx, dim=dim+1,
+                               last=(last || dim == 0) && (j == dom.dsiDim(dim).high));
+
+          //if isjson || ischpl {
+          //  if j != lastIdx {
+          //    rwLiteral(",\n");
+          //    rwSpaces(dim+1);
+          //  }
+          //}
+        }
+      }
+
+      fmt.writeArrayEnd(f);
+      //if isspace {
+      //  if !last && dim != 0 {
+      //    rwLiteral("\n");
+      //  }
+      //} else if isjson || ischpl {
+      //  if dim != rank-1 {
+      //    rwLiteral("\n");
+      //    rwSpaces(dim); // space for this dimension
+      //    rwLiteral("]");
+      //  }
+      //  else rwLiteral("]");
+      //}
+    }
+
+    const zeroTup: rank*idxType;
+    recursiveArrayReaderWriter(zeroTup);
+  }
+
+  proc _readHelper(f, arr, dom) throws {
+  }
+
   proc chpl_serialReadWriteRectangularHelper(f, arr, dom) throws {
     param rank = arr.rank;
     type idxType = arr.idxType;
@@ -1747,6 +1832,10 @@ module DefaultRectangular {
 
       type strType = idxSignedType;
       var makeStridePositive = if dom.dsiDim(dim).stride > 0 then 1:strType else (-1):strType;
+
+      // 1) start with the format you want for the 1D case
+      // 2) then write an 'array' of that output, with suitable separators
+      //    for each greater dimension
 
       if isjson || ischpl {
         if dim != rank-1 {
