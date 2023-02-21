@@ -2470,8 +2470,9 @@ fileWriter = _channel(writing=true, ?);
 pragma "no doc"
 record DefaultWriter {
   var firstField = true;
-  var _wroteStart, _wroteEnd : bool;
   var _inheritLevel = 0;
+  var _arrayDim = 0;
+  var _arrayMax : int;
 
   proc _encodeClassOrPtr(writer:fileWriter, x: ?t) : void throws {
     if x == nil {
@@ -2557,6 +2558,65 @@ record DefaultWriter {
 
     _inheritLevel -= 1;
   }
+
+  // TODO: Should we support an optional 'size' field on the *Start methods
+  // in order to more easily support common binary IO patterns?
+  // TODO: what should we do for sparse arrays? The current format is kind of
+  // weird. I'd personally lean towards doing a " => " pattern...
+  proc writeArrayStart(w: fileWriter) throws {
+    _arrayDim += 1;
+    if _arrayMax >= _arrayDim {
+      w.writeNewline();
+    } else {
+      _arrayMax = _arrayDim;
+    }
+  }
+
+  proc writeArrayElement(w: fileWriter, const idx: ?, const val: ?) throws {
+    if !firstField then
+      w._writeLiteral(" ");
+    else
+      firstField = false;
+    w.write(val);
+  }
+
+  // TODO: should we have some kind of procs or args that relate to the
+  // beginning or end of a dimension?
+  proc writeArrayEnd(w: fileWriter) throws {
+    _arrayDim -= 1;
+
+    // Reset for any subsequent chunks of the array
+    firstField = true;
+  }
+
+  proc writeMapStart(w: fileWriter) throws {
+    w._writeLiteral("{ ");
+  }
+
+  proc writeMapPair(w: fileWriter, const key: ?, const val: ?) throws {
+    if !firstField then
+      w._writeLiteral(" , ");
+    else
+      firstField = false;
+
+    w.write(key);
+    w._writeLiteral(" : ");
+    w.write(val);
+  }
+
+  proc writeMapEnd(w: fileWriter) throws {
+    w._writeLiteral(" }");
+  }
+
+  // TODO: maybe for some types we should have a way of just saying something
+  // like "idk, put this in a string for the given format..."
+  // - or maybe the opposite: opt-into formatter-exclusive stuff?
+  // - and otherwise it all gets put into a string?
+  //
+  // TODO: Should we have a way of checking to see if 'encodeTo' resolves?
+  // - user might have a where-clause-constrained encodeTo, which may
+  //   thwart the compiler-generated one.
+  // - if it doesn't, the formatter should fall back onto something...?
 }
 
 
@@ -2598,7 +2658,8 @@ pragma "no doc"
 record DefaultReader {
   var firstField = true;
   var _inheritLevel = 0;
-  var _readStart, _readEnd : bool;
+  var _arrayDim = 0;
+  var _arrayMax : int;
 
   proc decode(reader:fileReader, type readType) : readType throws {
     if isNilableClassType(readType) {
@@ -2612,7 +2673,11 @@ record DefaultReader {
       var x : readType;
       reader._readOne(reader.kind, x, here);
       return x;
-    } else if canResolveTypeMethod(readType, "decodeFrom", reader) {
+    } else if canResolveTypeMethod(readType, "decodeFrom", reader) ||
+              isArrayType(readType) {
+      // Always run 'decodeFrom' on arrays, for now, to work around issues
+      // where a compilerError might cause 'canResolveTypeMethod' to return
+      // false.
       return readType.decodeFrom(reader.withFormatter(new DefaultReader()));
     } else {
       return new readType(reader.withFormatter(new DefaultReader()));
@@ -2660,6 +2725,49 @@ record DefaultReader {
     }
 
     _inheritLevel -= 1;
+  }
+
+  proc readArrayStart(r: fileReader) throws {
+    _arrayDim += 1;
+    if _arrayMax >= _arrayDim {
+      r.readNewline();
+    } else {
+      _arrayMax = _arrayDim;
+    }
+  }
+
+  // TODO: should this be defined to return a tuple of (idxType, eltType) ?
+  proc readArrayElement(r: fileReader, type idxType, type eltType) throws {
+    if !firstField then
+      r._readLiteral(" ");
+    else
+      firstField = false;
+    return (none, r.read(eltType));
+  }
+
+  proc readArrayEnd(r: fileReader) throws {
+    _arrayDim -= 1;
+
+    firstField = true;
+  }
+
+  proc readMapStart(r: fileReader) throws {
+    r._readLiteral("{");
+  }
+
+  proc readMapPair(r: fileReader, type keyType, type valType) throws {
+    if !firstField then
+      r._readLiteral(", ");
+    else
+      firstField = false;
+
+    const k = r.read(keyType);
+    r._readLiteral(": ");
+    return (k, r.read(valType));
+  }
+
+  proc readMapEnd(r: fileReader) throws {
+    r._readLiteral("}");
   }
 }
 

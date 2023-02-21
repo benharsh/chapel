@@ -1731,6 +1731,18 @@ module List {
       _leave();
     }
 
+    proc encodeTo(ch: fileWriter) throws {
+      _enter();
+      
+      ref fmt = ch.formatter;
+      fmt.writeArrayStart(ch);
+      for i in 0..<this.size do
+        fmt.writeArrayElement(ch, i, this[i]);
+      fmt.writeArrayEnd(ch);
+
+      _leave();
+    }
+
     /*
      Read the contents of this list from a channel.
 
@@ -1801,9 +1813,38 @@ module List {
     // TODO: rewrite to use formatter interface
     //
     pragma "no doc"
-    proc init(type eltType, param parSafe : bool, r: fileReader) {
+    proc init(type eltType, param parSafe : bool, r: fileReader) throws {
       this.init(eltType, parSafe);
-      try! readThis(r);
+      // TODO: a couple of silly initializer things I noticed:
+      // - why can't we have a try with a catch? probably old rule...
+      // - still some error that says we can't have throws stmts...
+      _readHelper(r);
+    }
+
+    proc _readHelper(r: fileReader) throws {
+      _enter();
+
+      _clearLocked();
+
+      ref fmt = r.formatter;
+      fmt.readArrayStart(r);
+
+      var done = false;
+      while !done {
+        try {
+          // read an element
+          pragma "no auto destroy"
+          var (readIdx, elt) = fmt.readArrayElement(r, int, eltType);
+          // TODO: what if we got an index???
+          _appendByRef(elt);
+        } catch {
+          done = true;
+        }
+      }
+
+      fmt.readArrayEnd(r);
+
+      _leave();
     }
 
     /*

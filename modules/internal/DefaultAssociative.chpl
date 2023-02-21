@@ -635,6 +635,42 @@ module DefaultAssociative {
       }
     }
 
+    proc dsiSerialReadWrite(f, in printBraces=true, inout first = true) throws
+    where f.fmtType != nothing {
+      ref fmt = f.formatter;
+
+      if f.writing then
+        fmt.writeArrayStart(f);
+      else
+        fmt.readArrayStart(f);
+
+      if f.writing {
+        for (key, val) in zip(this.dom, this) {
+          fmt.writeArrayElement(f, key, val);
+        }
+      } else {
+        for 0..<dom.dsiNumIndices {
+          const (k, v) = fmt.readArrayElement(f, idxType, eltType);
+
+          // TODO: I want to be able to put a compiler error here, but it
+          // thwarts the 'canResolveTypeMethod' check for 'decodeFrom', which
+          // causes an attempt to invoke the array initializer...
+          if k.type != idxType { // e.g. 'none'
+            compilerError("Formatter '" + f.fmtType:string + "' does not support reading associative arrays");
+          } else if !dom.dsiMember(k) {
+            // TODO: throw error
+          } else {
+            dsiAccess(k) = v;
+          }
+        }
+      }
+
+      if f.writing then
+        fmt.writeArrayEnd(f);
+      else
+        fmt.readArrayEnd(f);
+    }
+
     proc dsiSerialReadWrite(f /*: channel*/, in printBraces=true, inout first = true) throws {
       var binary = f.binary();
       var arrayStyle = f.styleElement(QIO_STYLE_ELEMENT_ARRAY);

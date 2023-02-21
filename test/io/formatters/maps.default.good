@@ -1,0 +1,8 @@
+{ east : west , hello : goodbye , north : south , day : night }
+SUCCESS: map(string,string,false)
+{ 713 : Houston , 212 : NYC , 206 : Seattle }
+SUCCESS: map(int(64),string,false)
+{ Banana : (x = 1, y = -10.0) , Apple : (x = 5, y = 42.0) , Orange : (x = 13, y = 106.7) }
+SUCCESS: map(string,R,false)
+{ (x = 1, y = -10.0) : Banana , (x = 5, y = 42.0) : Apple , (x = 13, y = 106.7) : Orange }
+SUCCESS: map(R,string,false)

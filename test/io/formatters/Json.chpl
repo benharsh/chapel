@@ -3,12 +3,16 @@ module Json {
   private use IO;
   private use CTypes;
   private use Map;
+  private use List;
 
   type _writeType = fileWriter(fmtType=JsonWriter, ?);
   type _readerT = fileReader(fmtType=JsonReader, ?);
   record JsonWriter {
     var firstField = true;
     var _inheritLevel = 0;
+    var _arrayDim = 0;
+    var _arrayMax = 0;
+    var _arrayFirst : list(bool);
 
     // TODO: rewrite in terms of writef, or something
     proc _oldWrite(ch: _writeType, const val:?t) throws {
@@ -27,9 +31,10 @@ module Json {
 
     proc encode(writer: _writeType, const x:?t) throws {
       if t == string  || isEnumType(t) || t == bytes {
-        writer.writeLiteral('"');
-        writer.withFormatter(DefaultWriter).write(x);
-        writer.writeLiteral('"');
+        _oldWrite(writer, x);
+        //writer.writeLiteral('"');
+        //writer.withFormatter(DefaultWriter).write(x);
+        //writer.writeLiteral('"');
       } else if isNumericType(t) || isBoolType(t) {
         _oldWrite(writer, x);
       } else if t == ioLiteral {
@@ -84,6 +89,91 @@ module Json {
 
       _inheritLevel -= 1;
     }
+
+    // TODO: I think we should just embed some kind of dimensionality into
+    // this. If people want a 1D thing then that will be easy.
+    proc writeArrayStart(w: _writeType) throws {
+      _arrayDim += 1;
+      if _arrayFirst.size < _arrayDim {
+        _arrayFirst.append(true);
+      }
+
+      if _arrayFirst[_arrayDim-1] {
+        _arrayFirst[_arrayDim-1] = false;
+      } else {
+        w._writeLiteral(",");
+      }
+
+      _arrayMax = max(_arrayMax, _arrayDim);
+
+      if _arrayDim > 1 {
+        w.writeNewline();
+        w.writeLiteral(" " * (_arrayDim-1));
+      }
+      w._writeLiteral("[");
+    }
+
+    // TODO: I sort of feel like we should print associative arrays/domains as
+    // proper json maps, rather than an array of elements.....
+    proc writeArrayElement(w: _writeType, const idx: ?, const val: ?) throws {
+      if !firstField then
+        w._writeLiteral(", ");
+      else
+        firstField = false;
+      w.write(val);
+    }
+
+    proc writeArrayEnd(w: _writeType) throws {
+      if _arrayDim < _arrayMax {
+        w.writeNewline();
+        w._writeLiteral(" " * (_arrayDim-1));
+      }
+      w._writeLiteral("]");
+
+      if _arrayDim < _arrayFirst.size then
+      _arrayFirst[_arrayDim] = true;
+
+      _arrayDim -= 1;
+      firstField = true;
+    }
+
+    proc writeMapStart(w: _writeType) throws {
+      w._writeLiteral("{");
+    }
+
+    proc writeMapPair(w: _writeType, const key: ?, const val: ?) throws {
+      if !firstField {
+        w._writeLiteral(",");
+        w.writeNewline();
+        w._writeLiteral("  ");
+      } else {
+        w.writeNewline();
+        w._writeLiteral("  ");
+        firstField = false;
+      }
+
+      if key.type == string {
+        w.write(key);
+      } else {
+        // Write the key as json, then turn it into a json string to use
+        // it as a proper key for the map.
+        var f = openMemFile();
+        {
+          f.writer().withFormatter(JsonWriter).write(key);
+        }
+        var tmp : string;
+        f.reader().readAll(tmp);
+        w.write(tmp);
+      }
+
+      w._writeLiteral(": ");
+      w.write(val);
+    }
+
+    proc writeMapEnd(w: _writeType) throws {
+      w.writeNewline();
+      w._writeLiteral("}");
+    }
   }
 
   private extern proc qio_channel_skip_json_field(threadsafe:c_int, ch:qio_channel_ptr_t):errorCode;
@@ -124,8 +214,28 @@ module Json {
     var _offsets : [_names] int;
     var _lastPos = -1;
 
+    var firstField = true;
+    var _arrayDim = 0;
+    var _arrayMax = 0;
+    var _arrayFirst : list(bool);
+
     proc init() {
       this.complete();
+    }
+
+    // TODO: rewrite in terms of writef, or something
+    proc _oldRead(ch: _readerT, ref val:?t) throws {
+      var _def = new DefaultWriter();
+      var dc = ch.withFormatter(_def);
+      var st = dc._styleInternal();
+      var orig = st; defer { dc._set_styleInternal(orig); }
+      st.realfmt = 2;
+      st.string_format = iostringformat.json:uint(8);
+      st.aggregate_style = QIO_AGGREGATE_FORMAT_JSON:uint(8);
+      st.array_style = QIO_ARRAY_FORMAT_JSON:uint(8);
+      st.tuple_style = QIO_TUPLE_FORMAT_JSON:uint(8);
+      dc._set_styleInternal(st);
+      dc._readOne(dc.kind, val, here);
     }
 
     proc decode(reader:fileReader, type readType) : readType throws {
@@ -142,14 +252,16 @@ module Json {
         return x;
       } else if isStringType(readType) {
         var tmp : readType;
-        reader.readf("%{\"S\"}", tmp);
+        //reader.readf("%{\"S\"}", tmp);
+        _oldRead(reader, tmp);
         return tmp;
       } else if isEnumType(readType) {
         reader.readLiteral('"');
         var ret = reader.withFormatter(DefaultReader).read(readType);
         reader.readLiteral('"');
         return ret;
-      } else if canResolveTypeMethod(readType, "decodeFrom", reader) {
+      } else if canResolveTypeMethod(readType, "decodeFrom", reader) ||
+                isArrayType(readType) {
         return readType.decodeFrom(reader.withFormatter(new JsonReader()));
       } else {
         return new readType(reader.withFormatter(new JsonReader()));
@@ -223,6 +335,84 @@ module Json {
           r.readLiteral("]");
         }
       }
+    }
+
+    proc readArrayStart(r: fileReader) throws {
+      _arrayDim += 1;
+      if _arrayFirst.size < _arrayDim {
+        _arrayFirst.append(true);
+      }
+
+      if _arrayFirst[_arrayDim-1] {
+        _arrayFirst[_arrayDim-1] = false;
+      } else {
+        r._readLiteral(",");
+      }
+
+      _arrayMax = max(_arrayMax, _arrayDim);
+
+      // Don't need to read the newline and pretty-printed spaces, as JSON
+      // arrays can come in other forms. Relies on 'readLiteral' ignoring
+      // whitespace by default.
+      r._readLiteral("[");
+    }
+
+    proc readArrayElement(r: fileReader, type idxType, type eltType) throws {
+      if !firstField then
+        r._readLiteral(", ");
+      else
+        firstField = false;
+      return (none, r.read(eltType));
+    }
+
+    proc readArrayEnd(r: fileReader) throws {
+      if _arrayDim < _arrayMax {
+        r.readNewline();
+        r._readLiteral(" " * (_arrayDim-1));
+      }
+
+      // Don't need to read the newline and pretty-printed spaces, as JSON
+      // arrays can come in other forms. Relies on 'readLiteral' ignoring
+      // whitespace by default.
+      r._readLiteral("]");
+
+      if _arrayDim < _arrayFirst.size then
+        _arrayFirst[_arrayDim] = true;
+
+      _arrayDim -= 1;
+      firstField = true;
+    }
+
+    proc readMapStart(r: fileReader) throws {
+      r._readLiteral("{");
+    }
+
+    // TODO: don't need to always read the spaces after commas...
+    proc readMapPair(r: fileReader, type keyType, type valType) throws {
+      if !firstField {
+        r._readLiteral(",");
+      } else {
+        firstField = false;
+      }
+
+      if keyType == string {
+        var k = r.read(string);
+        r._readLiteral(":");
+        return (k, r.read(valType));
+      } else {
+        var f = openMemFile();
+        var s = r.read(string);
+        {
+          f.writer().withFormatter(DefaultWriter).write(s);
+        }
+        var k = f.reader().withFormatter(JsonReader).read(keyType);
+        r._readLiteral(":");
+        return (k, r.read(valType));
+      }
+    }
+
+    proc readMapEnd(r: fileReader) throws {
+      r._readLiteral("}");
     }
   }
 }
