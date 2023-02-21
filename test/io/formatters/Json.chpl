@@ -3,12 +3,16 @@ module Json {
   private use IO;
   private use CTypes;
   private use Map;
+  private use List;
 
   type _writeType = fileWriter(fmtType=JsonWriter, ?);
   type _readerT = fileReader(fmtType=JsonReader, ?);
   record JsonWriter {
     var firstField = true;
     var _inheritLevel = 0;
+    var _arrayDim = 0;
+    var _arrayMax = 0;
+    var _arrayFirst : list(bool);
 
     // TODO: rewrite in terms of writef, or something
     proc _oldWrite(ch: _writeType, const val:?t) throws {
@@ -83,6 +87,51 @@ module Json {
       }
 
       _inheritLevel -= 1;
+    }
+
+    // TODO: I think we should just embed some kind of dimensionality into
+    // this. If people want a 1D thing then that will be easy.
+    proc writeArrayStart(w: _writeType) throws {
+      _arrayDim += 1;
+      if _arrayFirst.size < _arrayDim {
+        _arrayFirst.append(true);
+      }
+
+      if _arrayFirst[_arrayDim-1] {
+        _arrayFirst[_arrayDim-1] = false;
+      } else {
+        w._writeLiteral(",");
+      }
+
+      _arrayMax = max(_arrayMax, _arrayDim);
+
+      if _arrayDim > 1 {
+        w.writeNewline();
+        w.writeLiteral(" " * (_arrayDim-1));
+      }
+      w._writeLiteral("[");
+    }
+
+    proc writeArrayElement(w: _writeType, const val: ?) throws {
+      if !firstField then
+        w._writeLiteral(", ");
+      else
+        firstField = false;
+      w.write(val);
+    }
+
+    proc writeArrayEnd(w: _writeType) throws {
+      if _arrayDim < _arrayMax {
+        w.writeNewline();
+        w._writeLiteral(" " * (_arrayDim-1));
+      }
+      w._writeLiteral("]");
+
+      if _arrayDim < _arrayFirst.size then
+      _arrayFirst[_arrayDim] = true;
+
+      _arrayDim -= 1;
+      firstField = true;
     }
   }
 

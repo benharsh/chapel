@@ -2593,13 +2593,12 @@ proc fileWriter.formatter const ref {
 // The compiler is expected to generate a default implementation of encodeTo
 // methods for records and classes.
 //
-private use List;
 pragma "no doc"
 record DefaultWriter {
   var firstField = true;
   var _inheritLevel = 0;
   var _arrayDim = 0;
-  var _arrayFirst : int;
+  var _arrayMax : int;
 
   proc _encodeClassOrPtr(writer:fileWriter, x: ?t) : void throws {
     if x == nil {
@@ -2686,34 +2685,29 @@ record DefaultWriter {
     _inheritLevel -= 1;
   }
 
-  proc _setArrayFirst(dim : int) {
-    _arrayFirst |= (1 << (dim-1));
-  }
-
-  proc _getArrayFirst(dim : int) : bool {
-    var bit = (1 << (dim-1));
-    return (_arrayFirst & bit) != 0;
-  }
-
   // TODO: Should we support an optional 'size' field on the *Start methods
   // in order to more easily support common binary IO patterns?
   proc writeArrayStart(w: fileWriter) throws {
     _arrayDim += 1;
-    if _getArrayFirst(_arrayDim) {
+    if _arrayMax >= _arrayDim {
       w.writeNewline();
+    } else {
+      _arrayMax = _arrayDim;
     }
-    _setArrayFirst(_arrayDim);
   }
 
   proc writeArrayElement(w: fileWriter, const val: ?) throws {
     if !firstField then
       w._writeLiteral(" ");
+    else
+      firstField = false;
     w.write(val);
-    firstField = false;
   }
 
   proc writeArrayEnd(w: fileWriter) throws {
     _arrayDim -= 1;
+
+    // Reset for any subsequent chunks of the array
     firstField = true;
   }
 
