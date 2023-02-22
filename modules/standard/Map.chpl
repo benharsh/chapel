@@ -684,6 +684,24 @@ module Map {
       _readWriteHelper(ch);
     }
 
+    proc encodeTo(ch: fileWriter) throws where ch.fmtType != nothing {
+      _enter(); defer _leave();
+
+      ref fmt = ch.formatter;
+      fmt.writeMapStart(ch);
+
+      for slot in table.allSlots() {
+        if table.isSlotFull(slot) {
+          ref tabEntry = table.table[slot];
+          ref key = tabEntry.key;
+          ref val = tabEntry.val;
+          fmt.writeMapPair(ch, key, val);
+        }
+      }
+
+      fmt.writeMapEnd(ch);
+    }
+
     pragma "no doc"
     proc _readWriteHelper(ch) throws {
       _enter(); defer _leave();

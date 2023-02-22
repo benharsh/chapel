@@ -641,6 +641,19 @@ module DefaultAssociative {
       }
     }
 
+    proc dsiSerialReadWrite(f, in printBraces=true, inout first = true) throws
+    where f.fmtType != nothing {
+      ref fmt = f.formatter;
+
+      fmt.writeArrayStart(f);
+
+      for (key, val) in zip(this.dom, this) {
+        fmt.writeArrayElement(f, key, val);
+      }
+
+      fmt.writeArrayEnd(f);
+    }
+
     proc dsiSerialReadWrite(f /*: channel*/, in printBraces=true, inout first = true) throws {
       var binary = f.binary();
       var arrayStyle = f.styleElement(QIO_STYLE_ELEMENT_ARRAY);

@@ -1731,6 +1731,18 @@ module List {
       _leave();
     }
 
+    proc writeThis(ch: fileWriter) throws where ch.fmtType != nothing {
+      _enter();
+      
+      ref fmt = ch.formatter;
+      fmt.writeArrayStart(ch);
+      for i in 0..<this.size do
+        fmt.writeArrayElement(ch, i, this[i]);
+      fmt.writeArrayEnd(ch);
+
+      _leave();
+    }
+
     /*
      Read the contents of this list from a channel.
 

@@ -1,0 +1,2 @@
+--use-io-formatters -sformat=FormatKind.default # maps.default.good
+--use-io-formatters -sformat=FormatKind.json # maps.json.good

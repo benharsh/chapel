@@ -1752,10 +1752,6 @@ module DefaultRectangular {
       type strType = idxSignedType;
       const makeStridePositive = if dom.dsiDim(dim).stride > 0 then 1:strType else (-1):strType;
 
-      // 1) start with the format you want for the 1D case
-      // 2) then write an 'array' of that output, with suitable separators
-      //    for each greater dimension
-
       fmt.writeArrayStart(f);
 
       // TODO: test for column-major ordering
@@ -1763,7 +1759,7 @@ module DefaultRectangular {
       if dim == rank-1 {
         for j in dom.dsiDim(dim) by makeStridePositive {
           idx(dim) = j;
-          fmt.writeArrayElement(f, arr.dsiAccess(idx));
+          fmt.writeArrayElement(f, idx, arr.dsiAccess(idx));
         }
       } else {
         for j in dom.dsiDim(dim) by makeStridePositive {
@@ -1773,28 +1769,10 @@ module DefaultRectangular {
           recursiveArrayReaderWriter(idx, dim=dim+1,
                                last=(last || dim == 0) && (j == dom.dsiDim(dim).high));
 
-          //if isjson || ischpl {
-          //  if j != lastIdx {
-          //    rwLiteral(",\n");
-          //    rwSpaces(dim+1);
-          //  }
-          //}
         }
       }
 
       fmt.writeArrayEnd(f);
-      //if isspace {
-      //  if !last && dim != 0 {
-      //    rwLiteral("\n");
-      //  }
-      //} else if isjson || ischpl {
-      //  if dim != rank-1 {
-      //    rwLiteral("\n");
-      //    rwSpaces(dim); // space for this dimension
-      //    rwLiteral("]");
-      //  }
-      //  else rwLiteral("]");
-      //}
     }
 
     const zeroTup: rank*idxType;

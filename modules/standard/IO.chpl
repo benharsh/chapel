@@ -2687,6 +2687,8 @@ record DefaultWriter {
 
   // TODO: Should we support an optional 'size' field on the *Start methods
   // in order to more easily support common binary IO patterns?
+  // TODO: what should we do for sparse arrays? The current format is kind of
+  // weird. I'd personally lean towards doing a " => " pattern...
   proc writeArrayStart(w: fileWriter) throws {
     _arrayDim += 1;
     if _arrayMax >= _arrayDim {
@@ -2696,13 +2698,22 @@ record DefaultWriter {
     }
   }
 
-  proc writeArrayElement(w: fileWriter, const val: ?) throws {
+  proc writeArrayElement(w: fileWriter, const idx: ?, const val: ?) throws {
     if !firstField then
       w._writeLiteral(" ");
     else
       firstField = false;
     w.write(val);
   }
+
+  // TODO: should we have some kind of procs or args that relate to the
+  // beginning or end of a dimension?
+
+  // TODO: 'writeArrayElementPair' ???
+  // We've decided to print out associative arrays like [1 => lb
+  // Or should 'writeArrayElements' just take an index, just in case???
+  //   - would this have any negative perf effects for rectangular arrays?
+  // Note: we might want/need this for sparse arrays too, so....
 
   proc writeArrayEnd(w: fileWriter) throws {
     _arrayDim -= 1;
@@ -2712,13 +2723,35 @@ record DefaultWriter {
   }
 
   proc writeMapStart(w: fileWriter) throws {
+    w._writeLiteral("{");
   }
 
-  proc writeMapPair(w: fileWriter) throws {
+  proc writeMapPair(w: fileWriter, const key: ?, const val: ?) throws {
+    if !firstField then
+      w._writeLiteral(", ");
+    else
+      firstField = false;
+
+    w.write(key);
+    w._writeLiteral(": ");
+    w.write(val);
   }
 
   proc writeMapEnd(w: fileWriter) throws {
+    w._writeLiteral("}");
   }
+
+  // TODO: do we need to support something for domains as well?
+  // TODO: maybe for some types we should have a way of just saying something
+  // like "idk, put this in a string for the given format..."
+  // - or maybe the opposite: opt-into formatter-exclusive stuff?
+  // - and otherwise it all gets put into a string?
+  //
+  // TODO: should we have an argument for implementors to call 'encode'
+  // that says "no, really, do your own thing"
+  //
+  // TODO: Should we have a way of checking to see if 'encodeTo' resolves?
+  // - if it doesn't, the formatter should fall back onto something...?
 }
 
 

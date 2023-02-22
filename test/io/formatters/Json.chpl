@@ -112,7 +112,9 @@ module Json {
       w._writeLiteral("[");
     }
 
-    proc writeArrayElement(w: _writeType, const val: ?) throws {
+    // TODO: I sort of feel like we should print associative arrays/domains as
+    // proper json maps, rather than an array of elements.....
+    proc writeArrayElement(w: _writeType, const idx: ?, const val: ?) throws {
       if !firstField then
         w._writeLiteral(", ");
       else
@@ -132,6 +134,33 @@ module Json {
 
       _arrayDim -= 1;
       firstField = true;
+    }
+
+    proc writeMapStart(w: _writeType) throws {
+      w._writeLiteral("{");
+    }
+
+    // Alternative
+    proc writeMapPair(w: _writeType, const key: ?, const val: ?) throws {
+      if !firstField then
+        w._writeLiteral(", ");
+      else
+        firstField = false;
+
+      // Need a way to tell json to escape the following strings quotes...
+      if key.type == string {
+        w.write(key);
+      } else {
+        w._writeLiteral('"');
+        w.write(key);
+        w._writeLiteral('"');
+      }
+      w._writeLiteral(": ");
+      w.write(val);
+    }
+
+    proc writeMapEnd(w: _writeType) throws {
+      w._writeLiteral("}");
     }
   }
 
