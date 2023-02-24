@@ -1052,15 +1052,6 @@ static ModuleSymbol* dynoParseFile(const char* fileName,
 
   parsedPaths.push_back(path);
 
-  //if (strcmp(dynoBinFilename, "") != 0 && fVerify) {
-  //  chpl::UniqueString libPath = chpl::UniqueString::get(gContext, dynoBinFilename);
-  //  auto& result = chpl::parsing::loadBuilderResultFromFile(gContext, path,
-  //                                                          libPath);
-  //  if (builderResult.compare(result) == false) {
-  //    USR_FATAL("FAILED TO (DE)SERIALIZE %s\n", builderResult.filePath().c_str());
-  //  }
-  //}
-
   ModuleSymbol* lastModSym = nullptr;
   int numModSyms = 0;
 
