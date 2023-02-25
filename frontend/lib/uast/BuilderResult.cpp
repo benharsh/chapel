@@ -344,6 +344,8 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
   printf("%s %lld\n", ret.filePath_.c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
   }
 
+  BuilderResult::updateFilePaths(context, ret);
+
   return ret;
 }
 

@@ -77,10 +77,6 @@ bool hasFileText(Context* context, const std::string& path);
 
 void processLibraryFileForFilePaths(Context* context, UniqueString& libPath);
 
-const uast::BuilderResult&
-loadBuilderResultFromFile(Context* context, UniqueString path,
-                          UniqueString libPath);
-
 /**
   This query reads a file (with the fileText query) and then parses it.
 

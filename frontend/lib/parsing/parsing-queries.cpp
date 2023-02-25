@@ -186,16 +186,19 @@ void processLibraryFileForFilePaths(Context* context, UniqueString& libPath) {
   }
 }
 
-const BuilderResult&
+static BuilderResult
 loadBuilderResultFromFile(Context* context, UniqueString path,
                           UniqueString libPath) {
-  QUERY_BEGIN(loadBuilderResultFromFile, context, path, libPath);
 
   const auto& lib = loadLibraryFile(context, libPath);
-  std::stringstream ss(lib.data.at(path));
-  auto result = BuilderResult::deserialize(context, ss);
 
-  return QUERY_END(result);
+  std::ifstream myFile;
+  myFile.open(libPath.str(), std::ios::in | std::ios::binary);
+  myFile.seekg(lib.offsets.at(path));
+
+  auto result = BuilderResult::deserialize(context, myFile);
+
+  return result;
 }
 
 const BuilderResult&
@@ -206,18 +209,20 @@ parseFileToBuilderResult(Context* context, UniqueString path,
   BuilderResult result(path);
   UniqueString libPath;
   if (context->libPathForFilePath(path, libPath)) {
-    const auto& lib = loadLibraryFile(context, libPath);
-
-    //std::stringstream ss(lib.data.at(path));
-    //auto tmpResult = BuilderResult::deserialize(context, ss);
-
-    std::ifstream myFile;
-    myFile.open(libPath.str(), std::ios::in | std::ios::binary);
-    myFile.seekg(lib.offsets.at(path));
-    auto tmpResult = BuilderResult::deserialize(context, myFile);
-
+    auto tmpResult = loadBuilderResultFromFile(context, path ,libPath);
     result.swap(tmpResult);
-    BuilderResult::updateFilePaths(context, result);
+    //const auto& lib = loadLibraryFile(context, libPath);
+
+    ////std::stringstream ss(lib.data.at(path));
+    ////auto tmpResult = BuilderResult::deserialize(context, ss);
+
+    //std::ifstream myFile;
+    //myFile.open(libPath.str(), std::ios::in | std::ios::binary);
+    //myFile.seekg(lib.offsets.at(path));
+    //auto tmpResult = BuilderResult::deserialize(context, myFile);
+
+    //result.swap(tmpResult);
+    //BuilderResult::updateFilePaths(context, result);
   } else {
     // Run the fileText query to get the file contents
     const FileContents& contents = fileText(context, path);
