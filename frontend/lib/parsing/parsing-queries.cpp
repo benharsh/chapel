@@ -106,6 +106,7 @@ class LibraryFile {
     UniqueString path;
     std::map<UniqueString, std::string> data;
     std::map<UniqueString, std::streamoff> offsets;
+    std::vector<std::pair<size_t, const char*>> cache;
 
   void mark(Context* context) const { }
 
@@ -114,6 +115,7 @@ class LibraryFile {
     changed |= defaultUpdate(keep.path, addin.path);
     changed |= defaultUpdate(keep.data, addin.data);
     changed |= defaultUpdate(keep.offsets, addin.offsets);
+    changed |= defaultUpdate(keep.cache, addin.cache);
     return changed;
   }
 };
@@ -139,10 +141,12 @@ loadLibraryFile(Context* context, UniqueString libPath) {
     auto offset = des.read<uint64_t>();
     offsets.push_back({path, offset});
   }
+  gdbShouldBreakHere();
 
   // Read unique strings
   {
     uint64_t size = des.read<uint64_t>();
+    result.cache.resize(size);
     for (uint64_t i = 0; i < size; i++) {
       int id = des.read<int>();
       auto len = des.read<uint64_t>();
@@ -151,7 +155,10 @@ loadLibraryFile(Context* context, UniqueString libPath) {
         des.is().read(buf, len);
         buf[len] = '\0';
         auto unique = des.context()->uniqueCString(buf, len);
-        des.context()->insertCachedString(id, {unique,len});
+        //assert(id == result.cache.size());
+        //result.cache.push_back({(size_t)len, unique});
+        result.cache[id] = {(size_t)len, unique};
+        //des.context()->insertCachedString(id, {unique,len});
         free(buf);
       }
     }
@@ -181,7 +188,6 @@ loadLibraryFile(Context* context, UniqueString libPath) {
 void processLibraryFileForFilePaths(Context* context, UniqueString& libPath) {
   const auto& lib = loadLibraryFile(context, libPath);
   for (const auto& entry : lib.data) {
-    //printf("setting %s\n", entry.first.c_str());
     context->setLibPathForFilePath(entry.first, libPath);
   }
 }
@@ -196,7 +202,8 @@ loadBuilderResultFromFile(Context* context, UniqueString path,
   myFile.open(libPath.str(), std::ios::in | std::ios::binary);
   myFile.seekg(lib.offsets.at(path));
 
-  auto result = BuilderResult::deserialize(context, myFile);
+  Deserializer des(context, myFile, lib.cache);
+  auto result = BuilderResult::deserialize(des);
 
   return result;
 }
@@ -211,18 +218,6 @@ parseFileToBuilderResult(Context* context, UniqueString path,
   if (context->libPathForFilePath(path, libPath)) {
     auto tmpResult = loadBuilderResultFromFile(context, path ,libPath);
     result.swap(tmpResult);
-    //const auto& lib = loadLibraryFile(context, libPath);
-
-    ////std::stringstream ss(lib.data.at(path));
-    ////auto tmpResult = BuilderResult::deserialize(context, ss);
-
-    //std::ifstream myFile;
-    //myFile.open(libPath.str(), std::ios::in | std::ios::binary);
-    //myFile.seekg(lib.offsets.at(path));
-    //auto tmpResult = BuilderResult::deserialize(context, myFile);
-
-    //result.swap(tmpResult);
-    //BuilderResult::updateFilePaths(context, result);
   } else {
     // Run the fileText query to get the file contents
     const FileContents& contents = fileText(context, path);

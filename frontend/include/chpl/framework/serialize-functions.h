@@ -93,10 +93,15 @@ class Deserializer {
   private:
     Context* context_;
     std::istream& is_;
+    using StringCache = std::vector<std::pair<size_t, const char*>>;
+    StringCache cache_;
 
   public:
     Deserializer(Context* context, std::istream& is)
       : context_(context), is_(is) { }
+
+    Deserializer(Context* context, std::istream& is, const StringCache& cache)
+      : context_(context), is_(is), cache_(cache) { }
 
     Context* context() const {
       return context_;
@@ -104,6 +109,10 @@ class Deserializer {
 
     std::istream& is() const {
       return is_;
+    }
+
+    std::pair<size_t, const char*>& getString(int id) {
+      return cache_[id];
     }
 
     template <typename T>

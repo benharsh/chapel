@@ -162,8 +162,7 @@ class BuilderResult final {
 
   void serialize(std::ostream& os) const;
   void serialize(Serializer& ser, std::ostream& os) const;
-  static BuilderResult deserialize(Context* context, std::string& sfname);
-  static BuilderResult deserialize(Context* context, std::istream& is);
+  static BuilderResult deserialize(Deserializer& des);
   bool compare(const BuilderResult& other) const;
 };
 

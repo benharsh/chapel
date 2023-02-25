@@ -233,14 +233,6 @@ void BuilderResult::serialize(Serializer& ser, std::ostream& os) const {
   ser.write(DYNO_BUILDER_RESULT_END_STR);
 }
 
-// TODO: handle Locations
-BuilderResult BuilderResult::deserialize(Context* context, std::string& sfname) {
-  std::ifstream myFile;
-  myFile.open(sfname, std::ios::in | std::ios::binary);
-
-  return deserialize(context, myFile);
-}
-
 static void assignIDsFromTree(llvm::DenseMap<ID, const AstNode*>& idToAst,
                               const AstNode* node) {
   if (node->isComment()) return;
@@ -252,11 +244,10 @@ static void assignIDsFromTree(llvm::DenseMap<ID, const AstNode*>& idToAst,
   }
 }
 
-BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
+BuilderResult BuilderResult::deserialize(Deserializer& des) {
   auto watch = querydetail::makePlainQueryTimingStopwatch(true);
   BuilderResult ret;
   AstList alist;
-  Deserializer des(context, is);
 
   {
     auto start = des.read<std::string>();
@@ -344,7 +335,7 @@ BuilderResult BuilderResult::deserialize(Context* context, std::istream& is) {
   printf("%s %lld\n", ret.filePath_.c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
   }
 
-  BuilderResult::updateFilePaths(context, ret);
+  BuilderResult::updateFilePaths(des.context(), ret);
 
   return ret;
 }
