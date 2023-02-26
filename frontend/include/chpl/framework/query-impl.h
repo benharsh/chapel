@@ -128,10 +128,6 @@ void Context::queryBeginTrace(const char* traceQueryName,
       && std::find(queryTraceIgnoreQueries.begin(),
                    queryTraceIgnoreQueries.end(),
                    traceQueryName) == queryTraceIgnoreQueries.end()) {
-    std::string clearColor;
-    if (currentTerminalSupportsColor_) {
-      clearColor = clearTerminalColor();
-    }
     auto args = queryArgsToStrings(tupleOfArg);
     size_t queryAndArgsHash = hash_combine(hash(traceQueryName), hash(args));
     if (enableDebugTrace) {
@@ -342,10 +338,6 @@ Context::queryEnd(
       && std::find(queryTraceIgnoreQueries.begin(),
                    queryTraceIgnoreQueries.end(),
                    traceQueryName) == queryTraceIgnoreQueries.end()) {
-    std::string clearColor;
-    if (currentTerminalSupportsColor_) {
-      clearColor = clearTerminalColor();
-    }
     // QUERY END
     setQueryDepthColor(queryTraceDepth, std::cout);
     std::cout << queryTraceDepth;

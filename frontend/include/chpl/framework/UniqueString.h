@@ -147,15 +147,7 @@ class UniqueString final {
 
   void stringify(std::ostream& ss, chpl::StringifyKind stringKind) const;
 
-  void serialize(Serializer& ser) const {
-    //ser.write((uint64_t)length());
-    //if (length() > 0) {
-    //  ser.os().write(c_str(), length());
-    //}
-    auto id = ser.cacheString(c_str(), length());
-    //printf("CACHED: %d %s\n", id, c_str());
-    ser.write(id);
-  }
+  void serialize(Serializer& ser) const;
 
   static UniqueString deserialize(Deserializer& des);
 

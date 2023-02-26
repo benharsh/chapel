@@ -88,6 +88,8 @@ public:
 
   void stringify(std::ostream& os, StringifyKind stringifyKind) const;
 
+  // TODO: We could probably save some space by using a variable byte
+  // encoding.
   void serialize(Serializer& ser) const {
     ser.write(path_);
     ser.write(firstLine_);
