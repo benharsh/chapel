@@ -201,7 +201,7 @@ loadLibraryFile(Context* context, UniqueString libPath) {
 void processLibraryFileForFilePaths(Context* context, UniqueString& libPath) {
   const auto& lib = loadLibraryFile(context, libPath);
   for (const auto& entry : lib.data) {
-    context->setLibPathForFilePath(entry.first, libPath);
+    context->setLibraryForFilePath(entry.first, libPath);
   }
 }
 
@@ -228,7 +228,7 @@ parseFileToBuilderResult(Context* context, UniqueString path,
 
   BuilderResult result(path);
   UniqueString libPath;
-  if (context->libPathForFilePath(path, libPath)) {
+  if (context->pathHasLibrary(path, libPath)) {
     auto tmpResult = loadBuilderResultFromFile(context, path ,libPath);
     result.swap(tmpResult);
   } else {

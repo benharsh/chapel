@@ -483,24 +483,24 @@ void Context::setFilePathForModuleId(ID moduleID, UniqueString path) {
 }
 
 static
-const UniqueString& libPathForFilePathQuery(Context* context,
-                                            UniqueString filePath) {
-  QUERY_BEGIN(libPathForFilePathQuery, context, filePath);
+const UniqueString& pathHasLibraryQuery(Context* context,
+                                        UniqueString filePath) {
+  QUERY_BEGIN(pathHasLibraryQuery, context, filePath);
 
   UniqueString result;
 
   return QUERY_END(result);
 }
 
-bool Context::libPathForFilePath(const UniqueString& filePath,
-                                 UniqueString& pathOut) {
+bool Context::pathHasLibrary(const UniqueString& filePath,
+                             UniqueString& pathOut) {
   auto tupleOfArgs = std::make_tuple(filePath);
 
-  bool got = hasCurrentResultForQuery(libPathForFilePathQuery,
+  bool got = hasCurrentResultForQuery(pathHasLibraryQuery,
                                       tupleOfArgs);
 
   if (got) {
-    pathOut = libPathForFilePathQuery(this, filePath);
+    pathOut = pathHasLibraryQuery(this, filePath);
     return true;
   }
 
@@ -508,12 +508,12 @@ bool Context::libPathForFilePath(const UniqueString& filePath,
   return false;
 }
 
-void Context::setLibPathForFilePath(const UniqueString& filePath, const UniqueString& libPath) {
+void Context::setLibraryForFilePath(const UniqueString& filePath, const UniqueString& libPath) {
   auto tupleOfArgs = std::make_tuple(filePath);
 
-  updateResultForQuery(libPathForFilePathQuery,
+  updateResultForQuery(pathHasLibraryQuery,
                        tupleOfArgs, libPath,
-                       "libPathForFilePathQuery",
+                       "pathHasLibraryQuery",
                        /* isInputQuery */ false,
                        /* forSetter */ true);
 }

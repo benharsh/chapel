@@ -469,7 +469,7 @@ static void parseCommandLineFiles() {
     mod->addDefaultUses();
   }
 
-  if (gDynoGenLibPaths.size() != 0) {
+  if (gDynoGenLibPaths.size() > 0) {
     for (std::string path : gDynoGenLibPaths) {
       if (path == "<standard>") {
         std::vector<UniqueString> todo;
@@ -488,6 +488,9 @@ static void parseCommandLineFiles() {
         generateLibraryFile({ustr}, noExt + ".dyno", true);
       }
     }
+
+    // As .dyno files become more capable, this exit will be moved further and
+    // further into resolution.
     exit(0);
   }
 }
@@ -1256,11 +1259,9 @@ void parseAndConvertUast() {
 
   if (countTokens || printTokens) countTokensInCmdLineFiles();
 
-  //gContext->beginQueryTimingTrace("dyno-timings.txt");
   addDynoLibFiles();
 
   parseInternalModules();
-  //gContext->endQueryTimingTrace();
 
   parseCommandLineFiles();
 

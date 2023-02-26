@@ -481,8 +481,18 @@ class Context {
    */
   void setFilePathForModuleId(ID moduleID, UniqueString path);
 
-  bool libPathForFilePath(const UniqueString& filePath, UniqueString& pathOut);
-  void setLibPathForFilePath(const UniqueString& filePath, const UniqueString& libPath);
+  /**
+    Return 'true' if the given file path can be handled by a library file
+    (experimental).
+
+    Returns the library's path by setting 'pathOut'.
+   */
+  bool pathHasLibrary(const UniqueString& filePath, UniqueString& pathOut);
+
+  /**
+    Sets the library path for the given file path.
+   */
+  void setLibraryForFilePath(const UniqueString& filePath, const UniqueString& libPath);
 
   /**
     This function increments the current revision number stored
