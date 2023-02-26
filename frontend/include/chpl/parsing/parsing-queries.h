@@ -75,6 +75,21 @@ void setFileText(Context* context, UniqueString path, std::string text);
  */
 bool hasFileText(Context* context, const std::string& path);
 
+class LibraryFile {
+  public:
+    UniqueString path;
+    std::map<UniqueString, std::string> data;
+    std::map<UniqueString, std::streamoff> offsets;
+    std::vector<std::pair<size_t, const char*>> cache;
+    bool isUser;
+
+  void mark(Context* context) const { }
+
+  static bool update(LibraryFile& keep, LibraryFile& addin);
+};
+
+const LibraryFile& loadLibraryFile(Context* context, UniqueString libPath);
+
 void processLibraryFileForFilePaths(Context* context, UniqueString& libPath);
 
 /**

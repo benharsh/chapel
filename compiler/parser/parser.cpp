@@ -83,7 +83,8 @@ static ModuleSymbol* parseMod(const char* modName,
                               bool        isInternal);
 
 std::vector<UniqueString> parsedPaths;
-static void generateLibraryFile(std::vector<UniqueString>, std::string);
+static void generateLibraryFile(std::vector<UniqueString>, std::string,
+                                bool isUser);
 
 // TODO: Remove me.
 struct YYLTYPE {
@@ -429,6 +430,21 @@ static void parseCommandLineFiles() {
     if (isChplSource(inputFileName))
     {
       parseChplSourceFile(inputFileName);
+    } else if (isDynoLib(inputFileName)) {
+      // Need to parse these files so that they all get converted into the
+      // old AST. This is necessary in case the 'main' module is also in a
+      // .dyno file.
+      //
+      // TODO: It's not necessarily the case that a .dyno file implies that the
+      // serialized file would have been listed on the command line. We
+      // probably to clarify what it means to be listed on the command line.
+      auto libPath = chpl::UniqueString::get(gContext, inputFileName);
+      auto lib = chpl::parsing::loadLibraryFile(gContext, libPath);
+      if (lib.isUser) {
+        for (const auto& pair : lib.offsets) {
+          parseFile(pair.first.c_str(), MOD_USER, true);
+        }
+      }
     }
   }
 
@@ -465,11 +481,11 @@ static void parseCommandLineFiles() {
             todo.push_back(path);
           }
         }
-        generateLibraryFile(todo, "chpl_standard.dyno");
+        generateLibraryFile(todo, "chpl_standard.dyno", false);
       } else {
         // TODO: AAAAAAAAAAAAAAAAAAAARGH!
         auto ustr = chpl::UniqueString::get(gContext, "./" + path);
-        generateLibraryFile({ustr}, path + ".dyno");
+        generateLibraryFile({ustr}, path + ".dyno", true);
       }
     }
     exit(0);
@@ -477,7 +493,8 @@ static void parseCommandLineFiles() {
 }
 
 static void generateLibraryFile(std::vector<UniqueString> paths,
-                                std::string filename) {
+                                std::string filename,
+                                bool isUser) {
   std::ofstream myFile;
   myFile.open(filename, std::ios::out | std::ios::trunc | std::ios::binary);
   chpl::Serializer ser(myFile);
@@ -485,6 +502,11 @@ static void generateLibraryFile(std::vector<UniqueString> paths,
   const uint32_t version = 0x00000001;
   ser.write(magic);
   ser.write(version);
+  if (isUser) {
+    ser.write(std::string("USER"));
+  } else {
+    ser.write(std::string("STANDARD"));
+  }
   ser.write((uint64_t)paths.size());
   std::vector<std::pair<std::string, std::string>> data;
 

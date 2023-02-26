@@ -101,24 +101,34 @@ static Parser helpMakeParser(Context* context,
   }
 }
 
-class LibraryFile {
-  public:
-    UniqueString path;
-    std::map<UniqueString, std::string> data;
-    std::map<UniqueString, std::streamoff> offsets;
-    std::vector<std::pair<size_t, const char*>> cache;
+//class LibraryFile {
+//  public:
+//    UniqueString path;
+//    std::map<UniqueString, std::string> data;
+//    std::map<UniqueString, std::streamoff> offsets;
+//    std::vector<std::pair<size_t, const char*>> cache;
+//
+//  void mark(Context* context) const { }
+//
+//  static bool update(LibraryFile& keep, LibraryFile& addin) {
+//    bool changed = false;
+//    changed |= defaultUpdate(keep.path, addin.path);
+//    changed |= defaultUpdate(keep.data, addin.data);
+//    changed |= defaultUpdate(keep.offsets, addin.offsets);
+//    changed |= defaultUpdate(keep.cache, addin.cache);
+//    return changed;
+//  }
+//};
 
-  void mark(Context* context) const { }
-
-  static bool update(LibraryFile& keep, LibraryFile& addin) {
-    bool changed = false;
-    changed |= defaultUpdate(keep.path, addin.path);
-    changed |= defaultUpdate(keep.data, addin.data);
-    changed |= defaultUpdate(keep.offsets, addin.offsets);
-    changed |= defaultUpdate(keep.cache, addin.cache);
-    return changed;
-  }
-};
+bool LibraryFile::update(LibraryFile& keep, LibraryFile& addin) {
+  bool changed = false;
+  changed |= defaultUpdate(keep.path, addin.path);
+  changed |= defaultUpdate(keep.data, addin.data);
+  changed |= defaultUpdate(keep.offsets, addin.offsets);
+  changed |= defaultUpdate(keep.cache, addin.cache);
+  changed |= defaultUpdateBasic(keep.isUser, addin.isUser);
+  return changed;
+}
 
 const LibraryFile&
 loadLibraryFile(Context* context, UniqueString libPath) {
@@ -133,6 +143,8 @@ loadLibraryFile(Context* context, UniqueString libPath) {
   chpl::Deserializer des(context, myFile);
   assert(magic == des.read<uint64_t>());
   assert(version == des.read<uint32_t>());
+  auto kind = des.read<std::string>();
+  assert(kind == "USER" || kind == "STANDARD");
   auto num = des.read<uint64_t>();
   std::vector<std::pair<std::string, uint64_t>> offsets;
 
@@ -181,6 +193,7 @@ loadLibraryFile(Context* context, UniqueString libPath) {
 
   std::swap(result.path, libPath);
   std::swap(result.data, data);
+  result.isUser = (kind == "USER");
 
   return QUERY_END(result);
 }
