@@ -470,8 +470,6 @@ static void parseCommandLineFiles() {
   }
 
   if (gDynoGenLibPaths.size() != 0) {
-    // TODO: add option like "<standard>" or something that tells the compiler
-    // to generate everything in internal/ and standard/
     for (std::string path : gDynoGenLibPaths) {
       if (path == "<standard>") {
         std::vector<UniqueString> todo;
@@ -483,9 +481,12 @@ static void parseCommandLineFiles() {
         }
         generateLibraryFile(todo, "chpl_standard.dyno", false);
       } else {
+        std::string justFile = path.substr(path.find_last_of("/") + 1);
+        auto dot = justFile.find_last_of(".");
+        std::string noExt = justFile.substr(0, dot);
         // TODO: AAAAAAAAAAAAAAAAAAAARGH!
         auto ustr = chpl::UniqueString::get(gContext, "./" + path);
-        generateLibraryFile({ustr}, path + ".dyno", true);
+        generateLibraryFile({ustr}, noExt + ".dyno", true);
       }
     }
     exit(0);

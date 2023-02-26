@@ -1,1 +1,1 @@
-testGenLib.chpl.dyno MyMod.chpl.dyno OtherMod.chpl.dyno chpl_standard.dyno --main-module testGenLib --dyno-debug-trace
+testGenLib.dyno MyMod.dyno OtherMod.dyno chpl_standard.dyno --main-module testGenLib --dyno-debug-trace
