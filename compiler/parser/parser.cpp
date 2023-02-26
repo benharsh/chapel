@@ -484,8 +484,7 @@ static void parseCommandLineFiles() {
         std::string justFile = path.substr(path.find_last_of("/") + 1);
         auto dot = justFile.find_last_of(".");
         std::string noExt = justFile.substr(0, dot);
-        // TODO: AAAAAAAAAAAAAAAAAAAARGH!
-        auto ustr = chpl::UniqueString::get(gContext, "./" + path);
+        auto ustr = chpl::UniqueString::get(gContext, path);
         generateLibraryFile({ustr}, noExt + ".dyno", true);
       }
     }
