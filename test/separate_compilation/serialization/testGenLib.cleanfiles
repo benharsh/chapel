@@ -1,1 +1,4 @@
 MyMod.chpl.dyno
+OtherMod.chpl.dyno
+testGenLib.chpl.dyno
+chpl_standard.dyno
