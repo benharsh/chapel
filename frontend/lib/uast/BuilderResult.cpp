@@ -190,11 +190,6 @@ ID BuilderResult::idToParentId(ID id) const {
   return ID();
 }
 
-
-// <7F>HPECHPL
-const uint64_t magic = 0x4C5048434550487F;
-const uint32_t version = 0x00000001;
-
 #define DYNO_BUILDER_RESULT_START_STR std::string("DYNO_BUILDER_RESULT_START")
 #define DYNO_BUILDER_RESULT_END_STR std::string("DYNO_BUILDER_RESULT_END")
 
@@ -203,11 +198,24 @@ void BuilderResult::serialize(std::ostream& os) const {
   serialize(ser);
 }
 
-// TODO: why is 'os' here?
+// BuilderResult serialization format (whitespace not significant):
+// <start sentinel string, std::string>
+// <file path, std::string>
+// N: <number of top-level uAST expressions, uint32_t>
+//   0..N-1: <top level expression and its children, AstNode>
+// <id-to-parent-id, llvm::DenseMap<ID, ID>>
+// M: <number of id-to-location entries, uint64_t>
+// <file path for locations, std::string>
+//   0..M-1:
+//     <id as key, ID>
+//     <first line, int>
+//     <first column, int>
+//     <last line, int>
+//     <last column, int>
+// <comment-id-to-location, std::vector<Location>>
+// <end sentinel string, std::string>
 void BuilderResult::serialize(Serializer& ser) const {
   ser.write(DYNO_BUILDER_RESULT_START_STR);
-  ser.write(magic);
-  ser.write(version);
   ser.write(filePath_);
   const uint32_t numEntries = numTopLevelExpressions();
   ser.write(numEntries);
@@ -215,6 +223,7 @@ void BuilderResult::serialize(Serializer& ser) const {
   for (auto ast : topLevelExpressions()) {
     ast->serialize(ser);
   }
+
   ser.write(idToParentId_);
 
   {
@@ -242,60 +251,31 @@ static void assignIDsFromTree(llvm::DenseMap<ID, const AstNode*>& idToAst,
 
   idToAst[node->id()] = node;
   for (auto child : node->children()) {
-    //AstNode* ptr = child->get();
     assignIDsFromTree(idToAst, child);
   }
 }
 
 BuilderResult BuilderResult::deserialize(Deserializer& des) {
-  auto watch = querydetail::makePlainQueryTimingStopwatch(true);
   BuilderResult ret;
   AstList alist;
 
-  {
-    auto start = des.read<std::string>();
-    assert(start == DYNO_BUILDER_RESULT_START_STR);
-  }
-
-  auto m = des.read<uint64_t>();
-  auto v = des.read<uint32_t>();
-  (void)m; // silence unused variable warnings
-  (void)v; // silence unused variable warnings
-  assert(m == magic);
-  assert(v == version);
+  assert(DYNO_BUILDER_RESULT_START_STR == des.read<std::string>());
 
   auto path = des.read<UniqueString>(); // path
 
   const auto numEntries = des.read<uint32_t>();
 
+  // TODO: for improved performance, try recomputing the IDs rather than
+  // serializing and deserializing them. If we recompute these IDs then we
+  // also don't need to store the 'idToParent' map.
   for (uint32_t i = 0; i < numEntries; i++) {
     alist.push_back(AstNode::deserialize(des));
   }
 
-  // TODO: Need a textual file format picture to reason about this more easily
-  //
-  // TODO: repeatedly storing a 'path' with Locations is a bit unnecessary...
-  // Notes:
-  // - try to recompute the IDs rather than storing them
-  // - could try storing the lines/column numbers with different bit-widths
-  //   - e.g. a variable-byte encoding
-  //     - might be an example in QIO that I can steal
-  //   - columns are probably relatively small numbers
-  // - variable-byte encoding for string lengths could save a lot of space
-  //   - high bit indicates whether there are more bytes to read/write
-  // - maybe take a look at differential encodings... eventually?
-  // 
-  // - if we recompute the IDs, don't need to store the 'idToParent' map
-  //
-  // NOTE: recomputing the IDs is a 'Builder' task, so... need to figure that out.
-  //
-  //
-  //
   auto idToParent = des.read<llvm::DenseMap<ID,ID>>();
 
-  // Unlikely that we'll actually need this up front
-  // Could leave it sitting in the file and only load it when needed
-  //auto idToLocation = des.read<llvm::DenseMap<ID,Location>>();
+  // TODO: For performance and reduced file-size, try variable-byte encoding.
+  // TODO: For performance, could try not loading this data until it's needed.
   auto maplen = des.read<uint64_t>();
   llvm::DenseMap<ID,Location> idToLocation(maplen);
   auto pathstr = des.read<UniqueString>();
@@ -308,35 +288,24 @@ BuilderResult BuilderResult::deserialize(Deserializer& des) {
     idToLocation.insert({curid, Location(pathstr, fl, fc, ll, lc)});
   }
 
-
-
-    //printf("  %u\n", idToParent.size());
   auto commentLocation = des.read<std::vector<Location>>();
 
-  {
-    auto end = des.read<std::string>();
-    assert(end == DYNO_BUILDER_RESULT_END_STR);
-  }
-  //is.peek();
-  //assert(is.eof());
+  assert(DYNO_BUILDER_RESULT_END_STR == des.read<std::string>());
 
-  // 
+  // Build the 'idToAst' map with the IDs stored in uAST nodes.
   llvm::DenseMap<ID, const AstNode*> idToAst;
   for (auto& node : alist) {
     AstNode* ptr = node.get();
     assignIDsFromTree(idToAst, ptr);
   }
 
+  // swap everything into the result
   std::swap(ret.filePath_, path);
   std::swap(ret.topLevelExpressions_, alist);
   std::swap(ret.idToAst_, idToAst);
   std::swap(ret.idToParentId_, idToParent);
   std::swap(ret.idToLocation_, idToLocation);
   std::swap(ret.commentIdToLocation_, commentLocation);
-  auto elapsed = watch.elapsed();
-  if (false) {
-  printf("%s %lld\n", ret.filePath_.c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
-  }
 
   BuilderResult::updateFilePaths(des.context(), ret);
 
@@ -359,6 +328,7 @@ bool BuilderResult::compare(const BuilderResult& other) const {
   if (alist.size() != (size_t)n) {
     return false;
   }
+
   for (int i = 0; i < n; i++) {
     if (alist[i] == nullptr) {
       return false;
@@ -367,6 +337,7 @@ bool BuilderResult::compare(const BuilderResult& other) const {
       return false;
     }
   }
+
   return true;
 }
 

@@ -34,6 +34,7 @@
 #include "chpl/uast/Module.h"
 #include "chpl/uast/MultiDecl.h"
 #include "chpl/uast/TupleDecl.h"
+#include "chpl/util/version-info.h"
 
 #include "../util/filesystem_help.h"
 
@@ -101,15 +102,30 @@ static Parser helpMakeParser(Context* context,
   }
 }
 
-bool LibraryFile::update(LibraryFile& keep, LibraryFile& addin) {
-  bool changed = false;
-  changed |= defaultUpdate(keep.path_, addin.path_);
-  changed |= defaultUpdate(keep.offsets_, addin.offsets_);
-  changed |= defaultUpdate(keep.cache_, addin.cache_);
-  changed |= defaultUpdateBasic(keep.isUser_, addin.isUser_);
-  return changed;
-}
+// <7F>HPECHPL
+#define LIBRARY_MAGIC (uint64_t)0x4C5048434550487F
+#define LIBRARY_VERSION_MAJOR 0
+#define LIBRARY_VERSION_MINOR 1
 
+//
+// The library file format (whitespace not significant):
+// <magic number, uint64_t>
+// <library version, major, int>
+// <library version, minor, int>
+// <chpl version, major, int>
+// <chpl version, minor, int>
+// <chpl version, update, int>
+//
+// <user/std module descriptor, std::string>
+//
+// N:<number of BuilderResult entries, uint64_t>
+//   0..N-1: <file path i, std::string><offset i, uint64_t>
+//
+// M:<string cache size, uint64_t>
+//   0..M-1: <id i, int><string length, uint32_t><string, const char*>
+//
+// 0..N-1: <BuilderResult for file path i, BuilderResult>
+//
 void LibraryFile::generate(Context* context,
                            std::vector<UniqueString> paths,
                            std::string outFileName,
@@ -118,11 +134,17 @@ void LibraryFile::generate(Context* context,
   myFile.open(outFileName, std::ios::out | std::ios::trunc | std::ios::binary);
   chpl::Serializer ser(myFile);
 
-  const uint64_t magic = 0x4C5048434550487F;
-  const uint32_t version = 0x00000001;
-  ser.write(magic);
-  ser.write(version);
+  ser.write(LIBRARY_MAGIC);
+  ser.write(LIBRARY_VERSION_MAJOR);
+  ser.write(LIBRARY_VERSION_MINOR);
 
+  // Write out the version of the 'chpl' compiler generating this file
+  ser.write(getMajorVersion());
+  ser.write(getMinorVersion());
+  ser.write(getUpdateVersion());
+
+  // TODO: Currently a boolean, but might be useful to represent internal
+  // or package modules separately someday.
   if (isUser) {
     ser.write(std::string("USER"));
   } else {
@@ -161,11 +183,11 @@ void LibraryFile::generate(Context* context,
 
   const auto& stringCache = builderSer.stringCache();
 
-  ser.write(stringCache.size());
+  ser.write((uint32_t)stringCache.size());
   for (const auto& kv : stringCache) {
     const auto& pair = kv.second;
     ser.write(pair.first); // unique ID in this table
-    ser.write(pair.second); // string size
+    ser.write((uint32_t)pair.second); // string size
     if (pair.second > 0) {
       // string data
       ser.os().write(kv.first, pair.second);
@@ -178,21 +200,21 @@ void LibraryFile::generate(Context* context,
   }
 }
 
-//
-// TODO: textual representation
-//
 LibraryFile::LibraryFile(Context* context, UniqueString libPath)
 : path_(libPath) {
-  const uint64_t magic = 0x4C5048434550487F;
-  const uint32_t version = 0x00000001;
-
   std::ifstream myFile;
   myFile.open(libPath.str(), std::ios::in | std::ios::binary);
   chpl::Deserializer des(context, myFile);
 
   // Some basic validation
-  assert(magic == des.read<uint64_t>());
-  assert(version == des.read<uint32_t>());
+  assert(LIBRARY_MAGIC == des.read<uint64_t>());
+  assert(LIBRARY_VERSION_MAJOR == des.read<int>());
+  assert(LIBRARY_VERSION_MINOR == des.read<int>());
+
+  // Currently no checking is done for 'chpl' version
+  std::ignore = des.read<int>(); // major version
+  std::ignore = des.read<int>(); // minor version
+  std::ignore = des.read<int>(); // update version
 
   // Is this a user module, or a standard module?
   const auto kind = des.read<std::string>();
@@ -212,11 +234,11 @@ LibraryFile::LibraryFile(Context* context, UniqueString libPath)
 
   // Read unique strings
   {
-    const uint64_t size = des.read<uint64_t>();
+    const uint64_t size = des.read<uint32_t>();
     cache_.resize(size);
     for (uint64_t i = 0; i < size; i++) {
       int id = des.read<int>();
-      auto len = des.read<uint64_t>();
+      auto len = des.read<uint32_t>();
       if (len > 0) {
         // TODO: Can we save some memory allocations by doing this read while
         // we're trying to create the unique c-string?
@@ -237,9 +259,7 @@ LibraryFile::LibraryFile(Context* context, UniqueString libPath)
   const auto dataStart = myFile.tellg();
 
   for (const auto& pair : offsetsTable) {
-    // TODO: check this  +8
     std::streamoff off = pair.second;
-
     auto ustr = UniqueString::get(context, pair.first);
     offsets_[ustr] = dataStart + off;
   }

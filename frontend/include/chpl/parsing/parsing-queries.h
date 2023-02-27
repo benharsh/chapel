@@ -108,7 +108,15 @@ class LibraryFile {
 
   void mark(Context* context) const { }
 
-  static bool update(LibraryFile& keep, LibraryFile& addin);
+  static bool update(LibraryFile& keep, LibraryFile& addin) {
+    bool changed = false;
+    changed |= defaultUpdate(keep.path_, addin.path_);
+    changed |= defaultUpdate(keep.offsets_, addin.offsets_);
+    changed |= defaultUpdate(keep.cache_, addin.cache_);
+    changed |= defaultUpdateBasic(keep.isUser_, addin.isUser_);
+    return changed;
+  }
+
 };
 
 const LibraryFile& loadLibraryFile(Context* context, UniqueString libPath);

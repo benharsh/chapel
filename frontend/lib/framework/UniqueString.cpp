@@ -210,7 +210,7 @@ void UniqueString::serialize(Serializer& ser) const {
   ser.write(id);
 }
 
-// 
+//
 // Deserialize a UniqueString by reading the integer ID and fetching the
 // relevant pointer and length from the Deserializer.
 //
