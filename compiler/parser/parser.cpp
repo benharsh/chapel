@@ -440,8 +440,8 @@ static void parseCommandLineFiles() {
       // probably to clarify what it means to be listed on the command line.
       auto libPath = chpl::UniqueString::get(gContext, inputFileName);
       auto lib = chpl::parsing::loadLibraryFile(gContext, libPath);
-      if (lib.isUser) {
-        for (const auto& pair : lib.offsets) {
+      if (lib.isUser()) {
+        for (const auto& pair : lib.offsets()) {
           parseFile(pair.first.c_str(), MOD_USER, true);
         }
       }

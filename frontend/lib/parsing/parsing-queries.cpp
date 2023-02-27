@@ -101,106 +101,94 @@ static Parser helpMakeParser(Context* context,
   }
 }
 
-//class LibraryFile {
-//  public:
-//    UniqueString path;
-//    std::map<UniqueString, std::string> data;
-//    std::map<UniqueString, std::streamoff> offsets;
-//    std::vector<std::pair<size_t, const char*>> cache;
-//
-//  void mark(Context* context) const { }
-//
-//  static bool update(LibraryFile& keep, LibraryFile& addin) {
-//    bool changed = false;
-//    changed |= defaultUpdate(keep.path, addin.path);
-//    changed |= defaultUpdate(keep.data, addin.data);
-//    changed |= defaultUpdate(keep.offsets, addin.offsets);
-//    changed |= defaultUpdate(keep.cache, addin.cache);
-//    return changed;
-//  }
-//};
-
 bool LibraryFile::update(LibraryFile& keep, LibraryFile& addin) {
   bool changed = false;
-  changed |= defaultUpdate(keep.path, addin.path);
-  changed |= defaultUpdate(keep.data, addin.data);
-  changed |= defaultUpdate(keep.offsets, addin.offsets);
-  changed |= defaultUpdate(keep.cache, addin.cache);
-  changed |= defaultUpdateBasic(keep.isUser, addin.isUser);
+  changed |= defaultUpdate(keep.path_, addin.path_);
+  changed |= defaultUpdate(keep.offsets_, addin.offsets_);
+  changed |= defaultUpdate(keep.cache_, addin.cache_);
+  changed |= defaultUpdateBasic(keep.isUser_, addin.isUser_);
   return changed;
 }
 
-const LibraryFile&
-loadLibraryFile(Context* context, UniqueString libPath) {
-  QUERY_BEGIN(loadLibraryFile, context, libPath);
-  LibraryFile result;
-
+//
+// TODO: textual representation
+//
+LibraryFile::LibraryFile(Context* context, UniqueString libPath)
+: path_(libPath) {
   const uint64_t magic = 0x4C5048434550487F;
   const uint32_t version = 0x00000001;
 
   std::ifstream myFile;
   myFile.open(libPath.str(), std::ios::in | std::ios::binary);
   chpl::Deserializer des(context, myFile);
+
+  // Some basic validation
   assert(magic == des.read<uint64_t>());
   assert(version == des.read<uint32_t>());
-  auto kind = des.read<std::string>();
-  assert(kind == "USER" || kind == "STANDARD");
-  auto num = des.read<uint64_t>();
-  std::vector<std::pair<std::string, uint64_t>> offsets;
 
+  // Is this a user module, or a standard module?
+  const auto kind = des.read<std::string>();
+  assert(kind == "USER" || kind == "STANDARD");
+  isUser_ = (kind == "USER");
+
+  // Number of builder result entries
+  const auto num = des.read<uint64_t>();
+
+  // Read in the table of '.chpl' filenames and their offsets in the file
+  std::vector<std::pair<std::string, uint64_t>> offsetsTable;
   for (uint64_t i = 0; i < num; i++) {
     auto path = des.read<std::string>();
     auto offset = des.read<uint64_t>();
-    offsets.push_back({path, offset});
+    offsetsTable.push_back({path, offset});
   }
-  gdbShouldBreakHere();
 
   // Read unique strings
   {
-    uint64_t size = des.read<uint64_t>();
-    result.cache.resize(size);
+    const uint64_t size = des.read<uint64_t>();
+    cache_.resize(size);
     for (uint64_t i = 0; i < size; i++) {
       int id = des.read<int>();
       auto len = des.read<uint64_t>();
       if (len > 0) {
+        // TODO: Can we save some memory allocations by doing this read while
+        // we're trying to create the unique c-string?
         auto buf = (char*)malloc(len+1);
         des.is().read(buf, len);
         buf[len] = '\0';
+
         auto unique = des.context()->uniqueCString(buf, len);
-        //assert(id == result.cache.size());
-        //result.cache.push_back({(size_t)len, unique});
-        result.cache[id] = {(size_t)len, unique};
-        //des.context()->insertCachedString(id, {unique,len});
+        cache_[id] = {(size_t)len, unique};
+
         free(buf);
       }
     }
   }
 
-  auto dataStart = myFile.tellg();
+  // Offsets are relative to the start of the actual data, so the first entry
+  // should have an offset of 0.
+  const auto dataStart = myFile.tellg();
 
-  std::map<UniqueString, std::string> data;
-
-  for (const auto& pair : offsets) {
-    //myFile.seekg(0, std::ios::beg);
+  for (const auto& pair : offsetsTable) {
+    // TODO: check this  +8
     std::streamoff off = pair.second + 8;
-    //myFile.seekg(dataStart + off);
-    //auto str = des.read<std::string>();
-    //data[pair.first] = str;
-    auto ustr = UniqueString::get(context, pair.first);
-    data[ustr] = "";
-    result.offsets[ustr] = dataStart + off;
-  }
 
-  std::swap(result.path, libPath);
-  std::swap(result.data, data);
-  result.isUser = (kind == "USER");
+    auto ustr = UniqueString::get(context, pair.first);
+    offsets_[ustr] = dataStart + off;
+  }
+}
+
+const LibraryFile&
+loadLibraryFile(Context* context, UniqueString libPath) {
+  QUERY_BEGIN(loadLibraryFile, context, libPath);
+
+  LibraryFile result(context, libPath);
 
   return QUERY_END(result);
 }
 
 void processLibraryFileForFilePaths(Context* context, UniqueString& libPath) {
   const auto& lib = loadLibraryFile(context, libPath);
-  for (const auto& entry : lib.data) {
+  for (const auto& entry : lib.offsets()) {
     context->setLibraryForFilePath(entry.first, libPath);
   }
 }
@@ -213,9 +201,9 @@ loadBuilderResultFromFile(Context* context, UniqueString path,
 
   std::ifstream myFile;
   myFile.open(libPath.str(), std::ios::in | std::ios::binary);
-  myFile.seekg(lib.offsets.at(path));
+  myFile.seekg(lib.offsets().at(path));
 
-  Deserializer des(context, myFile, lib.cache);
+  Deserializer des(context, myFile, lib.stringCache());
   auto result = BuilderResult::deserialize(des);
 
   return result;

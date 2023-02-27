@@ -77,14 +77,12 @@ public:
   int cacheString(const char* str, size_t len) {
     auto idx = uniqueMap_.find(str);
     if (idx == uniqueMap_.end()) {
-      //printf("UNIQUE: %s :: %p :: %zu\n", str, str, len);
       auto ret = counter_;
       uniqueMap_.insert({str, {ret,len}});
       counter_ += 1;
       return ret;
     } else {
       return idx->second.first;
-      //printf("CACHED: %s :: %p :: %zu\n", str, str, len);
     }
   }
 };
@@ -301,9 +299,7 @@ struct deserialize<llvm::DenseMap<K,V>> {
     auto len = des.read<uint64_t>();
     llvm::DenseMap<K,V> ret(len);
     for (uint64_t i = 0; i < len; i++) {
-      K first = des.read<K>();
-      V second = des.read<V>();
-      ret.insert({first, second});
+      ret.insert({des.read<K>(), des.read<V>()});
     }
     return ret;
   }

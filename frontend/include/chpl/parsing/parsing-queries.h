@@ -75,13 +75,35 @@ void setFileText(Context* context, UniqueString path, std::string text);
  */
 bool hasFileText(Context* context, const std::string& path);
 
+/**
+ This unstable, experimental type provides basic support for '.dyno' files.
+ */
 class LibraryFile {
+  private:
+    UniqueString path_;
+    std::map<UniqueString, std::streamoff> offsets_;
+    std::vector<std::pair<size_t, const char*>> cache_;
+    bool isUser_;
+
   public:
-    UniqueString path;
-    std::map<UniqueString, std::string> data;
-    std::map<UniqueString, std::streamoff> offsets;
-    std::vector<std::pair<size_t, const char*>> cache;
-    bool isUser;
+  LibraryFile() {}
+
+  LibraryFile(Context*, UniqueString);
+
+  UniqueString path() const { return path_; }
+
+  const std::map<UniqueString, std::streamoff>& offsets() const {
+    return offsets_;
+  }
+
+  const std::vector<std::pair<size_t, const char*>>&
+  stringCache() const { return cache_; }
+
+  bool isUser() const { return isUser_; }
+
+  static LibraryFile generate(std::vector<UniqueString> paths,
+                              std::string outFileName,
+                              bool isUserMods);
 
   void mark(Context* context) const { }
 
