@@ -101,9 +101,10 @@ class LibraryFile {
 
   bool isUser() const { return isUser_; }
 
-  static LibraryFile generate(std::vector<UniqueString> paths,
-                              std::string outFileName,
-                              bool isUserMods);
+  static void generate(Context* context,
+                       std::vector<UniqueString> paths,
+                       std::string outFileName,
+                       bool isUser);
 
   void mark(Context* context) const { }
 

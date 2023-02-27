@@ -83,8 +83,6 @@ static ModuleSymbol* parseMod(const char* modName,
                               bool        isInternal);
 
 std::vector<UniqueString> parsedPaths;
-static void generateLibraryFile(std::vector<UniqueString>, std::string,
-                                bool isUser);
 
 // TODO: Remove me.
 struct YYLTYPE {
@@ -479,69 +477,21 @@ static void parseCommandLineFiles() {
             todo.push_back(path);
           }
         }
-        generateLibraryFile(todo, "chpl_standard.dyno", false);
+        chpl::parsing::LibraryFile::generate(gContext, todo,
+                                             "chpl_standard.dyno", false);
       } else {
         std::string justFile = path.substr(path.find_last_of("/") + 1);
         auto dot = justFile.find_last_of(".");
         std::string noExt = justFile.substr(0, dot);
         auto ustr = chpl::UniqueString::get(gContext, path);
-        generateLibraryFile({ustr}, noExt + ".dyno", true);
+        chpl::parsing::LibraryFile::generate(gContext, {ustr},
+                                             noExt + ".dyno", true);
       }
     }
 
     // As .dyno files become more capable, this exit will be moved further and
     // further into resolution.
     exit(0);
-  }
-}
-
-static void generateLibraryFile(std::vector<UniqueString> paths,
-                                std::string filename,
-                                bool isUser) {
-  std::ofstream myFile;
-  myFile.open(filename, std::ios::out | std::ios::trunc | std::ios::binary);
-  chpl::Serializer ser(myFile);
-  const uint64_t magic = 0x4C5048434550487F;
-  const uint32_t version = 0x00000001;
-  ser.write(magic);
-  ser.write(version);
-  if (isUser) {
-    ser.write(std::string("USER"));
-  } else {
-    ser.write(std::string("STANDARD"));
-  }
-  ser.write((uint64_t)paths.size());
-  std::vector<std::pair<std::string, std::string>> data;
-
-  uint64_t offset = 0;
-  std::stringstream ss;
-  chpl::Serializer builderSer(ss);
-  for (auto path : paths) {
-    UniqueString empty;
-    auto& result = chpl::parsing::parseFileToBuilderResult(gContext, path, empty);
-    result.serialize(builderSer, ss);
-    const auto& str = ss.str();
-    data.push_back({path.str(), str});
-    ss.str(std::string());
-    ser.write(path.str());
-    ser.write(offset);
-    offset += 8 + str.size();
-  }
-
-  const auto& uniqueMap = builderSer.uniqueMap();
-
-  ser.write((uint64_t)uniqueMap.size());
-  for (const auto& kv : uniqueMap) {
-    const auto& pair = kv.second;
-    ser.write(pair.first);
-    ser.write((uint64_t)pair.second);
-    if (pair.second > 0) {
-      ser.os().write(kv.first, pair.second);
-    }
-  }
-
-  for (const auto& pair : data) {
-    ser.write(pair.second);
   }
 }
 

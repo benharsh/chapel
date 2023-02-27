@@ -110,6 +110,74 @@ bool LibraryFile::update(LibraryFile& keep, LibraryFile& addin) {
   return changed;
 }
 
+void LibraryFile::generate(Context* context,
+                           std::vector<UniqueString> paths,
+                           std::string outFileName,
+                           bool isUser) {
+  std::ofstream myFile;
+  myFile.open(outFileName, std::ios::out | std::ios::trunc | std::ios::binary);
+  chpl::Serializer ser(myFile);
+
+  const uint64_t magic = 0x4C5048434550487F;
+  const uint32_t version = 0x00000001;
+  ser.write(magic);
+  ser.write(version);
+
+  if (isUser) {
+    ser.write(std::string("USER"));
+  } else {
+    // Currently assuming that this is the mode where we generate the entire
+    // standard library.
+    ser.write(std::string("STANDARD"));
+  }
+
+  // Number of files we expect to serialize in this library
+  ser.write((uint64_t)paths.size());
+
+  std::vector<std::pair<std::string, std::string>> data;
+  uint64_t offset = 0;
+
+  // Use the same serializer so that we can build up a unified cache of
+  // UniqueStrings for this library file.
+  //
+  // Store all the text in a stringstream to be written out after the cache
+  // is written.
+  std::stringstream ss;
+  chpl::Serializer builderSer(ss);
+  for (auto path : paths) {
+    UniqueString empty;
+    auto& result = parseFileToBuilderResult(context, path, empty);
+    ss.str(std::string()); // clear for this iteration
+    result.serialize(builderSer, ss);
+
+    const auto& str = ss.str();
+    data.push_back({path.str(), str});
+
+    // write the filename and the offset for the header
+    ser.write(path.str());
+    ser.write(offset);
+    offset += str.size();
+  }
+
+  const auto& uniqueMap = builderSer.uniqueMap();
+
+  ser.write(uniqueMap.size());
+  for (const auto& kv : uniqueMap) {
+    const auto& pair = kv.second;
+    ser.write(pair.first); // unique ID in this table
+    ser.write(pair.second); // string size
+    if (pair.second > 0) {
+      // string data
+      ser.os().write(kv.first, pair.second);
+    }
+  }
+
+  // Finally, write the saved strings from serializing a BuilderResult
+  for (const auto& pair : data) {
+    ser.os().write(pair.second.c_str(), pair.second.size());
+  }
+}
+
 //
 // TODO: textual representation
 //
@@ -170,7 +238,7 @@ LibraryFile::LibraryFile(Context* context, UniqueString libPath)
 
   for (const auto& pair : offsetsTable) {
     // TODO: check this  +8
-    std::streamoff off = pair.second + 8;
+    std::streamoff off = pair.second;
 
     auto ustr = UniqueString::get(context, pair.first);
     offsets_[ustr] = dataStart + off;
