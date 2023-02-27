@@ -161,7 +161,7 @@ class BuilderResult final {
   static void updateFilePaths(Context* context, const BuilderResult& keep);
 
   void serialize(std::ostream& os) const;
-  void serialize(Serializer& ser, std::ostream& os) const;
+  void serialize(Serializer& ser) const;
   static BuilderResult deserialize(Deserializer& des);
   bool compare(const BuilderResult& other) const;
 };

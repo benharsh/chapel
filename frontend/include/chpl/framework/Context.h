@@ -738,7 +738,7 @@ class Context {
             base->timings.query.update(elapsed);
           }
           if (enableQueryTimingTrace) {
-            auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+            auto ticks = elapsed.count();
             auto os = queryTimingTraceOutput.get();
             CHPL_ASSERT(os != nullptr);
             *os << depth << ' ' << base->queryName << ' ' << ticks << '\n';

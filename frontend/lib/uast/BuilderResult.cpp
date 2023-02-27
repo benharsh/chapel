@@ -200,10 +200,11 @@ const uint32_t version = 0x00000001;
 
 void BuilderResult::serialize(std::ostream& os) const {
   Serializer ser(os);
-  serialize(ser, os);
+  serialize(ser);
 }
 
-void BuilderResult::serialize(Serializer& ser, std::ostream& os) const {
+// TODO: why is 'os' here?
+void BuilderResult::serialize(Serializer& ser) const {
   ser.write(DYNO_BUILDER_RESULT_START_STR);
   ser.write(magic);
   ser.write(version);
@@ -217,7 +218,9 @@ void BuilderResult::serialize(Serializer& ser, std::ostream& os) const {
   ser.write(idToParentId_);
 
   {
-    //ser.write(idToLocation_);
+    // TODO: For config-vars set on the command line, the 'file path' is set to
+    // something different. This leads to issues when comparing against a
+    // deserialized BuilderResult.
     ser.write((uint64_t)idToLocation_.size());
     ser.write(filePath_);
     for (const auto& pair : idToLocation_) {

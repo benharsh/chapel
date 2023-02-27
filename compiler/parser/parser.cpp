@@ -1030,6 +1030,18 @@ static ModuleSymbol* dynoParseFile(const char* fileName,
   ModuleSymbol* lastModSym = nullptr;
   int numModSyms = 0;
 
+  if (fDynoVerifySerialization) {
+    std::stringstream ss;
+    chpl::Serializer ser(ss);
+    builderResult.serialize(ser);
+
+    chpl::Deserializer des(gContext, ss, ser.stringCache());
+    auto res = chpl::uast::BuilderResult::deserialize(des);
+    if (builderResult.compare(res) == false) {
+      USR_FATAL("Failed to (de)serialize %s\n", builderResult.filePath().c_str());
+    }
+  }
+
   //
   // Cases here:
   //    - One top level implicit module

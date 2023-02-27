@@ -148,7 +148,7 @@ void LibraryFile::generate(Context* context,
     UniqueString empty;
     auto& result = parseFileToBuilderResult(context, path, empty);
     ss.str(std::string()); // clear for this iteration
-    result.serialize(builderSer, ss);
+    result.serialize(builderSer);
 
     const auto& str = ss.str();
     data.push_back({path.str(), str});
@@ -159,10 +159,10 @@ void LibraryFile::generate(Context* context,
     offset += str.size();
   }
 
-  const auto& uniqueMap = builderSer.uniqueMap();
+  const auto& stringCache = builderSer.stringCache();
 
-  ser.write(uniqueMap.size());
-  for (const auto& kv : uniqueMap) {
+  ser.write(stringCache.size());
+  for (const auto& kv : stringCache) {
     const auto& pair = kv.second;
     ser.write(pair.first); // unique ID in this table
     ser.write(pair.second); // string size

@@ -51,11 +51,11 @@ template<typename T> struct deserialize;
 
 class Serializer {
 private:
-  using uniqueMapType = std::map<const char*, std::pair<int, size_t>>;
+  using stringCacheType = std::map<const char*, std::pair<int, size_t>>;
   int counter_ = 0;
 
   std::ostream& os_;
-  uniqueMapType uniqueMap_;
+  stringCacheType stringCache_;
 
 public:
   Serializer(std::ostream& os): os_(os) {
@@ -65,8 +65,8 @@ public:
     return os_;
   }
 
-  uniqueMapType uniqueMap() {
-    return uniqueMap_;
+  stringCacheType stringCache() {
+    return stringCache_;
   }
 
   template <typename T>
@@ -75,10 +75,10 @@ public:
   }
 
   int cacheString(const char* str, size_t len) {
-    auto idx = uniqueMap_.find(str);
-    if (idx == uniqueMap_.end()) {
+    auto idx = stringCache_.find(str);
+    if (idx == stringCache_.end()) {
       auto ret = counter_;
-      uniqueMap_.insert({str, {ret,len}});
+      stringCache_.insert({str, {ret,len}});
       counter_ += 1;
       return ret;
     } else {
@@ -100,6 +100,18 @@ class Deserializer {
 
     Deserializer(Context* context, std::istream& is, const StringCache& cache)
       : context_(context), is_(is), cache_(cache) { }
+
+    //
+    // Convenience version to convert a Serializer's form of the string cache
+    //
+    Deserializer(Context* context, std::istream& is,
+                 std::map<const char*, std::pair<int, size_t>> serCache)
+      : context_(context), is_(is) {
+      cache_.resize(serCache.size());
+      for (const auto& pair : serCache) {
+        cache_[pair.second.first] = {pair.second.second, pair.first};
+      }
+    }
 
     Context* context() const {
       return context_;

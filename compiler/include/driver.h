@@ -290,6 +290,7 @@ extern bool fDynoCompilerLibrary;
 extern bool fDynoScopeProduction;
 extern bool fDynoScopeBundled;
 extern bool fDynoDebugTrace;
+extern bool fDynoVerifySerialization;
 
 extern size_t fDynoBreakOnHash;
 
