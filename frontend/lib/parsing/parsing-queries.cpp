@@ -207,9 +207,9 @@ LibraryFile::LibraryFile(Context* context, UniqueString libPath)
   chpl::Deserializer des(context, myFile);
 
   // Some basic validation
-  assert(LIBRARY_MAGIC == des.read<uint64_t>());
-  assert(LIBRARY_VERSION_MAJOR == des.read<int>());
-  assert(LIBRARY_VERSION_MINOR == des.read<int>());
+  CHPL_ASSERT(LIBRARY_MAGIC == des.read<uint64_t>());
+  CHPL_ASSERT(LIBRARY_VERSION_MAJOR == des.read<int>());
+  CHPL_ASSERT(LIBRARY_VERSION_MINOR == des.read<int>());
 
   // Currently no checking is done for 'chpl' version
   std::ignore = des.read<int>(); // major version
@@ -218,7 +218,7 @@ LibraryFile::LibraryFile(Context* context, UniqueString libPath)
 
   // Is this a user module, or a standard module?
   const auto kind = des.read<std::string>();
-  assert(kind == "USER" || kind == "STANDARD");
+  CHPL_ASSERT(kind == "USER" || kind == "STANDARD");
   isUser_ = (kind == "USER");
 
   // Number of builder result entries

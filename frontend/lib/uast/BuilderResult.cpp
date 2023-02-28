@@ -259,7 +259,7 @@ BuilderResult BuilderResult::deserialize(Deserializer& des) {
   BuilderResult ret;
   AstList alist;
 
-  assert(DYNO_BUILDER_RESULT_START_STR == des.read<std::string>());
+  CHPL_ASSERT(DYNO_BUILDER_RESULT_START_STR == des.read<std::string>());
 
   auto path = des.read<UniqueString>(); // path
 
@@ -290,7 +290,7 @@ BuilderResult BuilderResult::deserialize(Deserializer& des) {
 
   auto commentLocation = des.read<std::vector<Location>>();
 
-  assert(DYNO_BUILDER_RESULT_END_STR == des.read<std::string>());
+  CHPL_ASSERT(DYNO_BUILDER_RESULT_END_STR == des.read<std::string>());
 
   // Build the 'idToAst' map with the IDs stored in uAST nodes.
   llvm::DenseMap<ID, const AstNode*> idToAst;
