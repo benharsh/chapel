@@ -655,20 +655,39 @@ module Map {
       _readWriteHelper(ch);
     }
 
+    proc _readHelper(r: fileReader) throws {
+      _enter(); defer _leave();
+      ref fmt = r.formatter;
+
+      fmt.readMapStart(r);
+
+      var done = false;
+      while !done {
+        try {
+          var (k, v) = fmt.readMapPair(r, keyType, valType);
+          add(k, v);
+        } catch e: BadFormatError {
+          done = true;
+        }
+      }
+
+      fmt.readMapEnd(r);
+    }
+
     //
     // TODO: rewrite to use formatter interface
     //
     pragma "no doc"
-    proc init(type keyType, type valType, r: fileReader) {
+    proc init(type keyType, type valType, r: fileReader) throws {
       this.init(keyType, valType, parSafe);
-      readThis(r);
+      _readHelper(r);
     }
 
     pragma "no doc"
-    @unstable("'Map.parSafe' is unstable")
-    proc init(type keyType, type valType, param parSafe, r: fileReader) {
+    @unstable "'Map.parSafe' is unstable"
+    proc init(type keyType, type valType, param parSafe, r: fileReader) throws {
       this.init(keyType, valType, parSafe);
-      readThis(r);
+      _readHelper(r);
     }
 
     /*

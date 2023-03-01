@@ -17,13 +17,35 @@ proc makeND(param rank : int) {
   return A;
 }
 
-// TODO: reading
+proc test(A) {
+  stdout.withFormatter(FormatWriter).writeln(A);
+  var f = openMemFile();
+  {
+    f.writer().withFormatter(FormatWriter).write(A);
+  }
+  {
+    var B = f.reader().withFormatter(FormatReader).read(A.type);
+
+    var match = false;
+    if isArray(A) {
+      match = && reduce (A == B);
+    } else {
+      match = (A == B);
+    }
+
+    if !match then
+      writeln("FAILURE: ", A.type:string);
+    else
+      writeln("SUCCESS: ", A.type:string);
+  }
+}
+
 // TODO: sparse?
 proc main() {
   for param i in 1..5 {
     writeln("----- ", i:string, "D -----");
     var A = makeND(i);
-    stdout.withFormatter(FormatWriter).writeln(A);
+    test(A);
   }
 
   {
@@ -36,6 +58,6 @@ proc main() {
   {
     var li : list(int);
     for i in 1..10 do li.append(i**2);
-    stdout.withFormatter(FormatWriter).writeln(li);
+    test(li);
   }
 }

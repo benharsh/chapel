@@ -214,6 +214,11 @@ module Json {
     var _offsets : [_names] int;
     var _lastPos = -1;
 
+    var firstField = true;
+    var _arrayDim = 0;
+    var _arrayMax = 0;
+    var _arrayFirst : list(bool);
+
     proc init() {
       this.complete();
     }
@@ -255,7 +260,8 @@ module Json {
         var ret = reader.withFormatter(DefaultReader).read(readType);
         reader.readLiteral('"');
         return ret;
-      } else if canResolveTypeMethod(readType, "decodeFrom", reader) {
+      } else if canResolveTypeMethod(readType, "decodeFrom", reader) ||
+                isArrayType(readType) {
         return readType.decodeFrom(reader.withFormatter(new JsonReader()));
       } else {
         return new readType(reader.withFormatter(new JsonReader()));
@@ -329,6 +335,84 @@ module Json {
           r.readLiteral("]");
         }
       }
+    }
+
+    proc readArrayStart(r: fileReader) throws {
+      _arrayDim += 1;
+      if _arrayFirst.size < _arrayDim {
+        _arrayFirst.append(true);
+      }
+
+      if _arrayFirst[_arrayDim-1] {
+        _arrayFirst[_arrayDim-1] = false;
+      } else {
+        r._readLiteral(",");
+      }
+
+      _arrayMax = max(_arrayMax, _arrayDim);
+
+      // Don't need to read the newline and pretty-printed spaces, as JSON
+      // arrays can come in other forms. Relies on 'readLiteral' ignoring
+      // whitespace by default.
+      r._readLiteral("[");
+    }
+
+    proc readArrayElement(r: fileReader, type idxType, type eltType) throws {
+      if !firstField then
+        r._readLiteral(", ");
+      else
+        firstField = false;
+      return (none, r.read(eltType));
+    }
+
+    proc readArrayEnd(r: fileReader) throws {
+      if _arrayDim < _arrayMax {
+        r.readNewline();
+        r._readLiteral(" " * (_arrayDim-1));
+      }
+
+      // Don't need to read the newline and pretty-printed spaces, as JSON
+      // arrays can come in other forms. Relies on 'readLiteral' ignoring
+      // whitespace by default.
+      r._readLiteral("]");
+
+      if _arrayDim < _arrayFirst.size then
+        _arrayFirst[_arrayDim] = true;
+
+      _arrayDim -= 1;
+      firstField = true;
+    }
+
+    proc readMapStart(r: fileReader) throws {
+      r._readLiteral("{");
+    }
+
+    // TODO: don't need to always read the spaces after commas...
+    proc readMapPair(r: fileReader, type keyType, type valType) throws {
+      if !firstField {
+        r._readLiteral(",");
+      } else {
+        firstField = false;
+      }
+
+      if keyType == string {
+        var k = r.read(string);
+        r._readLiteral(":");
+        return (k, r.read(valType));
+      } else {
+        var f = openMemFile();
+        var s = r.read(string);
+        {
+          f.writer().withFormatter(DefaultWriter).write(s);
+        }
+        var k = f.reader().withFormatter(JsonReader).read(keyType);
+        r._readLiteral(":");
+        return (k, r.read(valType));
+      }
+    }
+
+    proc readMapEnd(r: fileReader) throws {
+      r._readLiteral("}");
     }
   }
 }

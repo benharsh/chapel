@@ -1721,45 +1721,40 @@ module DefaultRectangular {
 
   proc chpl_serialReadWriteRectangularHelper(f, arr, dom) throws
   where f.fmtType != nothing {
-    if f.writing then
-      _writeHelper(f, arr, dom);
-    else
-      _readHelper(f, arr, dom);
+    _readWriteHelper(f, arr, dom);
   }
 
-  proc _writeHelper(f, arr, dom) throws {
+  proc _readWriteHelper(f, arr, dom) throws {
     param rank = arr.rank;
     type idxType = arr.idxType;
     type idxSignedType = chpl__signedType(chpl__idxTypeToIntIdxType(idxType));
-    type eltType = arr.eltType;
-
-    const isNative = f.styleElement(QIO_STYLE_ELEMENT_IS_NATIVE_BYTE_ORDER): bool;
 
     ref fmt = f.formatter;
-
-    inline proc rwLiteral(lit:string) throws {
-      if f.writing then f._writeLiteral(lit); else f._readLiteral(lit);
-    }
-
-    proc rwSpaces(dim:int) throws {
-      for i in 1..dim {
-        rwLiteral(" ");
-      }
-    }
 
     proc recursiveArrayReaderWriter(in idx: rank*idxType, dim=0, in last=false) throws {
 
       type strType = idxSignedType;
       const makeStridePositive = if dom.dsiDim(dim).stride > 0 then 1:strType else (-1):strType;
 
-      fmt.writeArrayStart(f);
+      if f.writing then
+        fmt.writeArrayStart(f);
+      else
+        fmt.readArrayStart(f);
 
       // TODO: test for column-major ordering
       // The simple 1D case
       if dim == rank-1 {
         for j in dom.dsiDim(dim) by makeStridePositive {
           idx(dim) = j;
-          fmt.writeArrayElement(f, idx, arr.dsiAccess(idx));
+          if f.writing then
+            fmt.writeArrayElement(f, idx, arr.dsiAccess(idx));
+          else {
+            // TODO: does it make sense to just ignore the idx here?
+            // I guess it's a way for the type authors to assert they know
+            // more about their own type...
+            const (_, readElt) = fmt.readArrayElement(f, idxType, arr.eltType);
+            arr.dsiAccess(idx) = readElt;
+          }
         }
       } else {
         for j in dom.dsiDim(dim) by makeStridePositive {
@@ -1772,14 +1767,14 @@ module DefaultRectangular {
         }
       }
 
-      fmt.writeArrayEnd(f);
+      if f.writing then
+        fmt.writeArrayEnd(f);
+      else
+        fmt.readArrayEnd(f);
     }
 
     const zeroTup: rank*idxType;
     recursiveArrayReaderWriter(zeroTup);
-  }
-
-  proc _readHelper(f, arr, dom) throws {
   }
 
   proc chpl_serialReadWriteRectangularHelper(f, arr, dom) throws {
