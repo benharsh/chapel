@@ -141,12 +141,16 @@ module Json {
       w._writeLiteral("{");
     }
 
-    // Alternative
     proc writeMapPair(w: _writeType, const key: ?, const val: ?) throws {
-      if !firstField then
+      if !firstField {
         w._writeLiteral(", ");
-      else
+        w.writeNewline();
+        w._writeLiteral("  ");
+      } else {
+        w.writeNewline();
+        w._writeLiteral("  ");
         firstField = false;
+      }
 
       if key.type == string {
         w.write(key);
@@ -161,11 +165,13 @@ module Json {
         f.reader().readAll(tmp);
         w.write(tmp);
       }
+
       w._writeLiteral(": ");
       w.write(val);
     }
 
     proc writeMapEnd(w: _writeType) throws {
+      w.writeNewline();
       w._writeLiteral("}");
     }
   }

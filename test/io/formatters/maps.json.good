@@ -1,4 +1,21 @@
-{"east": "west", "hello": "goodbye", "north": "south", "day": "night"}
-{"713": "Houston", "212": "NYC", "206": "Seattle"}
-{"Banana": {"x":1, "y":-1.000000e+01}, "Apple": {"x":5, "y":4.200000e+01}, "Orange": {"x":13, "y":1.067000e+02}}
-{"{\"x\":1, \"y\":-1.000000e+01}": "Banana", "{\"x\":5, \"y\":4.200000e+01}": "Apple", "{\"x\":13, \"y\":1.067000e+02}": "Orange"}
+{
+  "east": "west", 
+  "hello": "goodbye", 
+  "north": "south", 
+  "day": "night"
+}
+{
+  "713": "Houston", 
+  "212": "NYC", 
+  "206": "Seattle"
+}
+{
+  "Banana": {"x":1, "y":-1.000000e+01}, 
+  "Apple": {"x":5, "y":4.200000e+01}, 
+  "Orange": {"x":13, "y":1.067000e+02}
+}
+{
+  "{\"x\":1, \"y\":-1.000000e+01}": "Banana", 
+  "{\"x\":5, \"y\":4.200000e+01}": "Apple", 
+  "{\"x\":13, \"y\":1.067000e+02}": "Orange"
+}
