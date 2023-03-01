@@ -31,9 +31,10 @@ module Json {
 
     proc encode(writer: _writeType, const x:?t) throws {
       if t == string  || isEnumType(t) || t == bytes {
-        writer.writeLiteral('"');
-        writer.withFormatter(DefaultWriter).write(x);
-        writer.writeLiteral('"');
+        _oldWrite(writer, x);
+        //writer.writeLiteral('"');
+        //writer.withFormatter(DefaultWriter).write(x);
+        //writer.writeLiteral('"');
       } else if isNumericType(t) || isBoolType(t) {
         _oldWrite(writer, x);
       } else if t == ioLiteral {
@@ -147,13 +148,18 @@ module Json {
       else
         firstField = false;
 
-      // Need a way to tell json to escape the following strings quotes...
       if key.type == string {
         w.write(key);
       } else {
-        w._writeLiteral('"');
-        w.write(key);
-        w._writeLiteral('"');
+        // Write the key as json, then turn it into a json string to use
+        // it as a proper key for the map.
+        var f = openMemFile();
+        {
+          f.writer().withFormatter(JsonWriter).write(key);
+        }
+        var tmp : string;
+        f.reader().readAll(tmp);
+        w.write(tmp);
       }
       w._writeLiteral(": ");
       w.write(val);
@@ -206,6 +212,21 @@ module Json {
       this.complete();
     }
 
+    // TODO: rewrite in terms of writef, or something
+    proc _oldRead(ch: _readerT, ref val:?t) throws {
+      var _def = new DefaultWriter();
+      var dc = ch.withFormatter(_def);
+      var st = dc._styleInternal();
+      var orig = st; defer { dc._set_styleInternal(orig); }
+      st.realfmt = 2;
+      st.string_format = iostringformat.json:uint(8);
+      st.aggregate_style = QIO_AGGREGATE_FORMAT_JSON:uint(8);
+      st.array_style = QIO_ARRAY_FORMAT_JSON:uint(8);
+      st.tuple_style = QIO_TUPLE_FORMAT_JSON:uint(8);
+      dc._set_styleInternal(st);
+      dc._readOne(dc.kind, val, here);
+    }
+
     proc decode(reader:fileReader, type readType) : readType throws {
       if isNilableClassType(readType) && reader.matchLiteral("null") {
         return nil:readType;
@@ -220,7 +241,8 @@ module Json {
         return x;
       } else if isStringType(readType) {
         var tmp : readType;
-        reader.readf("%{\"S\"}", tmp);
+        //reader.readf("%{\"S\"}", tmp);
+        _oldRead(reader, tmp);
         return tmp;
       } else if isEnumType(readType) {
         reader.readLiteral('"');

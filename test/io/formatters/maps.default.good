@@ -1,1 +1,4 @@
 {east: west, hello: goodbye, north: south, day: night}
+{713: Houston, 212: NYC, 206: Seattle}
+{Banana: (x = 1, y = -10.0), Apple: (x = 5, y = 42.0), Orange: (x = 13, y = 106.7)}
+{(x = 1, y = -10.0): Banana, (x = 5, y = 42.0): Apple, (x = 13, y = 106.7): Orange}

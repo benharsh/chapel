@@ -37,6 +37,7 @@ proc main() {
 
     stdout.withFormatter(FormatWriter).writeln(m);
 
+    // TODO: need a good way to print out records as keys in json
     var r : map(R, string);
     for (k, v) in m.items() do
       r.add(v, k);
