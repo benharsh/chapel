@@ -5,7 +5,6 @@ use FormatHelper;
 use List;
 use arrays;
 
-// TODO: sparse?
 proc main() {
   {
     var D : domain(int) = {1, 2, 3, 5, 6, 8, 10};

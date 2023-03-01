@@ -126,7 +126,6 @@ proc main() {
   var nilTemp : owned Parent?;
   test(nilTemp);
   test(new shared Parent(5));
-  // TODO: arrays
 
   if failures.size > 0 {
     writeln("FAILURES:");
