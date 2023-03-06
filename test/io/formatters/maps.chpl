@@ -55,8 +55,8 @@ proc main() {
     test(m);
 
     var r : map(R, string);
-    for (k, v) in m.items() do
-      r.add(v, k);
+    for k in m.keys() do
+      r.add(m[k], k);
 
     stdout.withFormatter(FormatWriter).writeln(r);
     test(r);
