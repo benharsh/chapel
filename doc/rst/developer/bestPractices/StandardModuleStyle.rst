@@ -118,3 +118,16 @@ Other Identifiers
 -----------------
 
 Variables, fields, and argument names should be camelCase or CamelCase.
+
+Type Queries
+------------
+
+Type queries should follow the PascalCase or CamelCase conventions according to
+the expected type being queried. For example, a type query that corresponds to
+a class type should use PascalCase, whereas a type query for a record type
+should use CamelCase.
+
+If the kind of type being queried is unknown, use CamelCase.
+
+There is no standardized preference for single-letter names vs. longer
+word-based names (e.g. ``t`` vs. ``eltType``).
