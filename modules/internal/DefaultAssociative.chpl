@@ -642,8 +642,8 @@ module DefaultAssociative {
     }
 
     proc dsiSerialReadWrite(f, in printBraces=true, inout first = true) throws
-    where f.fmtType != nothing {
-      ref fmt = f.formatter;
+    where chpl_useIOSerializers {
+      ref fmt = if f.writing then f.serializer else f.deserializer;
 
       if f.writing then
         fmt.writeArrayStart(f);
@@ -662,7 +662,7 @@ module DefaultAssociative {
           // thwarts the 'canResolveTypeMethod' check for 'decodeFrom', which
           // causes an attempt to invoke the array initializer...
           if k.type != idxType { // e.g. 'none'
-            compilerError("Formatter '" + f.fmtType:string + "' does not support reading associative arrays");
+            compilerError("Formatter '" + f.deserializerType:string + "' does not support reading associative arrays");
           } else if !dom.dsiMember(k) {
             // TODO: throw error
           } else {

@@ -2262,7 +2262,7 @@ static bool hasFullyGenericField(AggregateType* at) {
 }
 
 void AggregateType::buildReaderInitializer() {
-  if (!fUseIOFormatters) return;
+  if (!fUseIOSerializers) return;
 
   // Neither 'fileReader' nor 'chpl__isFileReader' are available in our
   // internal modules. Initializers in such cases will need to take a
@@ -2319,7 +2319,7 @@ void AggregateType::buildReaderInitializer() {
 
         VarSymbol* formatter = newTemp("_fmt", QualifiedType(QUAL_REF, dtUnknown));
         formatter->addFlag(FLAG_REF_VAR);
-        CallExpr* getFormatter = new CallExpr(".", reader, new_CStringSymbol("formatter"));
+        CallExpr* getFormatter = new CallExpr(".", reader, new_CStringSymbol("deserializer"));
 
         CallExpr* readStart = new CallExpr("readTypeStart", gMethodToken, formatter,
                                            reader, new SymExpr(this->symbol));

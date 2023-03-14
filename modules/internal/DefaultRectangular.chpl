@@ -1720,7 +1720,7 @@ module DefaultRectangular {
   }
 
   proc chpl_serialReadWriteRectangularHelper(f, arr, dom) throws
-  where f.fmtType != nothing {
+  where chpl_useIOSerializers {
     _readWriteHelper(f, arr, dom);
   }
 
@@ -1729,7 +1729,7 @@ module DefaultRectangular {
     type idxType = arr.idxType;
     type idxSignedType = chpl__signedType(chpl__idxTypeToIntIdxType(idxType));
 
-    ref fmt = f.formatter;
+    ref fmt = if f.writing then f.serializer else f.deserializer;
 
     proc recursiveArrayReaderWriter(in idx: rank*idxType, dim=0, in last=false) throws {
 

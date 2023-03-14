@@ -74,7 +74,7 @@ proc main() {
   test(new R(5), R);
   test(new G(42.0), G(real));
 
-  // test 'nil' case to make sure formatter can still control the reading of
+  // test 'nil' case to make sure serializers can still control the reading of
   // the 'nil' string (as compared to something like "null" for json).
   test(nil, unmanaged C?);
   test(new C(5), owned C);

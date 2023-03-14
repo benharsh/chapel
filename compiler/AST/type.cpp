@@ -1333,10 +1333,12 @@ static void setupBoolGlobal(VarSymbol* globalVar, bool value) {
   if (value) {
      globalVar->immediate = new Immediate;
     *globalVar->immediate = *gTrue->immediate;
+    paramMap.put(globalVar, gTrue);
 
   } else {
      globalVar->immediate = new Immediate;
     *globalVar->immediate = *gFalse->immediate;
+    paramMap.put(globalVar, gFalse);
   }
 }
 
@@ -1383,9 +1385,9 @@ void initCompilerGlobals() {
   gNodeID->addFlag(FLAG_EXTERN);
   rootModule->block->insertAtTail(new DefExpr(gNodeID));
 
-  gUseIOFormatters = new VarSymbol("chpl_useIOFormatters", dtBool);
-  gUseIOFormatters->addFlag(FLAG_PARAM);
-  setupBoolGlobal(gUseIOFormatters, fUseIOFormatters);
+  gUseIOSerializers = new VarSymbol("chpl_useIOSerializers", dtBool);
+  gUseIOSerializers->addFlag(FLAG_PARAM);
+  setupBoolGlobal(gUseIOSerializers, fUseIOSerializers);
 
   initForTaskIntents();
 }

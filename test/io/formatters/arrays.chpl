@@ -18,13 +18,13 @@ proc makeND(param rank : int) {
 }
 
 proc test(A) {
-  stdout.withFormatter(FormatWriter).writeln(A);
+  stdout.withSerializer(FormatWriter).writeln(A);
   var f = openMemFile();
   {
-    f.writer().withFormatter(FormatWriter).write(A);
+    f.writer().withSerializer(FormatWriter).write(A);
   }
   {
-    var B = f.reader().withFormatter(FormatReader).read(A.type);
+    var B = f.reader().withDeserializer(FormatReader).read(A.type);
 
     var match = false;
     if isArray(A) {
@@ -52,7 +52,7 @@ proc main() {
     var D : domain(int) = {1, 2, 3, 5, 6, 8, 10};
     var A : [D] int;
     [d in D] A[d] = d**2;
-    stdout.withFormatter(FormatWriter).writeln(A);
+    stdout.withSerializer(FormatWriter).writeln(A);
   }
 
   {

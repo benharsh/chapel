@@ -293,7 +293,7 @@ module ChapelIO {
     // TODO: would any formats want to print type or param fields?
     //
     proc encodeToDefaultImpl(writer:fileWriter, const x:?t) throws {
-      writer.formatter.writeTypeStart(writer, t);
+      writer.serializer.writeTypeStart(writer, t);
 
       if isClassType(t) && _to_borrowed(t) != borrowed object {
         encodeToDefaultImpl(writer, x.super);
@@ -303,12 +303,12 @@ module ChapelIO {
       for param i in 1..num_fields {
         if isIoField(x, i) {
           param name : string = __primitive("field num to name", x, i);
-          writer.formatter.writeField(writer, name,
-                                      __primitive("field by num", x, i));
+          writer.serializer.writeField(writer, name,
+                                       __primitive("field by num", x, i));
         }
       }
 
-      writer.formatter.writeTypeEnd(writer, t);
+      writer.serializer.writeTypeEnd(writer, t);
     }
 
     //
@@ -702,7 +702,7 @@ module ChapelIO {
   }
 
   proc type _tuple.decodeFrom(f) throws {
-    ref fmt = f.formatter;
+    ref fmt = f.deserializer;
     pragma "no init"
     var ret : this;
     fmt.readTypeStart(f, this);
@@ -716,7 +716,7 @@ module ChapelIO {
   }
 
   proc const _tuple.encodeTo(w) throws {
-    ref fmt = w.formatter;
+    ref fmt = w.serializer;
     fmt.writeTypeStart(w, this.type);
     for param i in 0..<size {
       const ref elt = this(i);

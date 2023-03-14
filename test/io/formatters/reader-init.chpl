@@ -12,7 +12,7 @@ record R {
   }
 
   proc init(r: fileReader) {
-    ref fmt = r.formatter;
+    ref fmt = r.deserializer;
     fmt.readTypeStart(r, R);
     this.x = fmt.readField(r, "x", int);
     this.y = fmt.readField(r, "y", real);
@@ -41,7 +41,7 @@ record G {
   proc init(type A, type B, r: fileReader) {
     this.A = A;
     this.B = B;
-    ref fmt = r.formatter;
+    ref fmt = r.deserializer;
     fmt.readTypeStart(r, G(A,B));
     this.x = fmt.readField(r, "x", A);
     this.y = fmt.readField(r, "y", B);
@@ -61,14 +61,14 @@ class Parent {
     this.x = x;
   }
   proc init(r: fileReader) {
-    ref fmt = r.formatter;
+    ref fmt = r.deserializer;
     fmt.readTypeStart(r, Parent);
     this.x = fmt.readField(r, "x", int);
     fmt.readTypeEnd(r, Parent);
   }
 
   proc encodeTo(w: fileWriter) {
-    ref fmt = w.formatter;
+    ref fmt = w.serializer;
     fmt.writeTypeStart(w, this.type);
     fmt.writeField(w, "x", x);
     fmt.writeTypeEnd(w, this.type);
@@ -87,7 +87,7 @@ class Child : Parent {
     this.y = y;
   }
   proc init(r: fileReader) {
-    ref fmt = r.formatter;
+    ref fmt = r.deserializer;
     fmt.readTypeStart(r, Child);
     super.init(r);
     this.y = fmt.readField(r, "y", real);
@@ -95,7 +95,7 @@ class Child : Parent {
   }
 
   override proc encodeTo(w: fileWriter) {
-    ref fmt = w.formatter;
+    ref fmt = w.serializer;
     fmt.writeTypeStart(w, this.type);
     super.encodeTo(w);
     fmt.writeField(w, "y", y);
@@ -117,16 +117,16 @@ proc test(type FormatWriter, type FormatReader) {
 
   proc print(str: string, val) {
     stdout.writeLiteral(str + ": ");
-    stdout.withFormatter(FormatWriter).writeln(val);
+    stdout.withSerializer(FormatWriter).writeln(val);
   }
 
   proc helper(val, type T) {
     {
-      f.writer().withFormatter(FormatWriter).write(val);
+      f.writer().withSerializer(FormatWriter).write(val);
       print("wrote", val);
     }
     {
-      var read = f.reader().withFormatter(FormatReader).read(T);
+      var read = f.reader().withDeserializer(FormatReader).read(T);
       assert(val.equals(read));
       print("got", read);
     }

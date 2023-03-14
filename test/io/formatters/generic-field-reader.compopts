@@ -1,2 +1,2 @@
---use-io-formatters -sT=G
---use-io-formatters -sT=I
+--use-io-serializers -sT=G
+--use-io-serializers -sT=I

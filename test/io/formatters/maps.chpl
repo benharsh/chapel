@@ -11,10 +11,10 @@ record R {
 proc test(m: map) {
   var f = openMemFile();
   {
-    f.writer().withFormatter(FormatWriter).writeln(m);
+    f.writer().withSerializer(FormatWriter).writeln(m);
   }
   {
-    var x = f.reader().withFormatter(FormatReader).read(m.type);
+    var x = f.reader().withDeserializer(FormatReader).read(m.type);
     if m != x then
       writeln("FAILURE: ", m.type:string);
     else
@@ -30,18 +30,18 @@ proc main() {
     m.add("east", "west");
     m.add("north", "south");
 
-    stdout.withFormatter(FormatWriter).writeln(m);
+    stdout.withSerializer(FormatWriter).writeln(m);
     test(m);
   }
 
-  // Check what formatter does with non-string key
+  // Check what serializer does with non-string key
   {
     var m : map(int, string);
     m.add(206, "Seattle");
     m.add(212, "NYC");
     m.add(713, "Houston");
     
-    stdout.withFormatter(FormatWriter).writeln(m);
+    stdout.withSerializer(FormatWriter).writeln(m);
     test(m);
   }
 
@@ -51,14 +51,14 @@ proc main() {
     m.add("Banana", new R(1, -10.0));
     m.add("Orange", new R(13, 106.7));
 
-    stdout.withFormatter(FormatWriter).writeln(m);
+    stdout.withSerializer(FormatWriter).writeln(m);
     test(m);
 
     var r : map(R, string);
     for k in m.keys() do
       r.add(m[k], k);
 
-    stdout.withFormatter(FormatWriter).writeln(r);
+    stdout.withSerializer(FormatWriter).writeln(r);
     test(r);
   }
 }

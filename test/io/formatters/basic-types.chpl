@@ -19,15 +19,15 @@ proc test(val, type T = val.type) {
     var f = openMemFile();
     {
       writeln("--- writing: ---");
-      stdout.withFormatter(FormatWriter).writeln(val);
+      stdout.withSerializer(FormatWriter).writeln(val);
       writeln("----------------");
 
-      f.writer().withFormatter(FormatWriter).write(val);
+      f.writer().withSerializer(FormatWriter).write(val);
     }
     {
-      var readVal = f.reader().withFormatter(FormatReader).read(T);
+      var readVal = f.reader().withDeserializer(FormatReader).read(T);
       writeln("--- read: ---");
-      stdout.withFormatter(FormatWriter).writeln(readVal);
+      stdout.withSerializer(FormatWriter).writeln(readVal);
       writeln("-------------");
 
       var compare = if isNilableClassType(val.type) then

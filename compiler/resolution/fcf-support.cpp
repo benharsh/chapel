@@ -775,7 +775,7 @@ static Expr* createLegacyClassInstance(FnSymbol* fn, Expr* use) {
   std::ignore = attachChildThis(info, child, fn);
 
   std::ignore = attachChildWriteThis(info, child, fn, "writeThis");
-  if (fUseIOFormatters) {
+  if (fUseIOSerializers) {
     std::ignore = attachChildWriteThis(info, child, fn, "encodeTo");
   }
 

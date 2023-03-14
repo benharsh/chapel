@@ -1731,13 +1731,28 @@ module List {
       _leave();
     }
 
-    proc writeThis(ch: fileWriter) throws where ch.fmtType != nothing {
+    proc encodeTo(ch: fileWriter(serializerType=IO.DefaultWriter)) throws {
       _enter();
-      
-      ref fmt = ch.formatter;
+
+      ch._writeLiteral("[");
+      var first = true;
+      for i in 0..<this._size {
+        if !first then ch._writeLiteral(", ");
+        first = false;
+        ch.write(_getRef(i));
+      }
+      ch._writeLiteral("]");
+
+      _leave();
+    }
+
+    proc encodeTo(ch: fileWriter) throws {
+      _enter();
+
+      ref fmt = ch.serializer;
       fmt.writeArrayStart(ch);
-      for i in 0..<this.size do
-        fmt.writeArrayElement(ch, i, this[i]);
+      for i in 0..<this._size do
+        fmt.writeArrayElement(ch, i, _getRef(i));
       fmt.writeArrayEnd(ch);
 
       _leave();
@@ -1821,12 +1836,16 @@ module List {
       _readHelper(r);
     }
 
+    proc _readHelper(r: fileReader(deserializerType=DefaultReader)) throws {
+      readThis(r);
+    }
+
     proc _readHelper(r: fileReader) throws {
       _enter();
 
       _clearLocked();
 
-      ref fmt = r.formatter;
+      ref fmt = r.deserializer;
       fmt.readArrayStart(r);
 
       var done = false;

@@ -1814,7 +1814,7 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
   bool makeReadThisAndWriteThis = true;
 
   bool hasEncodeTo              = false;
-  bool makeEncodeTo             = fUseIOFormatters;
+  bool makeEncodeTo             = fUseIOSerializers;
 
   //
   // We have no QIO when compiling with --minimal-modules, so no need
@@ -1883,7 +1883,7 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
     // Compiler generated versions of readThis/writeThis now throw.
     fn->throwsErrorInit();
 
-    if (fUseIOFormatters) {
+    if (fUseIOSerializers) {
       if (hasWriteThis) {
         // TODO: we probably want to have a warning here to help users migrate
         // their code to use formatters.

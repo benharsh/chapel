@@ -5,8 +5,9 @@ module Json {
   private use Map;
   private use List;
 
-  type _writeType = fileWriter(fmtType=JsonWriter, ?);
-  type _readerT = fileReader(fmtType=JsonReader, ?);
+  type _writeType = fileWriter(serializerType=JsonWriter, ?);
+  type _readerT = fileReader(deserializerType=JsonReader, ?);
+
   record JsonWriter {
     var firstField = true;
     var _inheritLevel = 0;
@@ -17,7 +18,7 @@ module Json {
     // TODO: rewrite in terms of writef, or something
     proc _oldWrite(ch: _writeType, const val:?t) throws {
       var _def = new DefaultWriter();
-      var dc = ch.withFormatter(_def);
+      var dc = ch.withSerializer(_def);
       var st = dc._styleInternal();
       var orig = st; defer { dc._set_styleInternal(orig); }
       st.realfmt = 2;
@@ -33,7 +34,7 @@ module Json {
       if t == string  || isEnumType(t) || t == bytes {
         _oldWrite(writer, x);
         //writer.writeLiteral('"');
-        //writer.withFormatter(DefaultWriter).write(x);
+        //writer.withSerializer(DefaultWriter).write(x);
         //writer.writeLiteral('"');
       } else if isNumericType(t) || isBoolType(t) {
         _oldWrite(writer, x);
@@ -46,10 +47,10 @@ module Json {
         if x == nil {
           writer._writeLiteral("null");
         } else {
-          x!.encodeTo(writer.withFormatter(new JsonWriter()));
+          x!.encodeTo(writer.withSerializer(new JsonWriter()));
         }
       } else {
-        x.encodeTo(writer.withFormatter(new JsonWriter()));
+        x.encodeTo(writer.withSerializer(new JsonWriter()));
       }
     }
 
@@ -159,7 +160,7 @@ module Json {
         // it as a proper key for the map.
         var f = openMemFile();
         {
-          f.writer().withFormatter(JsonWriter).write(key);
+          f.writer().withSerializer(JsonWriter).write(key);
         }
         var tmp : string;
         f.reader().readAll(tmp);
@@ -226,7 +227,7 @@ module Json {
     // TODO: rewrite in terms of writef, or something
     proc _oldRead(ch: _readerT, ref val:?t) throws {
       var _def = new DefaultWriter();
-      var dc = ch.withFormatter(_def);
+      var dc = ch.withDeserializer(_def);
       var st = dc._styleInternal();
       var orig = st; defer { dc._set_styleInternal(orig); }
       st.realfmt = 2;
@@ -257,14 +258,14 @@ module Json {
         return tmp;
       } else if isEnumType(readType) {
         reader.readLiteral('"');
-        var ret = reader.withFormatter(DefaultReader).read(readType);
+        var ret = reader.withDeserializer(DefaultReader).read(readType);
         reader.readLiteral('"');
         return ret;
       } else if canResolveTypeMethod(readType, "decodeFrom", reader) ||
                 isArrayType(readType) {
-        return readType.decodeFrom(reader.withFormatter(new JsonReader()));
+        return readType.decodeFrom(reader.withDeserializer(new JsonReader()));
       } else {
-        return new readType(reader.withFormatter(new JsonReader()));
+        return new readType(reader.withDeserializer(new JsonReader()));
       }
     }
 
@@ -403,9 +404,9 @@ module Json {
         var f = openMemFile();
         var s = r.read(string);
         {
-          f.writer().withFormatter(DefaultWriter).write(s);
+          f.writer().withSerializer(DefaultWriter).write(s);
         }
-        var k = f.reader().withFormatter(JsonReader).read(keyType);
+        var k = f.reader().withDeserializer(JsonReader).read(keyType);
         r._readLiteral(":");
         return (k, r.read(valType));
       }

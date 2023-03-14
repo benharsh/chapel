@@ -1,2 +1,2 @@
---use-io-formatters -sformat=FormatKind.default # arrays.default.good
---use-io-formatters -sformat=FormatKind.json # arrays.json.good
+--use-io-serializers -sformat=FormatKind.default # arrays.default.good
+--use-io-serializers -sformat=FormatKind.json # arrays.json.good

@@ -657,7 +657,7 @@ module Map {
 
     proc _readHelper(r: fileReader) throws {
       _enter(); defer _leave();
-      ref fmt = r.formatter;
+      ref fmt = r.deserializer;
 
       fmt.readMapStart(r);
 
@@ -703,10 +703,10 @@ module Map {
       _readWriteHelper(ch);
     }
 
-    proc encodeTo(ch: fileWriter) throws where ch.fmtType != nothing {
+    proc encodeTo(ch: fileWriter) throws {
       _enter(); defer _leave();
 
-      ref fmt = ch.formatter;
+      ref fmt = ch.serializer;
       fmt.writeMapStart(ch);
 
       for slot in table.allSlots() {

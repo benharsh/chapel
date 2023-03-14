@@ -62,7 +62,7 @@ module ChapelBase {
   class _object { }
 
   proc object.encodeTo(f) throws {
-    ref fmt = f.formatter;
+    ref fmt = f.serializer;
     fmt.writeTypeStart(f, object);
     fmt.writeTypeEnd(f, object);
   }
