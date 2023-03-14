@@ -17,7 +17,7 @@ module Json {
 
     // TODO: rewrite in terms of writef, or something
     proc _oldWrite(ch: _writeType, const val:?t) throws {
-      var _def = new DefaultWriter();
+      var _def = new DefaultSerializer();
       var dc = ch.withSerializer(_def);
       var st = dc._styleInternal();
       var orig = st; defer { dc._set_styleInternal(orig); }
@@ -34,7 +34,7 @@ module Json {
       if t == string  || isEnumType(t) || t == bytes {
         _oldWrite(writer, x);
         //writer.writeLiteral('"');
-        //writer.withSerializer(DefaultWriter).write(x);
+        //writer.withSerializer(DefaultSerializer).write(x);
         //writer.writeLiteral('"');
       } else if isNumericType(t) || isBoolType(t) {
         _oldWrite(writer, x);
@@ -226,7 +226,7 @@ module Json {
 
     // TODO: rewrite in terms of writef, or something
     proc _oldRead(ch: _readerT, ref val:?t) throws {
-      var _def = new DefaultWriter();
+      var _def = new DefaultDeserializer();
       var dc = ch.withDeserializer(_def);
       var st = dc._styleInternal();
       var orig = st; defer { dc._set_styleInternal(orig); }
@@ -258,7 +258,7 @@ module Json {
         return tmp;
       } else if isEnumType(readType) {
         reader.readLiteral('"');
-        var ret = reader.withDeserializer(DefaultReader).read(readType);
+        var ret = reader.withDeserializer(DefaultDeserializer).read(readType);
         reader.readLiteral('"');
         return ret;
       } else if canResolveTypeMethod(readType, "decodeFrom", reader) ||
@@ -404,7 +404,7 @@ module Json {
         var f = openMemFile();
         var s = r.read(string);
         {
-          f.writer().withSerializer(DefaultWriter).write(s);
+          f.writer().withSerializer(DefaultSerializer).write(s);
         }
         var k = f.reader().withDeserializer(JsonReader).read(keyType);
         r._readLiteral(":");

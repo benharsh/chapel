@@ -14,8 +14,8 @@ module FormatHelper {
   proc getFormatType(param writing : bool) type {
     select format {
       when FormatKind.default {
-        if writing then return IO.DefaultWriter;
-        else return IO.DefaultReader;
+        if writing then return IO.DefaultSerializer;
+        else return IO.DefaultDeserializer;
       }
       when FormatKind.json {
         if writing then return JsonWriter;

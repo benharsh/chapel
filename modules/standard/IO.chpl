@@ -2428,14 +2428,14 @@ proc openMemFileHelper(style:iostyleInternal = defaultIOStyleInternal()):file th
 
 private proc defaultSerializeType(param writing : bool) type {
   if !chpl_useIOSerializers then return nothing;
-  if writing then return DefaultWriter;
-  else return DefaultReader;
+  if writing then return DefaultSerializer;
+  else return DefaultDeserializer;
 }
 
 private proc defaultSerializeVal(param writing : bool) {
   if !chpl_useIOSerializers then return none;
-  if writing then return new DefaultWriter();
-  else return new DefaultReader();
+  if writing then return new DefaultSerializer();
+  else return new DefaultDeserializer();
 }
 
 /*
@@ -2594,7 +2594,7 @@ proc fileWriter.serializer const ref {
 // methods for records and classes.
 //
 pragma "no doc"
-record DefaultWriter {
+record DefaultSerializer {
   var firstField = true;
   var _inheritLevel = 0;
   var _arrayDim = 0;
@@ -2604,9 +2604,9 @@ record DefaultWriter {
     if x == nil {
       writer._writeLiteral("nil");
     } else if isClassType(t) {
-      x!.encodeTo(writer.withSerializer(new DefaultWriter()));
+      x!.encodeTo(writer.withSerializer(new DefaultSerializer()));
     } else {
-      x.encodeTo(writer.withSerializer(new DefaultWriter()));
+      x.encodeTo(writer.withSerializer(new DefaultSerializer()));
     }
   }
 
@@ -2632,7 +2632,7 @@ record DefaultWriter {
     } else if isUnionType(t) {
       _encodeUnion(writer, x);
     } else {
-      x.encodeTo(writer.withSerializer(new DefaultWriter()));
+      x.encodeTo(writer.withSerializer(new DefaultSerializer()));
     }
   }
 
@@ -2790,7 +2790,7 @@ record DefaultWriter {
 //   proc type MyType.decodeFrom(reader: fileReader) throws
 //
 pragma "no doc"
-record DefaultReader {
+record DefaultDeserializer {
   var firstField = true;
   var _inheritLevel = 0;
   var _arrayDim = 0;
@@ -2813,9 +2813,9 @@ record DefaultReader {
       // Always run 'decodeFrom' on arrays, for now, to work around issues
       // where a compilerError might cause 'canResolveTypeMethod' to return
       // false.
-      return readType.decodeFrom(reader.withDeserializer(new DefaultReader()));
+      return readType.decodeFrom(reader.withDeserializer(new DefaultDeserializer()));
     } else {
-      return new readType(reader.withDeserializer(new DefaultReader()));
+      return new readType(reader.withDeserializer(new DefaultDeserializer()));
     }
   }
 
@@ -3112,7 +3112,7 @@ proc ref fileWriter.deinit() {
   }
 }
 
-// Convenience for forms like 'r.withDeserializer(DefaultReader)`
+// Convenience for forms like 'r.withDeserializer(DefaultDeserializer)`
 pragma "no doc"
 proc fileReader.withDeserializer(type dt) {
   var des : dt;
@@ -3130,7 +3130,7 @@ proc fileReader.withDeserializer(d: ?) {
   }
   return ret;
 }
-// Convenience for forms like 'w.withSerializer(DefaultWriter)`
+// Convenience for forms like 'w.withSerializer(DefaultSerializer)`
 pragma "no doc"
 proc fileWriter.withSerializer(type st) {
   var ser : st;

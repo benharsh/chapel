@@ -1731,7 +1731,7 @@ module List {
       _leave();
     }
 
-    proc encodeTo(ch: fileWriter(serializerType=IO.DefaultWriter)) throws {
+    proc encodeTo(ch: fileWriter(serializerType=IO.DefaultSerializer)) throws {
       _enter();
 
       ch._writeLiteral("[");
@@ -1836,7 +1836,7 @@ module List {
       _readHelper(r);
     }
 
-    proc _readHelper(r: fileReader(deserializerType=DefaultReader)) throws {
+    proc _readHelper(r: fileReader(deserializerType=DefaultDeserializer)) throws {
       readThis(r);
     }
 

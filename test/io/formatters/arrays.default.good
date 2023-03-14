@@ -178,5 +178,5 @@ SUCCESS: [domain(4,int(64),false)] int(64)
 240 241 242
 SUCCESS: [domain(5,int(64),false)] int(64)
 25 64 1 36 4 100 9
-1 4 9 16 25 36 49 64 81 100
+[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
 SUCCESS: list(int(64),false)
