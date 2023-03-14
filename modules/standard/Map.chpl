@@ -684,7 +684,7 @@ module Map {
     }
 
     pragma "no doc"
-    @unstable "'Map.parSafe' is unstable"
+    @unstable("'Map.parSafe' is unstable")
     proc init(type keyType, type valType, param parSafe, r: fileReader) throws {
       this.init(keyType, valType, parSafe);
       _readHelper(r);
