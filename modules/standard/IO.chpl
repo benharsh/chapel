@@ -2621,10 +2621,6 @@ record DefaultSerializer {
     if isNumericType(t) || isBoolType(t) || isEnumType(t) ||
        t == string || t == bytes {
       writer._writeOne(writer.kind, x, writer.getLocaleOfIoRequest());
-    } else if t == ioLiteral {
-      writer._writeLiteral(x.val);
-    } else if t == ioNewline || t == _internalIoChar || t == _internalIoBits {
-      writer._writeOne(writer.kind, x, writer.getLocaleOfIoRequest());
     } else if t == _nilType {
       writer._writeLiteral("nil");
     } else if isClassType(t) || isAnyCPtr(t) {
@@ -5344,6 +5340,11 @@ proc fileWriter._encodeOne(const x:?t, loc:locale) throws {
   // destruction of the local writer record safe
   // (it shouldn't release anything since it's a local copy).
   defer { writer._channel_internal = QIO_CHANNEL_PTR_NULL; }
+
+  if t == ioLiteral || t == ioNewline || t == _internalIoBits || t == _internalIoChar {
+    writer._writeOne(writer.kind, x, writer.getLocaleOfIoRequest());
+    return;
+  }
 
   // TODO: Should this pass an unmanaged or borrowed version, to reduce
   // the number of instantiations for a type?

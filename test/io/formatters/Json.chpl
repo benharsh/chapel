@@ -38,11 +38,6 @@ module Json {
         //writer.writeLiteral('"');
       } else if isNumericType(t) || isBoolType(t) {
         _oldWrite(writer, x);
-      } else if t == ioLiteral {
-        writer._writeLiteral(x.val);
-      } else if t == ioNewline {
-        // TODO: Need to account for 'skipWhitespaceOnly' somehow...
-        writer._writeOne(writer.kind, x, writer.getLocaleOfIoRequest());
       } else if isClassType(t) {
         if x == nil {
           writer._writeLiteral("null");
