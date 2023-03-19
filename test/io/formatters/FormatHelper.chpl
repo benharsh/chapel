@@ -2,11 +2,14 @@
 
 module FormatHelper {
   use Json;
+  use BinaryIO;
   use IO;
 
   enum FormatKind {
     default,
-    json
+    json,
+    binaryLittle,
+    binaryBig
   }
 
   config param format : FormatKind = FormatKind.default;
@@ -20,6 +23,14 @@ module FormatHelper {
       when FormatKind.json {
         if writing then return JsonWriter;
         else return JsonReader;
+      }
+      when FormatKind.binaryLittle {
+        if writing then return BinarySerializer;
+        else return BinaryDeserializer;
+      }
+      when FormatKind.binaryBig {
+        if writing then return BinarySerializer;
+        else return BinaryDeserializer;
       }
       otherwise return nothing;
     }

@@ -1,7 +1,9 @@
 
 use IO;
-use Json;
 use List;
+
+use Json;
+use BinaryIO;
 use FormatHelper;
 
 //
@@ -9,6 +11,28 @@ use FormatHelper;
 //
 
 var failures : list(string);
+
+proc printDebugFmt(val) {
+  writeln("===== writing: =====");
+  stdout.writeln(val);
+  writeln("--------------------");
+  if isSubtype(FormatWriter, BinarySerializer) {
+    var f = openMemFile();
+    {
+      var w = f.writer();
+      w.withSerializer(FormatWriter).write(val);
+    }
+    var r = f.reader();
+    var data : bytes;
+    r.readBinary(data, 0);
+    for b in data do
+      stdout.writef("%xu", b);
+    stdout.writeln();
+  } else {
+    stdout.withSerializer(FormatWriter).writeln(val);
+  }
+  writeln("====================");
+}
 
 proc test(val, type T = val.type) {
   writeln();
@@ -18,16 +42,14 @@ proc test(val, type T = val.type) {
   try {
     var f = openMemFile();
     {
-      writeln("--- writing: ---");
-      stdout.withSerializer(FormatWriter).writeln(val);
-      writeln("----------------");
+      printDebugFmt(val);
 
       f.writer().withSerializer(FormatWriter).write(val);
     }
     {
       var readVal = f.reader().withDeserializer(FormatReader).read(T);
       writeln("--- read: ---");
-      stdout.withSerializer(FormatWriter).writeln(readVal);
+      stdout.withSerializer(DefaultSerializer).writeln(readVal);
       writeln("-------------");
 
       var compare = if isNilableClassType(val.type) then
