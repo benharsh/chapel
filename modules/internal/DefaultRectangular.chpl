@@ -1777,6 +1777,37 @@ module DefaultRectangular {
     recursiveArrayReaderWriter(zeroTup);
   }
 
+  proc _isBinary(f) param : bool {
+    if f.writing then return f.serializer.isBinary();
+    else return f.deserializer.isBinary();
+  }
+
+  proc _readWriteHelper(f, arr, dom) throws
+  where _isBinary(f) {
+    ref fmt = if f.writing then f.serializer else f.deserializer;
+
+    if f.writing then
+      fmt.writeArrayStart(f, dom.dsiNumIndices:uint);
+    else
+      fmt.readArrayStart(f);
+
+    if f.writing {
+      for (i, val) in zip(dom, arr) {
+        fmt.writeArrayElement(f, none, val);
+      }
+    } else {
+      for i in dom {
+        const (_, readElt) = fmt.readArrayElement(f, nothing, arr.eltType);
+        arr.dsiAccess(i) = readElt;
+      }
+    }
+
+    if f.writing then
+      fmt.writeArrayEnd(f);
+    else
+      fmt.readArrayEnd(f);
+  }
+
   proc chpl_serialReadWriteRectangularHelper(f, arr, dom) throws {
     param rank = arr.rank;
     type idxType = arr.idxType;
