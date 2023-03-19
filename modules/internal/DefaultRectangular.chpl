@@ -1737,7 +1737,7 @@ module DefaultRectangular {
       const makeStridePositive = if dom.dsiDim(dim).stride > 0 then 1:strType else (-1):strType;
 
       if f.writing then
-        fmt.writeArrayStart(f);
+        fmt.writeArrayStart(f, 0);
       else
         fmt.readArrayStart(f);
 
@@ -1747,12 +1747,12 @@ module DefaultRectangular {
         for j in dom.dsiDim(dim) by makeStridePositive {
           idx(dim) = j;
           if f.writing then
-            fmt.writeArrayElement(f, idx, arr.dsiAccess(idx));
+            fmt.writeArrayElement(f, none, arr.dsiAccess(idx));
           else {
             // TODO: does it make sense to just ignore the idx here?
             // I guess it's a way for the type authors to assert they know
             // more about their own type...
-            const (_, readElt) = fmt.readArrayElement(f, idxType, arr.eltType);
+            const (_, readElt) = fmt.readArrayElement(f, nothing, arr.eltType);
             arr.dsiAccess(idx) = readElt;
           }
         }

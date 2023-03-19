@@ -2600,6 +2600,9 @@ record DefaultSerializer {
   var _arrayDim = 0;
   var _arrayMax : int;
 
+  proc type isBinary() param : bool do return false;
+  proc isBinary() param : bool do return false;
+
   proc _encodeClassOrPtr(writer:fileWriter, x: ?t) : void throws {
     if x == nil {
       writer._writeLiteral("nil");
@@ -2685,7 +2688,7 @@ record DefaultSerializer {
   // in order to more easily support common binary IO patterns?
   // TODO: what should we do for sparse arrays? The current format is kind of
   // weird. I'd personally lean towards doing a " => " pattern...
-  proc writeArrayStart(w: fileWriter) throws {
+  proc writeArrayStart(w: fileWriter, _size : uint = 0) throws {
     _arrayDim += 1;
     if _arrayMax >= _arrayDim {
       w.writeNewline();
@@ -2718,7 +2721,7 @@ record DefaultSerializer {
     firstField = true;
   }
 
-  proc writeMapStart(w: fileWriter) throws {
+  proc writeMapStart(w: fileWriter, _size : uint = 0) throws {
     w._writeLiteral("{ ");
   }
 
@@ -2791,6 +2794,9 @@ record DefaultDeserializer {
   var _inheritLevel = 0;
   var _arrayDim = 0;
   var _arrayMax : int;
+
+  proc type isBinary() param : bool do return false;
+  proc isBinary() param : bool do return false;
 
   proc decode(reader:fileReader, type readType) : readType throws {
     if isNilableClassType(readType) {

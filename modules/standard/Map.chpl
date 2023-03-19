@@ -707,7 +707,7 @@ module Map {
       _enter(); defer _leave();
 
       ref fmt = ch.serializer;
-      fmt.writeMapStart(ch);
+      fmt.writeMapStart(ch, _size);
 
       for slot in table.allSlots() {
         if table.isSlotFull(slot) {

@@ -646,7 +646,7 @@ module DefaultAssociative {
       ref fmt = if f.writing then f.serializer else f.deserializer;
 
       if f.writing then
-        fmt.writeArrayStart(f);
+        fmt.writeArrayStart(f, dom.dsiNumIndices:uint);
       else
         fmt.readArrayStart(f);
 

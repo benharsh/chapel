@@ -1750,7 +1750,7 @@ module List {
       _enter();
 
       ref fmt = ch.serializer;
-      fmt.writeArrayStart(ch);
+      fmt.writeArrayStart(ch, this._size);
       for i in 0..<this._size do
         fmt.writeArrayElement(ch, i, _getRef(i));
       fmt.writeArrayEnd(ch);
