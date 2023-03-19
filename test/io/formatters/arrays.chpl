@@ -18,7 +18,7 @@ proc makeND(param rank : int) {
 }
 
 proc test(A) {
-  stdout.withSerializer(FormatWriter).writeln(A);
+  printDebugFmt(A);
   var f = openMemFile();
   {
     f.writer().withSerializer(FormatWriter).write(A);
@@ -52,7 +52,7 @@ proc main() {
     var D : domain(int) = {1, 2, 3, 5, 6, 8, 10};
     var A : [D] int;
     [d in D] A[d] = d**2;
-    stdout.withSerializer(FormatWriter).writeln(A);
+    printDebugFmt(A);
   }
 
   {

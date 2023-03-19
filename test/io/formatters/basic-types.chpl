@@ -12,28 +12,6 @@ use FormatHelper;
 
 var failures : list(string);
 
-proc printDebugFmt(val) {
-  writeln("===== writing: =====");
-  stdout.writeln(val);
-  writeln("--------------------");
-  if isSubtype(FormatWriter, BinarySerializer) {
-    var f = openMemFile();
-    {
-      var w = f.writer();
-      w.withSerializer(FormatWriter).write(val);
-    }
-    var r = f.reader();
-    var data : bytes;
-    r.readBinary(data, 0);
-    for b in data do
-      stdout.writef("%xu", b);
-    stdout.writeln();
-  } else {
-    stdout.withSerializer(FormatWriter).writeln(val);
-  }
-  writeln("====================");
-}
-
 proc test(val, type T = val.type) {
   writeln();
   const header = "===== " + (T: string) + " =====";

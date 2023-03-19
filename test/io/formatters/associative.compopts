@@ -1,2 +1,3 @@
 --use-io-serializers -sformat=FormatKind.default # associative.default.good
 --use-io-serializers -sformat=FormatKind.json # associative.json.good
+--use-io-serializers -sformat=FormatKind.little # associative.little.good

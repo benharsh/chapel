@@ -1,2 +1,3 @@
 --use-io-serializers -sformat=FormatKind.default # maps.default.good
 --use-io-serializers -sformat=FormatKind.json # maps.json.good
+--use-io-serializers -sformat=FormatKind.little # maps.little.good

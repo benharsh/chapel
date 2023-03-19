@@ -33,6 +33,13 @@ module BinaryIO {
   record BinarySerializer {
     const endian : IO.ioendian = IO.ioendian.native;
 
+    proc type isBinary() param : bool do return true;
+    proc isBinary() param : bool do return true;
+
+    proc _fork() {
+      return new BinarySerializer(endian=endian);
+    }
+
     // TODO: rewrite in terms of writef, or something
     proc _oldWrite(ch: _writeType, const val:?t) throws {
       var _def = new DefaultSerializer();
@@ -52,15 +59,17 @@ module BinaryIO {
       if t == string  || isEnumType(t) || t == bytes || isNumericType(t) ||
          isBoolType(t) {
         _oldWrite(writer, x);
+      } else if t == nothing {
+        // nothing...
       } else if isClassType(t) {
         if x == nil {
           writer.writeByte(0);
         } else {
           writer.writeByte(1);
-          x!.encodeTo(writer.withSerializer(new BinarySerializer()));
+          x!.encodeTo(writer.withSerializer(_fork()));
         }
       } else {
-        x.encodeTo(writer.withSerializer(new BinarySerializer()));
+        x.encodeTo(writer.withSerializer(_fork()));
       }
     }
 
@@ -77,6 +86,11 @@ module BinaryIO {
     // TODO: I think we should just embed some kind of dimensionality into
     // this. If people want a 1D thing then that will be easy.
     proc writeArrayStart(w: _writeType) throws {
+      throw new Error("maps of unknown size are not yet supported by BinarySerializer");
+    }
+
+    proc writeArrayStart(w: _writeType, size: uint) throws {
+      w.write(size);
     }
 
     // TODO: I sort of feel like we should print associative arrays/domains as
@@ -90,6 +104,11 @@ module BinaryIO {
     }
 
     proc writeMapStart(w: _writeType) throws {
+      throw new Error("maps of unknown size are not yet supported by BinarySerializer");
+    }
+
+    proc writeMapStart(w: _writeType, size: uint) throws {
+      w.write(size);
     }
 
     proc writeMapPair(w: _writeType, const key: ?, const val: ?) throws {
@@ -103,6 +122,21 @@ module BinaryIO {
 
   record BinaryDeserializer {
     const endian : IO.ioendian = IO.ioendian.native;
+
+    var _sizeKnown : bool = false;
+    var _numElements : uint;
+
+    proc init(endian: IO.ioendian = IO.ioendian.native) {
+      this.endian = endian;
+      this.complete();
+    }
+
+    proc type isBinary() param : bool do return true;
+    proc isBinary() param : bool do return true;
+
+    proc _fork() {
+      return new BinaryDeserializer(endian=endian);
+    }
 
     // TODO: rewrite in terms of writef, or something
     proc _oldRead(ch: _readerT, ref val:?t) throws {
@@ -139,11 +173,13 @@ module BinaryIO {
         var x : readType;
         _oldRead(reader, x);
         return x;
+      } else if readType == nothing {
+        // nothing...
       } else if canResolveTypeMethod(readType, "decodeFrom", reader) ||
                 isArrayType(readType) {
-        return readType.decodeFrom(reader.withDeserializer(new BinaryDeserializer()));
+        return readType.decodeFrom(reader.withDeserializer(_fork()));
       } else {
-        return new readType(reader.withDeserializer(new BinaryDeserializer()));
+        return new readType(reader.withDeserializer(_fork()));
       }
     }
 
@@ -157,21 +193,53 @@ module BinaryIO {
     proc readTypeEnd(r: fileReader, type T) throws {
     }
 
+    //proc sizeHint() : uint throws {
+    //  if !_sizeKnown then throw new Error("'sizeHint' called when size was unknown");
+
+    //  return _numElements;
+    //}
+
+    // TODO: add stuff for known sizes
+    // TODO: add support for 'hasNext' kind of thing
+    //
+    // LATER:
+    // - TODO: support for unknown size
+    //   - idea: serialize into internal buffer, count calls, then actually write things
+    // - TODO: check size mismatches
     proc readArrayStart(r: fileReader) throws {
+      _sizeKnown = true;
+      _numElements = r.read(uint);
     }
 
     proc readArrayElement(r: fileReader, type idxType, type eltType) throws {
+      if _numElements <= 0 then
+        throw new BadFormatError("no more array elements remain!");
+
+      _numElements -= 1;
       return (r.read(idxType), r.read(eltType));
     }
 
     proc readArrayEnd(r: fileReader) throws {
+      if _numElements != 0 then
+        throw new Error("failed to read all expected elements in array!");
     }
 
     proc readMapStart(r: fileReader) throws {
+      _sizeKnown = true;
+      _numElements = r.read(uint);
     }
 
     proc readMapPair(r: fileReader, type keyType, type valType) throws {
+      if _numElements <= 0 then
+        throw new BadFormatError("no more map elements remain!");
+
+      _numElements -= 1;
       return (r.read(keyType), r.read(valType));
+    }
+
+    proc readMapEnd(r: fileReader) throws {
+      if _numElements != 0 then
+        throw new Error("failed to read all expected elements in map!");
     }
   }
 }

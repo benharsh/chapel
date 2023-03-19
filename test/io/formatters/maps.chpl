@@ -9,6 +9,8 @@ record R {
 }
 
 proc test(m: map) {
+  printDebugFmt(m);
+
   var f = openMemFile();
   {
     f.writer().withSerializer(FormatWriter).writeln(m);
@@ -30,7 +32,6 @@ proc main() {
     m.add("east", "west");
     m.add("north", "south");
 
-    stdout.withSerializer(FormatWriter).writeln(m);
     test(m);
   }
 
@@ -41,7 +42,6 @@ proc main() {
     m.add(212, "NYC");
     m.add(713, "Houston");
     
-    stdout.withSerializer(FormatWriter).writeln(m);
     test(m);
   }
 
@@ -51,14 +51,12 @@ proc main() {
     m.add("Banana", new R(1, -10.0));
     m.add("Orange", new R(13, 106.7));
 
-    stdout.withSerializer(FormatWriter).writeln(m);
     test(m);
 
     var r : map(R, string);
     for k in m.keys() do
       r.add(m[k], k);
 
-    stdout.withSerializer(FormatWriter).writeln(r);
     test(r);
   }
 }

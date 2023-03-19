@@ -8,34 +8,58 @@ module FormatHelper {
   enum FormatKind {
     default,
     json,
-    binaryLittle,
-    binaryBig
+    little,
+    big
   }
 
   config param format : FormatKind = FormatKind.default;
 
-  proc getFormatType(param writing : bool) type {
+  proc getFormatVal(param writing : bool) {
     select format {
       when FormatKind.default {
-        if writing then return IO.DefaultSerializer;
-        else return IO.DefaultDeserializer;
+        if writing then return new IO.DefaultSerializer();
+        else return new IO.DefaultDeserializer();
       }
       when FormatKind.json {
-        if writing then return JsonWriter;
-        else return JsonReader;
+        if writing then return new JsonWriter();
+        else return new JsonReader();
       }
-      when FormatKind.binaryLittle {
-        if writing then return BinarySerializer;
-        else return BinaryDeserializer;
+      when FormatKind.little {
+        if writing then return new BinarySerializer(endian=IO.ioendian.little);
+        else return new BinaryDeserializer(endian=IO.ioendian.little);
       }
-      when FormatKind.binaryBig {
-        if writing then return BinarySerializer;
-        else return BinaryDeserializer;
+      when FormatKind.big {
+        if writing then return new BinarySerializer(endian=IO.ioendian.big);
+        else return new BinaryDeserializer(endian=IO.ioendian.big);
       }
       otherwise return nothing;
     }
   }
 
-  type FormatReader = getFormatType(false);
-  type FormatWriter = getFormatType(true);
+  var FormatReader = getFormatVal(false);
+  var FormatWriter = getFormatVal(true);
+
+  proc printDebugFmt(val) throws {
+    writeln("===== writing: =====");
+    stdout.writeln(val);
+    writeln("--------------------");
+    if FormatWriter.isBinary() {
+      var f = openMemFile();
+      {
+        var w = f.writer();
+        w.withSerializer(FormatWriter).write(val);
+      }
+      var r = f.reader();
+      try {
+        while true {
+          stdout.writef("%xu", r.readByte());
+        }
+      } catch { }
+      stdout.writeln();
+    } else {
+      stdout.withSerializer(FormatWriter).writeln(val);
+    }
+    writeln("====================");
+  }
+
 }

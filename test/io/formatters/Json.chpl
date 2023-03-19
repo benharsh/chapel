@@ -15,6 +15,9 @@ module Json {
     var _arrayMax = 0;
     var _arrayFirst : list(bool);
 
+    proc type isBinary() param : bool do return false;
+    proc isBinary() param : bool do return false;
+
     // TODO: rewrite in terms of writef, or something
     proc _oldWrite(ch: _writeType, const val:?t) throws {
       var _def = new DefaultSerializer();
@@ -88,7 +91,7 @@ module Json {
 
     // TODO: I think we should just embed some kind of dimensionality into
     // this. If people want a 1D thing then that will be easy.
-    proc writeArrayStart(w: _writeType) throws {
+    proc writeArrayStart(w: _writeType, _size:uint = 0) throws {
       _arrayDim += 1;
       if _arrayFirst.size < _arrayDim {
         _arrayFirst.append(true);
@@ -133,7 +136,7 @@ module Json {
       firstField = true;
     }
 
-    proc writeMapStart(w: _writeType) throws {
+    proc writeMapStart(w: _writeType, _size:uint = 0) throws {
       w._writeLiteral("{");
     }
 
@@ -214,6 +217,9 @@ module Json {
     var _arrayDim = 0;
     var _arrayMax = 0;
     var _arrayFirst : list(bool);
+
+    proc type isBinary() param : bool do return false;
+    proc isBinary() param : bool do return false;
 
     proc init() {
       this.complete();
