@@ -2886,7 +2886,10 @@ record DefaultDeserializer {
   }
 
   // TODO: should this be defined to return a tuple of (idxType, eltType) ?
-  // TODO: Could this return (nothing, eltType)?
+  // Answer: no, because CHPL format wants to read the return type, so we
+  // can't always return 'none' for a particular format. I think it's OK
+  // for a type to pass in 'nothing' as the idxType though... - that should
+  // take care of things.
   proc readArrayElement(r: fileReader, type idxType, type eltType) throws {
     if !firstField then
       r._readLiteral(" ");

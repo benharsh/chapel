@@ -77,6 +77,16 @@ module BinaryIO {
       writer.write(val);
     }
 
+    // TODO: what if this returned a new 'Serializer' instead?
+    // var ser = writer.serializer.startType(writer, T);
+    // super.serialize(writer.withSerializer(ser));
+    //
+    // or maybe it returns an aliased channel?
+    // var sw = writer.serializer.startType(writer, T);
+    // super.serialize(sw);
+    // ref ser = sw.serializer;
+    // ser.serializeField(...);
+    // ser.endType(writer, T);
     proc writeTypeStart(writer: _writeType, type T) throws {
     }
 
