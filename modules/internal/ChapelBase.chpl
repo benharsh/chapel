@@ -63,8 +63,8 @@ module ChapelBase {
 
   proc object.serialize(f) throws {
     ref fmt = f.serializer;
-    fmt.writeTypeStart(f, object);
-    fmt.writeTypeEnd(f, object);
+    fmt.startClass(f, 0);
+    fmt.endClass(f);
   }
 
 

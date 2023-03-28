@@ -52,7 +52,7 @@ module Json {
       }
     }
 
-    proc writeField(writer: _writeType, key: string, const val: ?T) throws {
+    proc serializeField(writer: _writeType, key: string, const val: ?T) throws {
       if !firstField then
         writer.writeLiteral(", ");
 
@@ -65,28 +65,33 @@ module Json {
       firstField = false;
     }
 
-    proc writeTypeStart(writer: _writeType, type T) throws {
+    proc startClass(writer: _writeType, size: int) throws {
       if _inheritLevel == 0 {
-        if isClassType(T) || isRecordType(T) {
-          writer.writeLiteral("{");
-        } else if isTupleType(T) {
-          writer.writeLiteral("[");
-        }
+        writer.writeLiteral("{");
       }
 
       _inheritLevel += 1;
     }
-
-    proc writeTypeEnd(writer: _writeType, type T) throws {
+    proc endClass(writer: _writeType) throws {
       if _inheritLevel == 1 {
-        if isClassType(T) || isRecordType(T) {
-          writer.writeLiteral("}");
-        } else if isTupleType(T) {
-          writer.writeLiteral("]");
-        }
+        writer.writeLiteral("}");
       }
 
       _inheritLevel -= 1;
+    }
+
+    proc startRecord(writer: _writeType, size: int) throws {
+      writer.writeLiteral("{");
+    }
+    proc endRecord(writer: _writeType) throws {
+      writer.writeLiteral("}");
+    }
+
+    proc startTuple(writer: _writeType, size: int) throws {
+      writer.writeLiteral("[");
+    }
+    proc endTuple(writer: _writeType) throws {
+      writer.writeLiteral("]");
     }
 
     // TODO: I think we should just embed some kind of dimensionality into

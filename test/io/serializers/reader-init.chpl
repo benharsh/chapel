@@ -69,9 +69,9 @@ class Parent {
 
   proc serialize(w: fileWriter) {
     ref fmt = w.serializer;
-    fmt.writeTypeStart(w, this.type);
-    fmt.writeField(w, "x", x);
-    fmt.writeTypeEnd(w, this.type);
+    fmt.startClass(w, 1);
+    fmt.serializeField(w, "x", x);
+    fmt.endClass(w);
   }
 
   proc equals(other: borrowed Parent) {
@@ -96,10 +96,10 @@ class Child : Parent {
 
   override proc serialize(w: fileWriter) {
     ref fmt = w.serializer;
-    fmt.writeTypeStart(w, this.type);
+    fmt.startClass(w, 1);
     super.serialize(w);
-    fmt.writeField(w, "y", y);
-    fmt.writeTypeEnd(w, this.type);
+    fmt.serializeField(w, "y", y);
+    fmt.endClass(w);
   }
 
   proc equals(other: borrowed Child) {

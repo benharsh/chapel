@@ -2569,23 +2569,28 @@ proc fileWriter.serializer const ref {
 }
 
 //
-// Authors of FormatWriters are expected to implement the following methods:
+// Authors of Serializers are expected to implement the following methods:
 //
 // proc serialize(writer: fileWriter, const x: ?) : void throws
 //
-// proc writeField(writer: fileWriter, name: string, const x: ?) : void throws
 //
-// proc writeTypeStart(writer: fileWriter, type T) throws
+// proc startClass(writer: fileWriter, size: int) throws
+// proc startRecord(writer: fileWriter, size: int) throws
+// proc startTuple(writer: fileWriter, size: int) throws
 //
-// proc writeTypeEnd(writer: fileWriter, type T) throws
+// proc serializeField(writer: fileWriter, name: string, const val: ?) : void throws
+//
+// proc endClass(writer: fileWriter) throws
+// proc endRecord(writer: fileWriter) throws
+// proc endTuple(writer: fileWriter) throws
 //
 // At this time, the formal names are unspecified.
 //
-// FormatWriters that can be default-initialized can be used with the version
+// Serializers that can be default-initialized can be used with the version
 // of ``fileWriter.withSerializer`` method that accepts a type, rather than a
 // value.
 //
-// FormatWriters have the option of calling the ``serialize`` method on a type
+// Serializers have the option of calling the ``serialize`` method on a type
 // in order to support user-defined writing of a given type:
 //
 //   proc MyType.serialize(writer: fileWriter) : void throws
@@ -2599,6 +2604,7 @@ record DefaultSerializer {
   var _inheritLevel = 0;
   var _arrayDim = 0;
   var _arrayMax : int;
+  var _curSize : int;
 
   proc type isBinary() param : bool do return false;
   proc isBinary() param : bool do return false;
@@ -2633,7 +2639,7 @@ record DefaultSerializer {
   // Writes a field name, followed by the literal string " = ", then writes
   // the value of 'x'.
   //
-  proc writeField(writer:fileWriter, name: string, const x: ?) : void throws {
+  proc serializeField(writer:fileWriter, name: string, const x: ?) : void throws {
     if !firstField then
       writer._writeLiteral(", ");
 
@@ -2646,36 +2652,37 @@ record DefaultSerializer {
     firstField = false;
   }
 
-  proc writeTypeStart(w: fileWriter, type T) throws {
-
-    // TODO: Arrays, and array-like things (e.g. lists)
+  // TODO: If this is called in a nested way for inheriting classes, then we
+  // can increment 'size' internally to track the total number of fields...?
+  proc startClass(w: fileWriter, size: int) throws {
     if _inheritLevel == 0 {
-      if isClassType(T) then
-        w._writeLiteral("{");
-      else if isRecordType(T) || isTupleType(T) then
-        w._writeLiteral("(");
-      else
-        throw new Error("unhandled type in writeTypeStart");
+      w._writeLiteral("{");
     }
-
     _inheritLevel += 1;
   }
-
-  proc writeTypeEnd(w: fileWriter, type T) throws {
-
+  proc endClass(w: fileWriter) throws {
     if _inheritLevel == 1 {
-      if isClassType(T) then
-        w._writeLiteral("}");
-      else if isRecordType(T) then
-        w._writeLiteral(")");
-      else if isTupleType(T) {
-        if T.size == 1 then w._writeLiteral(",)");
-        else w._writeLiteral(")");
-      } else
-        throw new Error("unhandled type in writeTypeEnd");
+      w._writeLiteral("}");
     }
-
     _inheritLevel -= 1;
+  }
+
+  proc startRecord(w: fileWriter, size: int) throws {
+    w._writeLiteral("(");
+  }
+  proc endRecord(w: fileWriter) throws {
+    w._writeLiteral(")");
+  }
+
+  proc startTuple(w: fileWriter, size: int) throws {
+    this._curSize = size;
+    w._writeLiteral("(");
+  }
+  proc endTuple(w: fileWriter) throws {
+    if _curSize == 1 then
+      w._writeLiteral(",)");
+    else
+      w._writeLiteral(")");
   }
 
   // TODO: Should we support an optional 'size' field on the *Start methods

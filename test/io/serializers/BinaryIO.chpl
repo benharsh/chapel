@@ -73,7 +73,7 @@ module BinaryIO {
       }
     }
 
-    proc writeField(writer: _writeType, key: string, const val: ?T) throws {
+    proc serializeField(writer: _writeType, key: string, const val: ?T) throws {
       writer.write(val);
     }
 
@@ -82,16 +82,27 @@ module BinaryIO {
     // super.serialize(writer.withSerializer(ser));
     //
     // or maybe it returns an aliased channel?
-    // var sw = writer.serializer.startType(writer, T);
+    // var sw = writer.serializer.startClass(writer, 4);
     // super.serialize(sw);
     // ref ser = sw.serializer;
     // ser.serializeField(...);
     // ser.endType(writer, T);
-    proc writeTypeStart(writer: _writeType, type T) throws {
+    proc startClass(writer: _writeType, size: int) throws {
+    }
+    proc endClass(writer: _writeType) throws {
     }
 
-    proc writeTypeEnd(writer: _writeType, type T) throws {
+    proc startRecord(writer: _writeType, size: int) throws {
     }
+    proc endRecord(writer: _writeType) throws {
+    }
+
+    proc startTuple(writer: _writeType, size: int) throws {
+    }
+    proc endTuple(writer: _writeType) throws {
+    }
+
+
 
     // TODO: I think we should just embed some kind of dimensionality into
     // this. If people want a 1D thing then that will be easy.

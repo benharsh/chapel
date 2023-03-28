@@ -286,14 +286,30 @@ module ChapelIO {
       }
     }
 
+    proc __numIOFields(type t) : int {
+      param n = __primitive("num fields", t);
+      var ret = 0;
+      pragma "no init"
+      var dummy : t;
+      for param i in 1..n {
+        if isIoField(dummy, i) then
+          ret += 1;
+      }
+      return ret;
+    }
+
     //
     // Called by the compiler to implement the default behavior for
     // the compiler-generated 'serialize' method.
     //
     // TODO: would any formats want to print type or param fields?
+    // - more useful for param fields, e.g., an enum
     //
     proc serializeDefaultImpl(writer:fileWriter, const x:?t) throws {
-      writer.serializer.writeTypeStart(writer, t);
+      if isClassType(t) then
+        writer.serializer.startClass(writer, __numIOFields(t));
+      else
+        writer.serializer.startRecord(writer, __numIOFields(t));
 
       if isClassType(t) && _to_borrowed(t) != borrowed object {
         serializeDefaultImpl(writer, x.super);
@@ -303,12 +319,15 @@ module ChapelIO {
       for param i in 1..num_fields {
         if isIoField(x, i) {
           param name : string = __primitive("field num to name", x, i);
-          writer.serializer.writeField(writer, name,
-                                       __primitive("field by num", x, i));
+          writer.serializer.serializeField(writer, name,
+                                           __primitive("field by num", x, i));
         }
       }
 
-      writer.serializer.writeTypeEnd(writer, t);
+      if isClassType(t) then
+        writer.serializer.endClass(writer);
+      else
+        writer.serializer.endRecord(writer);
     }
 
     //
@@ -715,15 +734,16 @@ module ChapelIO {
     return ret;
   }
 
+  // TODO: what about tuples-of-types?
   proc const _tuple.serialize(w) throws {
     ref fmt = w.serializer;
-    fmt.writeTypeStart(w, this.type);
+    fmt.startTuple(w, this.size);
     for param i in 0..<size {
       const ref elt = this(i);
       // TODO: should probably have something like 'writeElement'
-      fmt.writeField(w, "", elt);
+      fmt.serializeField(w, "", elt);
     }
-    fmt.writeTypeEnd(w, this.type);
+    fmt.endTuple(w);
   }
 
   // Moved here to avoid circular dependencies in ChapelRange
