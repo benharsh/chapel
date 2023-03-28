@@ -52,7 +52,7 @@ module FormatHelper {
       var r = f.reader();
       try {
         while true {
-          stdout.writef("%xu", r.readByte());
+          stdout.writef("%02xu", r.readByte());
         }
       } catch { }
       stdout.writeln();
