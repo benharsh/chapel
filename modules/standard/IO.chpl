@@ -3119,13 +3119,13 @@ proc ref fileWriter.deinit() {
 
 // Convenience for forms like 'r.withDeserializer(DefaultDeserializer)`
 pragma "no doc"
-proc fileReader.withDeserializer(type dt) {
+proc fileReader.withDeserializer(type dt) : fileReader(this.kind, this.locking, dt) {
   var des : dt;
   return withDeserializer(des);
 }
 
 pragma "no doc"
-proc fileReader.withDeserializer(d: ?) {
+proc fileReader.withDeserializer(d: ?dt) : fileReader(this.kind, this.locking, dt) {
   var ret = new fileReader(this.kind, this.locking, d);
   ret._channel_internal = this._channel_internal;
   ret._home = _home;
@@ -3137,13 +3137,13 @@ proc fileReader.withDeserializer(d: ?) {
 }
 // Convenience for forms like 'w.withSerializer(DefaultSerializer)`
 pragma "no doc"
-proc fileWriter.withSerializer(type st) {
+proc fileWriter.withSerializer(type st) : fileWriter(this.kind, this.locking, st) {
   var ser : st;
   return withSerializer(ser);
 }
 
 pragma "no doc"
-proc fileWriter.withSerializer(s: ?) {
+proc fileWriter.withSerializer(s: ?st) : fileWriter(this.kind, this.locking, st) {
   var ret = new fileWriter(this.kind, this.locking, s);
   ret._channel_internal = this._channel_internal;
   ret._home = _home;
