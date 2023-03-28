@@ -940,7 +940,7 @@ The :record:`iostyleInternal` type represents I/O styles
 defining how Chapel's basic types should be read or written.
 
 It replaces the now unstable `iostyle` type, and will eventually
-be migrated into a new strategy, likely involving encoders/decoders
+be migrated into a new strategy, likely involving serializers/deserializers 
 */
 pragma "no doc"
 extern record iostyleInternal { // aka qio_style_t
@@ -2571,7 +2571,7 @@ proc fileWriter.serializer const ref {
 //
 // Authors of FormatWriters are expected to implement the following methods:
 //
-// proc encode(writer: fileWriter, const x: ?) : void throws
+// proc serialize(writer: fileWriter, const x: ?) : void throws
 //
 // proc writeField(writer: fileWriter, name: string, const x: ?) : void throws
 //
@@ -2740,7 +2740,7 @@ record DefaultSerializer {
   // - or maybe the opposite: opt-into formatter-exclusive stuff?
   // - and otherwise it all gets put into a string?
   //
-  // TODO: should we have an argument for implementors to call 'encode'
+  // TODO: should we have an argument for implementors to call 'serialize'
   // that says "no, really, do your own thing"
   //
   // TODO: Should we have a way of checking to see if 'serialize' resolves?
@@ -2751,7 +2751,7 @@ record DefaultSerializer {
 //
 // Authors of FormatReaders are expected to implement the following methods:
 //
-// proc decode(reader: fileReader, type readType) : readType throws
+// proc deserialize(reader: fileReader, type readType) : readType throws
 //
 // proc readField(reader: fileReader, name: string, type T) : void throws
 //
@@ -2868,7 +2868,7 @@ record DefaultDeserializer {
   // Well, I guess it does make sense to have these, but maybe they don't
   // need to be super complicated and can just do like 1D stuff by default.
   //
-  // The encoder can handle arrays directly (bypassing DSI/serialize stuff)
+  // The serializer can handle arrays directly (bypassing DSI/serialize stuff)
   // with special cases...?
   proc readArrayStart(r: fileReader) throws {
     _arrayDim += 1;
@@ -5260,7 +5260,7 @@ proc fileWriter._constructIoErrorMsg(param kind: iokind, const x:?t): string {
 }
 
 pragma "no doc"
-proc fileReader._decodeOne(type readType, loc:locale) throws {
+proc fileReader._deserializeOne(type readType, loc:locale) throws {
   var reader = new fileReader(iokind.dynamic, locking=false,
                               deserializer=_deserializer,
                               home=here,
@@ -5292,7 +5292,7 @@ proc fileReader._decodeOne(type readType, loc:locale) throws {
 }
 
 pragma "no doc"
-proc fileReader._decodeOne(ref x:?t, loc:locale) throws {
+proc fileReader._deserializeOne(ref x:?t, loc:locale) throws {
   // _read_one_internal
   var reader = new fileReader(iokind.dynamic, locking=false,
                               deserializer=_deserializer,
@@ -5306,7 +5306,7 @@ proc fileReader._decodeOne(ref x:?t, loc:locale) throws {
     return;
   }
 
-  x = _decodeOne(t, loc);
+  x = _deserializeOne(t, loc);
 }
 
 //
@@ -5332,7 +5332,7 @@ private proc escapedNonUTF8ErrorMessage() : string {
 }
 
 pragma "no doc"
-proc fileWriter._encodeOne(const x:?t, loc:locale) throws {
+proc fileWriter._serializeOne(const x:?t, loc:locale) throws {
   var writer = new fileWriter(iokind.dynamic, locking=false,
                               serializer=_serializer,
                               home=here,
@@ -5566,7 +5566,7 @@ proc fileReader.readIt(ref x) throws {
     try! this.lock(); defer { this.unlock(); }
 
     if chpl_useIOSerializers {
-      _decodeOne(x, origLocale);
+      _deserializeOne(x, origLocale);
     } else {
       _readOne(kind, x, origLocale);
     }
@@ -6131,7 +6131,7 @@ inline proc fileReader._readInner(ref args ...?k):void throws {
     try this.lock(); defer { this.unlock(); }
     for param i in 0..k-1 {
       if chpl_useIOSerializers {
-        _decodeOne(args[i], origLocale);
+        _deserializeOne(args[i], origLocale);
       } else {
         _readOne(kind, args[i], origLocale);
       }
@@ -6185,7 +6185,7 @@ proc fileReader.readHelper(ref args ...?k, style:iostyleInternal):bool throws {
 
       for param i in 0..k-1 {
         if chpl_useIOSerializers {
-          _decodeOne(args[i], origLocale);
+          _deserializeOne(args[i], origLocale);
         } else {
           _readOne(kind, args[i], origLocale);
         }
@@ -8402,7 +8402,7 @@ proc fileReader.read(type t) throws {
     try this.lock(); defer { this.unlock(); }
 
     if chpl_useIOSerializers {
-      __primitive("move", ret, _decodeOne(t, origLocale));
+      __primitive("move", ret, _deserializeOne(t, origLocale));
     } else {
       pragma "no auto destroy"
       var tmp : t;
@@ -8497,7 +8497,7 @@ inline proc fileWriter.write(const args ...?k) throws {
     try this.lock(); defer { this.unlock(); }
     for param i in 0..k-1 {
       if chpl_useIOSerializers {
-        this._encodeOne(args(i), origLocale);
+        this._serializeOne(args(i), origLocale);
       } else {
         try _writeOne(kind, args(i), origLocale);
       }
@@ -8526,7 +8526,7 @@ proc fileWriter.writeHelper(const args ...?k, style:iostyleInternal) throws {
 
     for param i in 0..k-1 {
       if chpl_useIOSerializers {
-        this._encodeOne(args(i), origLocale);
+        this._serializeOne(args(i), origLocale);
       } else {
         try _writeOne(iokind.dynamic, args(i), origLocale);
       }
@@ -8706,7 +8706,7 @@ record itemReaderInternal {
   param kind:iokind;
   /* the locking field for our fileReader */
   param locking:bool;
-  /* the decoder for this fileReader */
+  /* the deserializer for this fileReader */
   type deserializerType;
   /* our fileReader */
   var ch:fileReader(kind,locking,deserializerType);
