@@ -703,7 +703,7 @@ module Map {
       _readWriteHelper(ch);
     }
 
-    proc encodeTo(ch: fileWriter) throws {
+    proc serialize(ch: fileWriter) throws {
       _enter(); defer _leave();
 
       ref fmt = ch.serializer;

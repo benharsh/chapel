@@ -73,7 +73,7 @@ record CustomizedRecord {
     r.readLiteral(">");
   }
 
-  proc encodeTo(w: fileWriter) {
+  proc serialize(w: fileWriter) {
     w.writeLiteral("<");
     w.write(x);
     w.writeLiteral(", ");

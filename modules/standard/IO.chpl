@@ -2585,12 +2585,12 @@ proc fileWriter.serializer const ref {
 // of ``fileWriter.withSerializer`` method that accepts a type, rather than a
 // value.
 //
-// FormatWriters have the option of calling the ``encodeTo`` method on a type
+// FormatWriters have the option of calling the ``serialize`` method on a type
 // in order to support user-defined writing of a given type:
 //
-//   proc MyType.encodeTo(writer: fileWriter) : void throws
+//   proc MyType.serialize(writer: fileWriter) : void throws
 //
-// The compiler is expected to generate a default implementation of encodeTo
+// The compiler is expected to generate a default implementation of serialize
 // methods for records and classes.
 //
 pragma "no doc"
@@ -2607,9 +2607,9 @@ record DefaultSerializer {
     if x == nil {
       writer._writeLiteral("nil");
     } else if isClassType(t) {
-      x!.encodeTo(writer.withSerializer(new DefaultSerializer()));
+      x!.serialize(writer.withSerializer(new DefaultSerializer()));
     } else {
-      x.encodeTo(writer.withSerializer(new DefaultSerializer()));
+      x.serialize(writer.withSerializer(new DefaultSerializer()));
     }
   }
 
@@ -2625,7 +2625,7 @@ record DefaultSerializer {
     } else if isUnionType(t) {
       x.writeThis(writer);
     } else {
-      x.encodeTo(writer.withSerializer(new DefaultSerializer()));
+      x.serialize(writer.withSerializer(new DefaultSerializer()));
     }
   }
 
@@ -2743,7 +2743,7 @@ record DefaultSerializer {
   // TODO: should we have an argument for implementors to call 'encode'
   // that says "no, really, do your own thing"
   //
-  // TODO: Should we have a way of checking to see if 'encodeTo' resolves?
+  // TODO: Should we have a way of checking to see if 'serialize' resolves?
   // - if it doesn't, the formatter should fall back onto something...?
 }
 
@@ -2868,7 +2868,7 @@ record DefaultDeserializer {
   // Well, I guess it does make sense to have these, but maybe they don't
   // need to be super complicated and can just do like 1D stuff by default.
   //
-  // The encoder can handle arrays directly (bypassing DSI/encodeTo stuff)
+  // The encoder can handle arrays directly (bypassing DSI/serialize stuff)
   // with special cases...?
   proc readArrayStart(r: fileReader) throws {
     _arrayDim += 1;
@@ -3209,7 +3209,7 @@ record ioNewline {
   }
 
   pragma "no doc"
-  proc encodeTo(w) throws {
+  proc serialize(w) throws {
     w.writeNewline();
   }
 }
@@ -10047,7 +10047,7 @@ class _channel_regex_info {
     f.write(", ... capturei = " + capturei: string);
     f.write(", ncaptures = " + ncaptures: string + "}");
   }
-  override proc encodeTo(f) throws {
+  override proc serialize(f) throws {
     writeThis(f);
   }
 }

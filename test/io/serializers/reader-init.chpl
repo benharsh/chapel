@@ -67,7 +67,7 @@ class Parent {
     fmt.readTypeEnd(r, Parent);
   }
 
-  proc encodeTo(w: fileWriter) {
+  proc serialize(w: fileWriter) {
     ref fmt = w.serializer;
     fmt.writeTypeStart(w, this.type);
     fmt.writeField(w, "x", x);
@@ -94,10 +94,10 @@ class Child : Parent {
     fmt.readTypeEnd(r, Child);
   }
 
-  override proc encodeTo(w: fileWriter) {
+  override proc serialize(w: fileWriter) {
     ref fmt = w.serializer;
     fmt.writeTypeStart(w, this.type);
-    super.encodeTo(w);
+    super.serialize(w);
     fmt.writeField(w, "y", y);
     fmt.writeTypeEnd(w, this.type);
   }

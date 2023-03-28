@@ -776,7 +776,7 @@ static Expr* createLegacyClassInstance(FnSymbol* fn, Expr* use) {
 
   std::ignore = attachChildWriteThis(info, child, fn, "writeThis");
   if (fUseIOSerializers) {
-    std::ignore = attachChildWriteThis(info, child, fn, "encodeTo");
+    std::ignore = attachChildWriteThis(info, child, fn, "serialize");
   }
 
   std::ignore = attachChildPayloadPtrGetter(info, child, fn);

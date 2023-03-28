@@ -288,15 +288,15 @@ module ChapelIO {
 
     //
     // Called by the compiler to implement the default behavior for
-    // the compiler-generated 'encodeTo' method.
+    // the compiler-generated 'serialize' method.
     //
     // TODO: would any formats want to print type or param fields?
     //
-    proc encodeToDefaultImpl(writer:fileWriter, const x:?t) throws {
+    proc serializeDefaultImpl(writer:fileWriter, const x:?t) throws {
       writer.serializer.writeTypeStart(writer, t);
 
       if isClassType(t) && _to_borrowed(t) != borrowed object {
-        encodeToDefaultImpl(writer, x.super);
+        serializeDefaultImpl(writer, x.super);
       }
 
       param num_fields = __primitive("num fields", t);
@@ -611,14 +611,14 @@ module ChapelIO {
   }
 
   pragma "no doc"
-  proc _ddata.encodeTo(f) throws { writeThis(f); }
+  proc _ddata.serialize(f) throws { writeThis(f); }
 
   pragma "no doc"
   proc chpl_taskID_t.writeThis(f) throws {
     f.write(this : uint(64));
   }
   pragma "no doc"
-  proc chpl_taskID_t.encodeTo(f) throws { writeThis(f); }
+  proc chpl_taskID_t.serialize(f) throws { writeThis(f); }
 
   pragma "no doc"
   proc chpl_taskID_t.readThis(f) throws {
@@ -635,7 +635,7 @@ module ChapelIO {
   pragma "no doc"
   proc nothing.writeThis(f) {}
   pragma "no doc"
-  proc nothing.encodeTo(f) {}
+  proc nothing.serialize(f) {}
 
   pragma "no doc"
   proc _tuple.readThis(f) throws {
@@ -715,7 +715,7 @@ module ChapelIO {
     return ret;
   }
 
-  proc const _tuple.encodeTo(w) throws {
+  proc const _tuple.serialize(w) throws {
     ref fmt = w.serializer;
     fmt.writeTypeStart(w, this.type);
     for param i in 0..<size {

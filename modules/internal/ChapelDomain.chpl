@@ -2392,7 +2392,7 @@ module ChapelDomain {
       _value.dsiSerialWrite(f);
     }
     pragma "no doc"
-    proc encodeTo(f) throws {
+    proc serialize(f) throws {
       _value.dsiSerialWrite(f);
     }
 

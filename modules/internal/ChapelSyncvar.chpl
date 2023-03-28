@@ -1235,7 +1235,7 @@ private module AlignedTSupport {
     this = f.read(uint(64)) : aligned_t;
   }
 
-  proc aligned_t.encodeTo(f) throws {
+  proc aligned_t.serialize(f) throws {
     writeThis(f);
   }
   proc type aligned_t.readThis(f) throws {

@@ -1731,7 +1731,7 @@ module List {
       _leave();
     }
 
-    proc encodeTo(ch: fileWriter(serializerType=IO.DefaultSerializer)) throws {
+    proc serialize(ch: fileWriter(serializerType=IO.DefaultSerializer)) throws {
       _enter();
 
       ch._writeLiteral("[");
@@ -1746,7 +1746,7 @@ module List {
       _leave();
     }
 
-    proc encodeTo(ch: fileWriter) throws {
+    proc serialize(ch: fileWriter) throws {
       _enter();
 
       ref fmt = ch.serializer;

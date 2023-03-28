@@ -365,7 +365,7 @@ module ChapelIteratorSupport {
   }
 
   pragma "no doc"
-  proc _iteratorRecord.encodeTo(f) throws {
+  proc _iteratorRecord.serialize(f) throws {
     writeThis(f);
   }
 

@@ -4,7 +4,7 @@ use IO;
 record R {
   var x : int;
 
-  proc encodeTo(w: fileWriter) {
+  proc serialize(w: fileWriter) {
     w.write(x);
   }
 
@@ -16,7 +16,7 @@ record R {
 record G {
   var x;
 
-  proc encodeTo(w: fileWriter) {
+  proc serialize(w: fileWriter) {
     w.write(x);
   }
 
@@ -29,7 +29,7 @@ record G {
 class C {
   var x : int;
 
-  proc encodeTo(w: fileWriter) {
+  proc serialize(w: fileWriter) {
     w.writeLiteral("<");
     w.write(x);
     w.writeLiteral(">");

@@ -820,8 +820,8 @@ module String {
     }
 
     // These should never be called (but are default functions for records)
-    proc encodeTo(f) throws {
-      compilerError("not implemented: encodeTo");
+    proc serialize(f) throws {
+      compilerError("not implemented: serialize");
     }
 
     proc readThis(f) throws {

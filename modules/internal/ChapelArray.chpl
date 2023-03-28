@@ -808,7 +808,7 @@ module ChapelArray {
       f.write(_value);
     }
     pragma "no doc"
-    proc encodeTo(f) throws {
+    proc serialize(f) throws {
       f.write(_value);
     }
 
@@ -1596,12 +1596,12 @@ module ChapelArray {
       _value.dsiSerialWrite(f);
     }
 
-    // Note: This 'encodeTo' is required at the moment because the compiler
-    // generated 'encodeTo', like 'writeThis' is considered to be a last
+    // Note: This 'serialize' is required at the moment because the compiler
+    // generated 'serialize', like 'writeThis' is considered to be a last
     // resort. Without this method we would incur promotion when trying
     // to print arrays.
     pragma "no doc"
-    proc encodeTo(f) throws {
+    proc serialize(f) throws {
       writeThis(f);
     }
 

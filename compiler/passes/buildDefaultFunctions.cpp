@@ -1842,7 +1842,7 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
     hasReadThis = true;
   }
 
-  if (functionExists("encodeTo", dtMethodToken, ct, dtAny)) {
+  if (functionExists("serialize", dtMethodToken, ct, dtAny)) {
     hasEncodeTo = true;
   }
 
@@ -1873,12 +1873,12 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
   }
 
   //
-  // Keep generating the 'encodeTo' method so that the override versions don't
+  // Keep generating the 'serialize' method so that the override versions don't
   // cause errors.
   //
   if (makeEncodeTo && !hasEncodeTo) {
     ArgSymbol* fileArg = NULL;
-    FnSymbol* fn = buildWriteThisFnSymbol(ct, &fileArg, "encodeTo");
+    FnSymbol* fn = buildWriteThisFnSymbol(ct, &fileArg, "serialize");
 
     // Compiler generated versions of readThis/writeThis now throw.
     fn->throwsErrorInit();
@@ -1889,7 +1889,7 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
         // their code to use formatters.
         fn->insertAtTail(new CallExpr("writeThis", gMethodToken, fn->_this, fileArg));
       } else {
-        fn->insertAtTail(new CallExpr("encodeToDefaultImpl",
+        fn->insertAtTail(new CallExpr("serializeDefaultImpl",
                                       fileArg,
                                       fn->_this));
       }

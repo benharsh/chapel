@@ -61,7 +61,7 @@ module ChapelBase {
   pragma "no object"
   class _object { }
 
-  proc object.encodeTo(f) throws {
+  proc object.serialize(f) throws {
     ref fmt = f.serializer;
     fmt.writeTypeStart(f, object);
     fmt.writeTypeEnd(f, object);
