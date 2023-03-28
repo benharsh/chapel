@@ -55,7 +55,7 @@ module BinaryIO {
       dc._writeOne(dc.kind, val, here);
     }
 
-    proc encode(writer: _writeType, const x:?t) throws {
+    proc serialize(writer: _writeType, const x:?t) throws {
       if t == string  || isEnumType(t) || t == bytes || isNumericType(t) ||
          isBoolType(t) {
         _oldWrite(writer, x);
@@ -163,7 +163,7 @@ module BinaryIO {
       dc._readOne(dc.kind, val, here);
     }
 
-    proc decode(reader:fileReader, type readType) : readType throws {
+    proc deserialize(reader:fileReader, type readType) : readType throws {
       if isClassType(readType) {
         const notNil = reader.readByte();
         if notNil == 0 {

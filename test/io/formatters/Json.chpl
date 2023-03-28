@@ -33,7 +33,7 @@ module Json {
       dc._writeOne(dc.kind, val, here);
     }
 
-    proc encode(writer: _writeType, const x:?t) throws {
+    proc serialize(writer: _writeType, const x:?t) throws {
       if t == string  || isEnumType(t) || t == bytes {
         _oldWrite(writer, x);
         //writer.writeLiteral('"');
@@ -240,7 +240,7 @@ module Json {
       dc._readOne(dc.kind, val, here);
     }
 
-    proc decode(reader:fileReader, type readType) : readType throws {
+    proc deserialize(reader:fileReader, type readType) : readType throws {
       if isNilableClassType(readType) && reader.matchLiteral("null") {
         return nil:readType;
       }

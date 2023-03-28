@@ -2603,7 +2603,7 @@ record DefaultSerializer {
   proc type isBinary() param : bool do return false;
   proc isBinary() param : bool do return false;
 
-  proc _encodeClassOrPtr(writer:fileWriter, x: ?t) : void throws {
+  proc _serializeClassOrPtr(writer:fileWriter, x: ?t) : void throws {
     if x == nil {
       writer._writeLiteral("nil");
     } else if isClassType(t) {
@@ -2613,23 +2613,17 @@ record DefaultSerializer {
     }
   }
 
-  // TODO: Add formatter support for unions. For now, forward to old
-  // implementation.
-  proc _encodeUnion(writer:fileWriter, x: ?t) : void throws {
-    x.writeThis(writer);
-  }
-
   // Writes value 'x' in the Default IO format
-  proc encode(writer:fileWriter, const x: ?t) : void throws {
+  proc serialize(writer:fileWriter, const x: ?t) : void throws {
     if isNumericType(t) || isBoolType(t) || isEnumType(t) ||
        t == string || t == bytes {
       writer._writeOne(writer.kind, x, writer.getLocaleOfIoRequest());
     } else if t == _nilType {
       writer._writeLiteral("nil");
     } else if isClassType(t) || isAnyCPtr(t) {
-      _encodeClassOrPtr(writer, x);
+      _serializeClassOrPtr(writer, x);
     } else if isUnionType(t) {
-      _encodeUnion(writer, x);
+      x.writeThis(writer);
     } else {
       x.encodeTo(writer.withSerializer(new DefaultSerializer()));
     }
@@ -2798,7 +2792,7 @@ record DefaultDeserializer {
   proc type isBinary() param : bool do return false;
   proc isBinary() param : bool do return false;
 
-  proc decode(reader:fileReader, type readType) : readType throws {
+  proc deserialize(reader:fileReader, type readType) : readType throws {
     if isNilableClassType(readType) {
       if reader.matchLiteral("nil") {
         return nil:readType;
@@ -5280,7 +5274,7 @@ proc fileReader._decodeOne(type readType, loc:locale) throws {
   if isClassType(readType) {
     // Save formatter authors from having to reason about 'owned' and
     // 'shared' by converting the type to unmanaged.
-    var tmp = reader.deserializer.decode(reader, _to_unmanaged(readType));
+    var tmp = reader.deserializer.deserialize(reader, _to_unmanaged(readType));
 
     // TODO: We may also want to support user-defined management types at
     // some point.
@@ -5293,7 +5287,7 @@ proc fileReader._decodeOne(type readType, loc:locale) throws {
       return tmp;
     }
   } else {
-    return reader.deserializer.decode(reader, readType);
+    return reader.deserializer.deserialize(reader, readType);
   }
 }
 
@@ -5357,7 +5351,7 @@ proc fileWriter._encodeOne(const x:?t, loc:locale) throws {
 
   // TODO: Should this pass an unmanaged or borrowed version, to reduce
   // the number of instantiations for a type?
-  try writer.serializer.encode(writer, x);
+  try writer.serializer.serialize(writer, x);
 }
 
 //
