@@ -2404,7 +2404,7 @@ module ChapelDomain {
     // TODO: Can we convert this to an initializer despite the potential issues
     // with runtime types?
     pragma "no doc"
-    proc type decodeFrom(f) throws {
+    proc type deserializeFrom(f) throws {
       var ret : this;
       ret.readThis(f);
       return ret;

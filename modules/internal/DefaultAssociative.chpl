@@ -659,7 +659,7 @@ module DefaultAssociative {
           const (k, v) = fmt.readArrayElement(f, idxType, eltType);
 
           // TODO: I want to be able to put a compiler error here, but it
-          // thwarts the 'canResolveTypeMethod' check for 'decodeFrom', which
+          // thwarts the 'canResolveTypeMethod' check for 'deserializeFrom', which
           // causes an attempt to invoke the array initializer...
           if k.type != idxType { // e.g. 'none'
             compilerError("Formatter '" + f.deserializerType:string + "' does not support reading associative arrays");

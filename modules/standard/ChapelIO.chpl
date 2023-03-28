@@ -626,7 +626,7 @@ module ChapelIO {
   }
 
   pragma "no doc"
-  proc type chpl_taskID_t.decodeFrom(f) throws {
+  proc type chpl_taskID_t.deserializeFrom(f) throws {
     var ret : chpl_taskID_t;
     ret.readThis(f);
     return ret;
@@ -701,7 +701,7 @@ module ChapelIO {
     }
   }
 
-  proc type _tuple.decodeFrom(f) throws {
+  proc type _tuple.deserializeFrom(f) throws {
     ref fmt = f.deserializer;
     pragma "no init"
     var ret : this;

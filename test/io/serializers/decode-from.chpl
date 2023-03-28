@@ -8,7 +8,7 @@ record R {
     w.write(x);
   }
 
-  proc type decodeFrom(r: fileReader) {
+  proc type deserializeFrom(r: fileReader) {
     return new R(r.read(int));
   }
 }
@@ -20,7 +20,7 @@ record G {
     w.write(x);
   }
 
-  proc type decodeFrom(r: fileReader) {
+  proc type deserializeFrom(r: fileReader) {
     type fieldType = __primitive("field by num", this, 1);
     return new G(r.read(fieldType));
   }
@@ -35,7 +35,7 @@ class C {
     w.writeLiteral(">");
   }
 
-  proc type decodeFrom(r: fileReader) {
+  proc type deserializeFrom(r: fileReader) {
     type retType = this;
     r.readLiteral("<");
     var ret = new retType(r.read(int));

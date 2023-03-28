@@ -185,7 +185,7 @@ module ChapelSyncvar {
       compilerError("sync variables cannot currently be read - use writeEF/writeFF instead");
     }
 
-    proc type decodeFrom(r) throws {
+    proc type deserializeFrom(r) throws {
       var ret : this;
       compilerError("sync variables cannot currently be read - use writeEF/writeFF instead");
       return ret;

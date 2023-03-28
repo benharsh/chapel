@@ -185,9 +185,9 @@ module BinaryIO {
         return x;
       } else if readType == nothing {
         // nothing...
-      } else if canResolveTypeMethod(readType, "decodeFrom", reader) ||
+      } else if canResolveTypeMethod(readType, "deserializeFrom", reader) ||
                 isArrayType(readType) {
-        return readType.decodeFrom(reader.withDeserializer(_fork()));
+        return readType.deserializeFrom(reader.withDeserializer(_fork()));
       } else {
         return new readType(reader.withDeserializer(_fork()));
       }
