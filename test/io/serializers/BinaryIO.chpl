@@ -204,14 +204,23 @@ module BinaryIO {
       }
     }
 
-    proc readField(r: _readerT, key: string, type T) throws {
+    proc deserializeField(r: _readerT, key: string, type T) throws {
       return r.read(T);
     }
 
-    proc readTypeStart(r: fileReader, type T) throws {
+    proc startClass(r: fileReader, size: int) throws {
+    }
+    proc endClass(r: fileReader) throws {
     }
 
-    proc readTypeEnd(r: fileReader, type T) throws {
+    proc startRecord(r: fileReader, size: int) throws {
+    }
+    proc endRecord(r: fileReader) throws {
+    }
+
+    proc startTuple(r: fileReader, size: int) throws {
+    }
+    proc endTuple(r: fileReader) throws {
     }
 
     //proc sizeHint() : uint throws {

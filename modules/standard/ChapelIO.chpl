@@ -724,13 +724,13 @@ module ChapelIO {
     ref fmt = f.deserializer;
     pragma "no init"
     var ret : this;
-    fmt.readTypeStart(f, this);
+    fmt.startTuple(f, this.size);
     for param i in 0..<this.size {
       pragma "no auto destroy"
-      var elt = fmt.readField(f, "", this(i));
+      var elt = fmt.deserializeField(f, "", this(i));
       __primitive("=", ret(i), elt);
     }
-    fmt.readTypeEnd(f, this);
+    fmt.endTuple(f);
     return ret;
   }
 

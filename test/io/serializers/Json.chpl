@@ -289,7 +289,7 @@ module Json {
     }
 
 
-    proc readField(r: _readerT, key: string, type T) throws {
+    proc deserializeField(r: _readerT, key: string, type T) throws {
       if _names.contains(key) {
         r.seek(_offsets[key]..);
       } else if !key.isEmpty() {
@@ -304,43 +304,56 @@ module Json {
       return ret;
     }
 
-    proc readTypeStart(r: fileReader, type T) throws {
+    proc startTuple(r: fileReader, size: int) throws {
+      r.readLiteral("[");
+    }
+    proc endTuple(r: fileReader) throws {
+      r.readLiteral("]");
+    }
+
+    proc startClass(r: fileReader, size: int) throws {
+      _startComposite(r, size);
+    }
+    proc endClass(r: fileReader) throws {
+      _endComposite(r);
+    }
+
+    proc startRecord(r: fileReader, size: int) throws {
+      _startComposite(r, size);
+    }
+    proc endRecord(r: fileReader) throws {
+      _endComposite(r);
+    }
+
+    proc _startComposite(r: fileReader, size: int) throws {
       if _inheritLevel == 0 {
-        if isClassType(T) || isRecordType(T) {
-          //
-          // TODO: When should we try to do this? Use of 'readTypeStart'
-          // likely indicates "buying in" to the JSON format, but in a way
-          // it might be cleaner or more efficient to do when creating the
-          // new temporary JsonReader for the given type. But if we do the
-          // JSON parsing at that point, it ignores the user-defined
-          // initializer. So, we do it here in 'readTypeStart'.
-          //
-          // TODO: Should we only compute the mapping if the fields are being
-          // read out of order?
-          //
-          var (m, last) = helper(r);
-          for (k, v) in zip(m.keys(), m.values()) {
-            _names.add(k);
-            _offsets[k] = v;
-          }
-          _lastPos = last;
-          r.readLiteral("{");
-        } else if isTupleType(T) {
-          r.readLiteral("[");
+        //
+        // TODO: When should we try to do this? Use of '_startComposite', etc.
+        // likely indicates "buying in" to the JSON format, but in a way
+        // it might be cleaner or more efficient to do when creating the
+        // new temporary JsonReader for the given type. But if we do the
+        // JSON parsing at that point, it ignores the user-defined
+        // initializer. So, we do it here in '_startComposite'.
+        //
+        // TODO: Should we only compute the mapping if the fields are being
+        // read out of order?
+        //
+        var (m, last) = helper(r);
+        for (k, v) in zip(m.keys(), m.values()) {
+          _names.add(k);
+          _offsets[k] = v;
         }
+        _lastPos = last;
+        r.readLiteral("{");
       }
 
       _inheritLevel += 1;
     }
 
-    proc readTypeEnd(r: fileReader, type T) throws {
+    proc _endComposite(r: fileReader) throws {
       if _inheritLevel == 1 {
-        if isClassType(T) || isRecordType(T) {
-          r.seek(_lastPos..);
-          r.readLiteral("}");
-        } else if isTupleType(T) {
-          r.readLiteral("]");
-        }
+        r.seek(_lastPos..);
+        r.readLiteral("}");
       }
     }
 

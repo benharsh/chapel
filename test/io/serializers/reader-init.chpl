@@ -13,10 +13,10 @@ record R {
 
   proc init(r: fileReader) {
     ref fmt = r.deserializer;
-    fmt.readTypeStart(r, R);
-    this.x = fmt.readField(r, "x", int);
-    this.y = fmt.readField(r, "y", real);
-    fmt.readTypeEnd(r, R);
+    fmt.startRecord(r, 2);
+    this.x = fmt.deserializeField(r, "x", int);
+    this.y = fmt.deserializeField(r, "y", real);
+    fmt.endRecord(r);
   }
 
   proc equals(other: R) {
@@ -42,10 +42,10 @@ record G {
     this.A = A;
     this.B = B;
     ref fmt = r.deserializer;
-    fmt.readTypeStart(r, G(A,B));
-    this.x = fmt.readField(r, "x", A);
-    this.y = fmt.readField(r, "y", B);
-    fmt.readTypeEnd(r, G(A,B));
+    fmt.startRecord(r, 2);
+    this.x = fmt.deserializeField(r, "x", A);
+    this.y = fmt.deserializeField(r, "y", B);
+    fmt.endRecord(r);
   }
 
   proc equals(other: G) {
@@ -62,9 +62,9 @@ class Parent {
   }
   proc init(r: fileReader) {
     ref fmt = r.deserializer;
-    fmt.readTypeStart(r, Parent);
-    this.x = fmt.readField(r, "x", int);
-    fmt.readTypeEnd(r, Parent);
+    fmt.startClass(r, 1);
+    this.x = fmt.deserializeField(r, "x", int);
+    fmt.endClass(r);
   }
 
   proc serialize(w: fileWriter) {
@@ -88,10 +88,10 @@ class Child : Parent {
   }
   proc init(r: fileReader) {
     ref fmt = r.deserializer;
-    fmt.readTypeStart(r, Child);
+    fmt.startClass(r, 1);
     super.init(r);
-    this.y = fmt.readField(r, "y", real);
-    fmt.readTypeEnd(r, Child);
+    this.y = fmt.deserializeField(r, "y", real);
+    fmt.endClass(r);
   }
 
   override proc serialize(w: fileWriter) {

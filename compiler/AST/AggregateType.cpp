@@ -2261,6 +2261,21 @@ static bool hasFullyGenericField(AggregateType* at) {
   return false;
 }
 
+static int numIOFields(AggregateType* ag) {
+  int ret = 0;
+
+  for_fields(fieldDefExpr, ag) {
+
+    if (VarSymbol* field = toVarSymbol(fieldDefExpr)) {
+      if (field->hasEitherFlag(FLAG_PARAM, FLAG_TYPE_VARIABLE) == false) {
+        ret += 1;
+      }
+    }
+  }
+
+  return ret;
+}
+
 void AggregateType::buildReaderInitializer() {
   if (!fUseIOSerializers) return;
 
@@ -2321,16 +2336,18 @@ void AggregateType::buildReaderInitializer() {
         formatter->addFlag(FLAG_REF_VAR);
         CallExpr* getFormatter = new CallExpr(".", reader, new_CStringSymbol("deserializer"));
 
-        CallExpr* readStart = new CallExpr("readTypeStart", gMethodToken, formatter,
-                                           reader, new SymExpr(this->symbol));
+        auto startKind = this->isClass() ? "startClass" : "startRecord";
+        CallExpr* readStart = new CallExpr(startKind, gMethodToken, formatter,
+                                           reader, new_IntSymbol(numIOFields(this)));
         fn->insertAtHead(readStart);
         fn->insertAtHead(new DefExpr(formatter, getFormatter));
 
         // Parent fields before child fields
         fieldToArg(fn, names, fieldArgMap, reader, formatter);
 
-        CallExpr* readEnd = new CallExpr("readTypeEnd", gMethodToken, formatter,
-                                         reader, new SymExpr(this->symbol));
+        auto endKind = this->isClass() ? "endClass" : "endRecord";
+        CallExpr* readEnd = new CallExpr(endKind, gMethodToken, formatter,
+                                         reader);
         fn->insertAtTail(readEnd);
 
         // Replaces field references with argument references
@@ -2491,7 +2508,7 @@ void AggregateType::fieldToArg(FnSymbol*              fn,
                                         arg));
         } else {
           // isReaderInit == true, and we need to generate code to invoke
-          // the 'readField' interface from the formatter.
+          // the 'deserializeField' interface from the formatter.
           Expr* typeExpr = nullptr;
           if (defPoint->exprType != NULL) {
             typeExpr = defPoint->exprType->copy();
@@ -2500,7 +2517,7 @@ void AggregateType::fieldToArg(FnSymbol*              fn,
           }
 
           if (typeExpr != nullptr) {
-            CallExpr* readField = new CallExpr("readField", gMethodToken, formatter,
+            CallExpr* desField = new CallExpr("deserializeField", gMethodToken, formatter,
                                                fileReader,
                                                new_StringSymbol(name),
                                                typeExpr);
@@ -2508,7 +2525,7 @@ void AggregateType::fieldToArg(FnSymbol*              fn,
                                           new CallExpr(".",
                                                        fn->_this,
                                                        new_CStringSymbol(name)),
-                                          readField));
+                                          desField));
           }
         }
       }

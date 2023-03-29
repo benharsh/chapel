@@ -2573,7 +2573,6 @@ proc fileWriter.serializer const ref {
 //
 // proc serialize(writer: fileWriter, const x: ?) : void throws
 //
-//
 // proc startClass(writer: fileWriter, size: int) throws
 // proc startRecord(writer: fileWriter, size: int) throws
 // proc startTuple(writer: fileWriter, size: int) throws
@@ -2760,11 +2759,16 @@ record DefaultSerializer {
 //
 // proc deserialize(reader: fileReader, type readType) : readType throws
 //
-// proc readField(reader: fileReader, name: string, type T) : void throws
 //
-// proc readTypeStart(reader: fileReader, type T) throws
+// proc startClass(reader: fileReader, size: int) throws
+// proc startRecord(reader: fileReader, size: int) throws
+// proc startTuple(reader: fileReader, size: int) throws
 //
-// proc readTypeEnd(reader: fileReader, type T) throws
+// proc deserializeField(reader: fileReader, name: string, type T) : void throws
+//
+// proc endClass(reader: fileReader) throws
+// proc endRecord(reader: fileReader) throws
+// proc endTuple(reader: fileReader) throws
 //
 // At this time, the formal names are unspecified.
 //
@@ -2822,7 +2826,7 @@ record DefaultDeserializer {
     }
   }
 
-  proc readField(r:fileReader, key: string, type T) throws {
+  proc deserializeField(r:fileReader, key: string, type T) throws {
     if !key.isEmpty() {
       r.readLiteral(key);
       r.readLiteral("=");
@@ -2833,36 +2837,31 @@ record DefaultDeserializer {
     return ret;
   }
 
-  proc readTypeStart(r: fileReader, type T) throws {
+  proc startClass(r: fileReader, size: int) throws {
     if _inheritLevel == 0 {
-      if isClassType(T) then
-        r.readLiteral("{");
-      else if isRecordType(T) then
-        r.readLiteral("(");
-      else if isTupleType(T) {
-        r.readLiteral("(");
-      } else
-        throw new Error("unhandled type in readTypeStart");
+      r.readLiteral("{");
     }
     _inheritLevel += 1;
   }
-
-  proc readTypeEnd(r: fileReader, type T) throws {
-    // This format doesn't do any special nesting for super classes
+  proc endClass(r: fileReader) throws {
     if _inheritLevel == 1 {
-      if isClassType(T) then
-        r.readLiteral("}");
-      else if isRecordType(T) then
-        r.readLiteral(")");
-      else if isTupleType(T) {
-        // Currently we always try to 'matchLiteral' against ',', so no
-        // need to special case 1-tuples
-        r.readLiteral(")");
-      } else
-        throw new Error("unhandled type in readTypeEnd");
+      r.readLiteral("}");
     }
-
     _inheritLevel -= 1;
+  }
+
+  proc startRecord(r: fileReader, size: int) throws {
+    r.readLiteral("(");
+  }
+  proc endRecord(r: fileReader) throws {
+    r.readLiteral(")");
+  }
+
+  proc startTuple(r: fileReader, size: int) throws {
+    r.readLiteral("(");
+  }
+  proc endTuple(r: fileReader) throws {
+    r.readLiteral(")");
   }
 
   // What's the story for resizing arrays in 2.0? Do we have one? If not,
