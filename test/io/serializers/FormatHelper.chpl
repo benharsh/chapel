@@ -21,8 +21,8 @@ module FormatHelper {
         else return new IO.DefaultDeserializer();
       }
       when FormatKind.json {
-        if writing then return new JsonWriter();
-        else return new JsonReader();
+        if writing then return new JsonSerializer();
+        else return new JsonDeserializer();
       }
       when FormatKind.little {
         if writing then return new BinarySerializer(endian=IO.ioendian.little);

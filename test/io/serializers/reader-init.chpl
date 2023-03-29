@@ -140,5 +140,5 @@ proc test(type FormatWriter, type FormatReader) {
 
 proc main() {
   test(DefaultSerializer, DefaultDeserializer);
-  test(JsonWriter, JsonReader);
+  test(JsonSerializer, JsonDeserializer);
 }

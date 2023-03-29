@@ -5,10 +5,10 @@ module Json {
   private use Map;
   private use List;
 
-  type _writeType = fileWriter(serializerType=JsonWriter, ?);
-  type _readerT = fileReader(deserializerType=JsonReader, ?);
+  type _writeType = fileWriter(serializerType=JsonSerializer, ?);
+  type _readerT = fileReader(deserializerType=JsonDeserializer, ?);
 
-  record JsonWriter {
+  record JsonSerializer {
     var firstField = true;
     var _inheritLevel = 0;
     var _arrayDim = 0;
@@ -45,10 +45,10 @@ module Json {
         if x == nil {
           writer._writeLiteral("null");
         } else {
-          x!.serialize(writer.withSerializer(new JsonWriter()));
+          x!.serialize(writer.withSerializer(new JsonSerializer()));
         }
       } else {
-        x.serialize(writer.withSerializer(new JsonWriter()));
+        x.serialize(writer.withSerializer(new JsonSerializer()));
       }
     }
 
@@ -163,7 +163,7 @@ module Json {
         // it as a proper key for the map.
         var f = openMemFile();
         {
-          f.writer().withSerializer(JsonWriter).write(key);
+          f.writer().withSerializer(JsonSerializer).write(key);
         }
         var tmp : string;
         f.reader().readAll(tmp);
@@ -211,7 +211,7 @@ module Json {
     return (m, lastPos);
   }
 
-  record JsonReader {
+  record JsonDeserializer {
     var outOfOrder = false;
     var _inheritLevel = 0;
     var _names : domain(string);
@@ -269,9 +269,9 @@ module Json {
         return ret;
       } else if canResolveTypeMethod(readType, "deserializeFrom", reader) ||
                 isArrayType(readType) {
-        return readType.deserializeFrom(reader.withDeserializer(new JsonReader()));
+        return readType.deserializeFrom(reader.withDeserializer(new JsonDeserializer()));
       } else {
-        return new readType(reader.withDeserializer(new JsonReader()));
+        return new readType(reader.withDeserializer(new JsonDeserializer()));
       }
     }
 
@@ -331,7 +331,7 @@ module Json {
         // TODO: When should we try to do this? Use of '_startComposite', etc.
         // likely indicates "buying in" to the JSON format, but in a way
         // it might be cleaner or more efficient to do when creating the
-        // new temporary JsonReader for the given type. But if we do the
+        // new temporary JsonDeserializer for the given type. But if we do the
         // JSON parsing at that point, it ignores the user-defined
         // initializer. So, we do it here in '_startComposite'.
         //
@@ -425,7 +425,7 @@ module Json {
         {
           f.writer().withSerializer(DefaultSerializer).write(s);
         }
-        var k = f.reader().withDeserializer(JsonReader).read(keyType);
+        var k = f.reader().withDeserializer(JsonDeserializer).read(keyType);
         r._readLiteral(":");
         return (k, r.read(valType));
       }
