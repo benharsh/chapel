@@ -4,12 +4,14 @@ module FormatHelper {
   use Json;
   use BinaryIO;
   use IO;
+  use ChplFormat;
 
   enum FormatKind {
     default,
     json,
     little,
-    big
+    big,
+    chpl
   }
 
   config param format : FormatKind = FormatKind.default;
@@ -31,6 +33,10 @@ module FormatHelper {
       when FormatKind.big {
         if writing then return new BinarySerializer(endian=IO.ioendian.big);
         else return new BinaryDeserializer(endian=IO.ioendian.big);
+      }
+      when FormatKind.chpl {
+        if writing then return new ChplSerializer();
+        else return new ChplDeserializer();
       }
       otherwise return nothing;
     }

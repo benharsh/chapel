@@ -5280,18 +5280,19 @@ proc fileReader._deserializeOne(type readType, loc:locale) throws {
   if isClassType(readType) {
     // Save formatter authors from having to reason about 'owned' and
     // 'shared' by converting the type to unmanaged.
-    var tmp = reader.deserializer.deserialize(reader, _to_unmanaged(readType));
+    var tmp = reader.deserializer.deserialize(reader, readType);
+    return tmp;
 
     // TODO: We may also want to support user-defined management types at
     // some point.
     // TODO: Implement support for reading a 'borrowed' class
-    if isOwnedClassType(readType) {
-      return new _owned(tmp);
-    } else if isSharedClassType(readType) {
-      return new _shared(tmp);
-    } else {
-      return tmp;
-    }
+    //if isOwnedClassType(readType) {
+    //  return new _owned(tmp);
+    //} else if isSharedClassType(readType) {
+    //  return new _shared(tmp);
+    //} else {
+    //  return tmp;
+    //}
   } else {
     return reader.deserializer.deserialize(reader, readType);
   }

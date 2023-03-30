@@ -122,7 +122,11 @@ proc main() {
   test(new GenericRecord(int, 3, 42, (1,2,3)));
   test(new owned Parent(5));
   test(new owned SimpleChild(5, 42.0));
-  test(new owned Parent(5), owned Parent?);
+
+  // Make sure we can read an initialized value into a nilable type.
+  // Needs to be 'new owned Parent?' in case the format includes type names.
+  test(new owned Parent?(5), owned Parent?);
+
   var nilTemp : owned Parent?;
   test(nilTemp);
   test(new shared Parent(5));

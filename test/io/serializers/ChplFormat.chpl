@@ -1,19 +1,20 @@
 
-module Json {
+module ChplFormat {
   private use IO;
   private use CTypes;
   private use Map;
   private use List;
 
-  type _writeType = fileWriter(serializerType=JsonSerializer, ?);
-  type _readerT = fileReader(deserializerType=JsonDeserializer, ?);
+  type _writeType = fileWriter(serializerType=ChplSerializer, ?);
+  type _readerT = fileReader(deserializerType=ChplDeserializer, ?);
 
-  record JsonSerializer {
+  record ChplSerializer {
     var firstField = true;
     var _inheritLevel = 0;
     var _arrayDim = 0;
     var _arrayMax = 0;
     var _arrayFirst : list(bool);
+    var _typename : string;
 
     proc type isBinary() param : bool do return false;
     proc isBinary() param : bool do return false;
@@ -25,10 +26,11 @@ module Json {
       var st = dc._styleInternal();
       var orig = st; defer { dc._set_styleInternal(orig); }
       st.realfmt = 2;
-      st.string_format = iostringformat.json:uint(8);
-      st.aggregate_style = QIO_AGGREGATE_FORMAT_JSON:uint(8);
-      st.array_style = QIO_ARRAY_FORMAT_JSON:uint(8);
-      st.tuple_style = QIO_TUPLE_FORMAT_JSON:uint(8);
+      st.string_format = iostringformat.chpl:uint(8);
+      st.aggregate_style = QIO_AGGREGATE_FORMAT_CHPL:uint(8);
+      st.array_style = QIO_ARRAY_FORMAT_CHPL:uint(8);
+      st.tuple_style = QIO_TUPLE_FORMAT_CHPL:uint(8);
+      st.pad_char = 0x20;
       dc._set_styleInternal(st);
       dc._writeOne(dc.kind, val, here);
     }
@@ -43,12 +45,12 @@ module Json {
         _oldWrite(writer, x);
       } else if isClassType(t) {
         if x == nil {
-          writer._writeLiteral("null");
+          writer._writeLiteral("nil");
         } else {
-          x!.serialize(writer.withSerializer(new JsonSerializer()));
+          x!.serialize(writer.withSerializer(new ChplSerializer(_typename=t:string)));
         }
       } else {
-        x.serialize(writer.withSerializer(new JsonSerializer()));
+        x.serialize(writer.withSerializer(new ChplSerializer(_typename=t:string)));
       }
     }
 
@@ -57,41 +59,46 @@ module Json {
         writer.writeLiteral(", ");
 
       if !key.isEmpty() {
-        writer.write(key);
-        writer.writeLiteral(":");
+        writer.writeLiteral(key);
+        writer.writeLiteral(" = ");
       }
 
       writer.write(val);
       firstField = false;
     }
 
+    // TODO: How should generic types be printed?
     proc startClass(writer: _writeType, size: int) throws {
       if _inheritLevel == 0 {
-        writer.writeLiteral("{");
+        writer._writeLiteral("new ");
+        writer._writeLiteral(_typename);
+        writer.writeLiteral("(");
       }
 
       _inheritLevel += 1;
     }
     proc endClass(writer: _writeType) throws {
       if _inheritLevel == 1 {
-        writer.writeLiteral("}");
+        writer.writeLiteral(")");
       }
 
       _inheritLevel -= 1;
     }
 
     proc startRecord(writer: _writeType, size: int) throws {
-      writer.writeLiteral("{");
+      writer._writeLiteral("new ");
+      writer._writeLiteral(_typename);
+      writer.writeLiteral("(");
     }
     proc endRecord(writer: _writeType) throws {
-      writer.writeLiteral("}");
+      writer.writeLiteral(")");
     }
 
     proc startTuple(writer: _writeType, size: int) throws {
-      writer.writeLiteral("[");
+      writer.writeLiteral("(");
     }
     proc endTuple(writer: _writeType) throws {
-      writer.writeLiteral("]");
+      writer.writeLiteral(")");
     }
 
     // TODO: I think we should just embed some kind of dimensionality into
@@ -163,7 +170,7 @@ module Json {
         // it as a proper key for the map.
         var f = openMemFile();
         {
-          f.writer().withSerializer(JsonSerializer).write(key);
+          f.writer().withSerializer(ChplSerializer).write(key);
         }
         var tmp : string;
         f.reader().readAll(tmp);
@@ -180,43 +187,10 @@ module Json {
     }
   }
 
-  private extern proc qio_channel_skip_json_field(threadsafe:c_int, ch:qio_channel_ptr_t):errorCode;
-
-  private proc helper(reader: _readerT) throws {
-    var m : map(string, int);
-    reader.mark();
-
-    reader.readLiteral("{");
-    var done = false;
-    var lastPos = -1;
-    while !done {
-      if reader.matchLiteral("}") {
-        lastPos = reader.offset() - 1;
-        done = true;
-        break;
-      }
-
-      reader.mark();
-      const name = reader.read(string);
-      reader.readLiteral(":");
-      m.add(name, reader.offset());
-      reader.revert();
-
-      qio_channel_skip_json_field(false, reader._channel_internal);
-      reader.matchLiteral(",");
-    }
-
-    reader.revert();
-
-    return (m, lastPos);
-  }
-
-  record JsonDeserializer {
-    var outOfOrder = false;
+  // TODO: out of order reading
+  record ChplDeserializer {
     var _inheritLevel = 0;
-    var _names : domain(string);
-    var _offsets : [_names] int;
-    var _lastPos = -1;
+    var _typename : string;
 
     var firstField = true;
     var _arrayDim = 0;
@@ -226,10 +200,6 @@ module Json {
     proc type isBinary() param : bool do return false;
     proc isBinary() param : bool do return false;
 
-    proc init() {
-      this.complete();
-    }
-
     // TODO: rewrite in terms of writef, or something
     proc _oldRead(ch: _readerT, ref val:?t) throws {
       var _def = new DefaultDeserializer();
@@ -237,16 +207,17 @@ module Json {
       var st = dc._styleInternal();
       var orig = st; defer { dc._set_styleInternal(orig); }
       st.realfmt = 2;
-      st.string_format = iostringformat.json:uint(8);
-      st.aggregate_style = QIO_AGGREGATE_FORMAT_JSON:uint(8);
-      st.array_style = QIO_ARRAY_FORMAT_JSON:uint(8);
-      st.tuple_style = QIO_TUPLE_FORMAT_JSON:uint(8);
+      st.string_format = iostringformat.chpl:uint(8);
+      st.aggregate_style = QIO_AGGREGATE_FORMAT_CHPL:uint(8);
+      st.array_style = QIO_ARRAY_FORMAT_CHPL:uint(8);
+      st.tuple_style = QIO_TUPLE_FORMAT_CHPL:uint(8);
+      st.pad_char = 0x20;
       dc._set_styleInternal(st);
       dc._readOne(dc.kind, val, here);
     }
 
     proc deserialize(reader:fileReader, type readType) : readType throws {
-      if isNilableClassType(readType) && reader.matchLiteral("null") {
+      if isNilableClassType(readType) && reader.matchLiteral("nil") {
         return nil:readType;
       }
 
@@ -263,52 +234,33 @@ module Json {
         _oldRead(reader, tmp);
         return tmp;
       } else if isEnumType(readType) {
-        reader.readLiteral('"');
         var ret = reader.withDeserializer(DefaultDeserializer).read(readType);
-        reader.readLiteral('"');
         return ret;
       } else if canResolveTypeMethod(readType, "deserializeFrom", reader) ||
                 isArrayType(readType) {
-        return readType.deserializeFrom(reader.withDeserializer(new JsonDeserializer()));
+        return readType.deserializeFrom(reader.withDeserializer(new ChplDeserializer(_typename=readType:string)));
       } else {
-        return new readType(reader.withDeserializer(new JsonDeserializer()));
+        return new readType(reader.withDeserializer(new ChplDeserializer(_typename=readType:string)));
       }
     }
-
-    proc _readFieldName(r: _readerT, key: string) throws {
-      try {
-        r._readLiteral('"');
-        r._readLiteral(key);
-        r._readLiteral('"');
-        r._readLiteral(":");
-      } catch e: BadFormatError {
-        return false;
-      }
-
-      return true;
-    }
-
 
     proc deserializeField(r: _readerT, key: string, type T) throws {
-      if _names.contains(key) {
-        r.seek(_offsets[key]..);
-      } else if !key.isEmpty() {
-        throw new Error("field not found...");
+      if !firstField then
+        r.readLiteral(",");
+      firstField = false;
+
+      if !key.isEmpty() {
+        r.readLiteral(key);
+        r.readLiteral("=");
       }
-
-      var ret = r.read(T);
-
-      // note: trailing commas not allowed in json
-      r.matchLiteral(",");
-
-      return ret;
+      return r.read(T);
     }
 
     proc startTuple(r: fileReader, size: int) throws {
-      r.readLiteral("[");
+      r.readLiteral("(");
     }
     proc endTuple(r: fileReader) throws {
-      r.readLiteral("]");
+      r.readLiteral(")");
     }
 
     proc startClass(r: fileReader, size: int) throws {
@@ -327,24 +279,8 @@ module Json {
 
     proc _startComposite(r: fileReader, size: int) throws {
       if _inheritLevel == 0 {
-        //
-        // TODO: When should we try to do this? Use of '_startComposite', etc.
-        // likely indicates "buying in" to the JSON format, but in a way
-        // it might be cleaner or more efficient to do when creating the
-        // new temporary JsonDeserializer for the given type. But if we do the
-        // JSON parsing at that point, it ignores the user-defined
-        // initializer. So, we do it here in '_startComposite'.
-        //
-        // TODO: Should we only compute the mapping if the fields are being
-        // read out of order?
-        //
-        var (m, last) = helper(r);
-        for (k, v) in zip(m.keys(), m.values()) {
-          _names.add(k);
-          _offsets[k] = v;
-        }
-        _lastPos = last;
-        r.readLiteral("{");
+        r.readLiteral("new " + _typename);
+        r.readLiteral("(");
       }
 
       _inheritLevel += 1;
@@ -352,8 +288,7 @@ module Json {
 
     proc _endComposite(r: fileReader) throws {
       if _inheritLevel == 1 {
-        r.seek(_lastPos..);
-        r.readLiteral("}");
+        r.readLiteral(")");
       }
       _inheritLevel -= 1;
     }
@@ -426,7 +361,7 @@ module Json {
         {
           f.writer().withSerializer(DefaultSerializer).write(s);
         }
-        var k = f.reader().withDeserializer(JsonDeserializer).read(keyType);
+        var k = f.reader().withDeserializer(ChplDeserializer).read(keyType);
         r._readLiteral(":");
         return (k, r.read(valType));
       }
