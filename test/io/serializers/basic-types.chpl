@@ -106,6 +106,28 @@ class SimpleChild : Parent {
   }
 }
 
+// Disabled due to bug with virtual dispatch
+//class GenericChild : Parent {
+//  type T;
+//  var y : T;
+//
+//  proc equals(other: borrowed GenericChild?(?)) {
+//    return other.type != borrowed Parent? && x == other!.x &&
+//           T == other!.T &&
+//           this.y == other!.y;
+//  }
+//}
+
+class ChildChild : SimpleChild {
+  var z : int;
+
+  proc equals(other: borrowed ChildChild?) {
+    return x == other!.x &&
+           y == other!.y &&
+           z == other!.z;
+  }
+}
+
 proc main() {
   test(true);
   test(5);
@@ -122,6 +144,8 @@ proc main() {
   test(new GenericRecord(int, 3, 42, (1,2,3)));
   test(new owned Parent(5));
   test(new owned SimpleChild(5, 42.0));
+  //test(new owned GenericChild(5, int, 42));
+  test(new owned ChildChild(1, 42.0, 5));
 
   // Make sure we can read an initialized value into a nilable type.
   // Needs to be 'new owned Parent?' in case the format includes type names.
