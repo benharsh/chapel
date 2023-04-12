@@ -4613,7 +4613,8 @@ config param useNewFileReaderRegionBounds = false;
                                  byte 0.
  */
 proc file.reader(param kind=iokind.dynamic, param locking=true,
-                 region: range(?) = 0.., hints = ioHintSet.empty)
+                 region: range(?) = 0.., hints = ioHintSet.empty,
+                 deserializer:?ST = defaultSerializeVal(false))
   : fileReader(kind, locking) throws where (!region.hasHighBound() ||
                                             useNewFileReaderRegionBounds) {
   return this.readerHelper(kind, locking, region, hints);
@@ -4854,10 +4855,11 @@ config param useNewFileWriterRegionBounds = false;
                                  byte 0.
  */
 proc file.writer(param kind=iokind.dynamic, param locking=true,
-                 region: range(?) = 0.., hints = ioHintSet.empty):
-                 fileWriter(kind,locking) throws where (!region.hasHighBound() ||
+                 region: range(?) = 0.., hints = ioHintSet.empty,
+                 serializer:?ST = defaultSerializeVal(true)):
+                 fileWriter(kind,locking,ST) throws where (!region.hasHighBound() ||
                                                         useNewFileWriterRegionBounds) {
-  return this.writerHelper(kind, locking, region, hints);
+  return this.writerHelper(kind, locking, region, hints, serializer=serializer);
 }
 
 @deprecated(notes="Currently the region argument's high bound specifies the first location in the file that is not included.  This behavior is deprecated, please compile your program with `-suseNewFileWriterRegionBounds=true` to have the region argument specify the entire segment of the file covered, inclusive.")
@@ -4872,8 +4874,9 @@ pragma "no doc"
 proc file.writerHelper(param kind=iokind.dynamic, param locking=true,
                        region: range(?) = 0.., hints = ioHintSet.empty,
                        style:iostyleInternal = this._style,
-                       fromOpenUrlWriter = false):
-  fileWriter(kind,locking) throws {
+                       fromOpenUrlWriter = false,
+                       serializer:?ST = defaultSerializeVal(true)):
+  fileWriter(kind,locking,ST) throws {
 
   if (region.hasLowBound() && region.low < 0) {
     throw new IllegalArgumentError("region", "file region's lowest accepted bound is 0");
@@ -4883,11 +4886,12 @@ proc file.writerHelper(param kind=iokind.dynamic, param locking=true,
   // fileWriter.
   // If the return error code is nonzero, the ref count will be 0 not 1.
   // The error code should be checked to avoid double-deletion errors.
-  var ret : fileWriter(kind, locking);
+  //var ret : fileWriter(kind, locking, ST);
+  // TODO: could rewrite this without the explicit on-stmt, I think...
   var err:errorCode = 0;
+  var start : region.idxType;
+  var end : region.idxType;
   on this._home {
-    var start : region.idxType;
-    var end : region.idxType;
     try this.checkAssumingLocal();
     if (region.hasLowBound() && region.hasHighBound()) {
       // TODO: remove the fromOpenUrlWriter arg when the deprecated version is
@@ -4918,9 +4922,9 @@ proc file.writerHelper(param kind=iokind.dynamic, param locking=true,
       end = max(region.idxType);
     }
 
-    ret = new fileWriter(kind, locking, defaultSerializeVal(true), this, err, hints,
-                         start, end, style);
   }
+  var ret = new fileWriter(kind, locking, serializer, this, err, hints,
+                         start, end, style);
   if err then try ioerror(err, "in file.writer", this._tryGetPath());
 
   return ret;
