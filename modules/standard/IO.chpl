@@ -4614,10 +4614,11 @@ config param useNewFileReaderRegionBounds = false;
  */
 proc file.reader(param kind=iokind.dynamic, param locking=true,
                  region: range(?) = 0.., hints = ioHintSet.empty,
-                 deserializer:?ST = defaultSerializeVal(false))
-  : fileReader(kind, locking) throws where (!region.hasHighBound() ||
+                 in deserializer:?DT = defaultSerializeVal(false))
+  : fileReader(kind, locking,DT) throws where (!region.hasHighBound() ||
                                             useNewFileReaderRegionBounds) {
-  return this.readerHelper(kind, locking, region, hints);
+  return this.readerHelper(kind, locking, region, hints,
+                           deserializer=deserializer);
 }
 
 @deprecated(notes="Currently the region argument's high bound specifies the first location in the file that is not included.  This behavior is deprecated, please compile your program with `-suseNewFileReaderRegionBounds=true` to have the region argument specify the entire segment of the file covered, inclusive.")
@@ -4634,8 +4635,9 @@ pragma "no doc"
 proc file.readerHelper(param kind=iokind.dynamic, param locking=true,
                        region: range(?) = 0.., hints = ioHintSet.empty,
                        style:iostyleInternal = this._style,
-                       fromOpenReader=false, fromOpenUrlReader=false)
-  : fileReader(kind, locking) throws {
+                       fromOpenReader=false, fromOpenUrlReader=false,
+                       in deserializer:?DT = defaultSerializeVal(false))
+  : fileReader(kind, locking, DT) throws {
   if (region.hasLowBound() && region.low < 0) {
     throw new IllegalArgumentError("region", "file region's lowest accepted bound is 0");
   }
@@ -4643,7 +4645,7 @@ proc file.readerHelper(param kind=iokind.dynamic, param locking=true,
   // It is the responsibility of the caller to release the returned fileReader
   // if the error code is nonzero.
   // The return error code should be checked to avoid double-deletion errors.
-  var ret : fileReader(kind, locking);
+  var ret : fileReader(kind, locking, DT);
   var err:errorCode = 0;
   on this._home {
     var start : region.idxType;
