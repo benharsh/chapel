@@ -11,7 +11,7 @@ module FormatHelper {
     json,
     little,
     big,
-    chpl
+    syntax
   }
 
   config param format : FormatKind = FormatKind.default;
@@ -34,7 +34,7 @@ module FormatHelper {
         if writing then return new BinarySerializer(endian=IO.ioendian.big);
         else return new BinaryDeserializer(endian=IO.ioendian.big);
       }
-      when FormatKind.chpl {
+      when FormatKind.syntax {
         if writing then return new ChplSerializer();
         else return new ChplDeserializer();
       }
