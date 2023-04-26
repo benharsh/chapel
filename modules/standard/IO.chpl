@@ -4703,7 +4703,7 @@ proc file.readerHelper(param kind=iokind.dynamic, param locking=true,
       end = max(region.idxType);
     }
 
-    ret = new fileReader(kind, locking, defaultSerializeVal(false), this, err, hints,
+    ret = new fileReader(kind, locking, deserializer, this, err, hints,
                         start, end, style);
   }
   if err then try ioerror(err, "in file.reader", this._tryGetPath());
@@ -4863,8 +4863,8 @@ config param useNewFileWriterRegionBounds = false;
  */
 proc file.writer(param kind=iokind.dynamic, param locking=true,
                  region: range(?) = 0.., hints = ioHintSet.empty,
-                 serializer:?ST = defaultSerializeVal(true)):
-                 fileWriter(kind,locking,ST) throws where (!region.hasHighBound() ||
+                 serializer:?st = defaultSerializeVal(true)):
+                 fileWriter(kind,locking,st) throws where (!region.hasHighBound() ||
                                                         useNewFileWriterRegionBounds) {
   return this.writerHelper(kind, locking, region, hints, serializer=serializer);
 }
@@ -4893,8 +4893,7 @@ proc file.writerHelper(param kind=iokind.dynamic, param locking=true,
   // fileWriter.
   // If the return error code is nonzero, the ref count will be 0 not 1.
   // The error code should be checked to avoid double-deletion errors.
-  //var ret : fileWriter(kind, locking, ST);
-  // TODO: could rewrite this without the explicit on-stmt, I think...
+  var ret : fileWriter(kind, locking, st);
   var err:errorCode = 0;
   var start : region.idxType;
   var end : region.idxType;
@@ -4929,9 +4928,9 @@ proc file.writerHelper(param kind=iokind.dynamic, param locking=true,
       end = max(region.idxType);
     }
 
-  }
-  var ret = new fileWriter(kind, locking, serializer, this, err, hints,
+    ret = new fileWriter(kind, locking, serializer, this, err, hints,
                          start, end, style);
+  }
   if err then try ioerror(err, "in file.writer", this._tryGetPath());
 
   return ret;
