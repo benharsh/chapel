@@ -2438,6 +2438,12 @@ private proc defaultSerializeVal(param writing : bool) {
   else return new DefaultDeserializer();
 }
 
+pragma "no doc"
+class _serializeWrapper {
+  type T;
+  var member: T;
+}
+
 /*
 
 A ``fileReader`` supports sequential reading from an underlying :record:`file`
@@ -2543,7 +2549,8 @@ record fileWriter {
   var _channel_internal:qio_channel_ptr_t = QIO_CHANNEL_PTR_NULL;
 
   pragma "no doc"
-  var _serializer : serializerType;
+  //var _serializer : serializerType;
+  var _serializer : unmanaged _serializeWrapper?(serializerType);
 
   // The member variable _readWriteThisFromLocale is used to support
   // writeThis needing to know where the I/O started. It is a member
@@ -2564,8 +2571,8 @@ proc fileWriter.writing param: bool {
 
 
 pragma "no doc"
-proc fileWriter.serializer const ref {
-  return _serializer;
+proc fileWriter.serializer ref {
+  return _serializer!.member;
 }
 
 //
@@ -2612,9 +2619,11 @@ record DefaultSerializer {
     if x == nil {
       writer._writeLiteral("nil");
     } else if isClassType(t) {
-      x!.serialize(writer.withSerializer(new DefaultSerializer()));
+      var alias = writer.withSerializer(new DefaultSerializer());
+      x!.serialize(writer=alias, serializer=alias.serializer);
     } else {
-      x.serialize(writer.withSerializer(new DefaultSerializer()));
+      var alias = writer.withSerializer(new DefaultSerializer());
+      x.serialize(writer=alias, serializer=alias.serializer);
     }
   }
 
@@ -2630,7 +2639,8 @@ record DefaultSerializer {
     } else if isUnionType(t) {
       x.writeThis(writer);
     } else {
-      x.serialize(writer.withSerializer(new DefaultSerializer()));
+      var alias = writer.withSerializer(new DefaultSerializer());
+      x.serialize(writer=alias, serializer=alias.serializer);
     }
   }
 
@@ -2948,10 +2958,12 @@ operator fileWriter.=(ref lhs:fileWriter, rhs:fileWriter) {
 
   on lhs._home {
     qio_channel_release(lhs._channel_internal);
+    if lhs._serializer != nil then delete lhs._serializer;
   }
 
   lhs._home = rhs._home;
   lhs._channel_internal = rhs._channel_internal;
+  lhs._serializer = new unmanaged _serializeWrapper(rhs.serializerType, rhs._serializer!.member);
 }
 
 pragma "no doc"
@@ -2970,17 +2982,9 @@ proc fileReader.init(param kind:iokind, param locking:bool, in deserializer:?) {
 
 pragma "no doc"
 proc fileWriter.init(param kind:iokind, param locking:bool, type serializerType) {
-  var default : serializerType;
-  this.init(kind, locking, default);
-}
-
-
-pragma "no doc"
-proc fileWriter.init(param kind:iokind, param locking:bool, in serializer:?) {
   this.kind = kind;
   this.locking = locking;
-  this.serializerType = serializer.type;
-  this._serializer = serializer;
+  this.serializerType = serializerType;
 }
 
 pragma "no doc"
@@ -3013,7 +3017,7 @@ proc fileWriter.init=(x: fileWriter) {
   this.serializerType = x.serializerType;
   this._home = x._home;
   this._channel_internal = x._channel_internal;
-  this._serializer = x._serializer;
+  this._serializer = new unmanaged _serializeWrapper(serializerType, x._serializer!.member);
   this._readWriteThisFromLocale = x._readWriteThisFromLocale;
   this.complete();
   on x._home {
@@ -3067,17 +3071,18 @@ proc fileReader.init(param kind:iokind, param locking:bool, in deserializer:?,
   }
 }
 
+// Used to create a non-locking alias of an existing channel
 pragma "no doc"
 proc fileWriter.init(param kind:iokind, param locking:bool,
                      home: locale, _channel_internal:qio_channel_ptr_t,
                      _readWriteThisFromLocale: locale,
-                     in serializer:?) {
+                     _serializer: unmanaged _serializeWrapper?(?st)) {
   this.kind = kind;
   this.locking = locking;
-  this.serializerType = serializer.type;
+  this.serializerType = st;
   this._home = home;
   this._channel_internal = _channel_internal;
-  this._serializer = serializer;
+  this._serializer = _serializer;
   this._readWriteThisFromLocale = _readWriteThisFromLocale;
 }
 
@@ -3086,7 +3091,8 @@ proc fileWriter.init(param kind:iokind, param locking:bool, in serializer:?,
                      f:file, out error:errorCode, hints: ioHintSet,
                      start:int(64), end:int(64),
                      in local_style:iostyleInternal) {
-  this.init(kind, locking, serializer);
+  this.init(kind, locking, serializer.type);
+  this._serializer = new unmanaged _serializeWrapper(serializer.type, serializer);
   on f._home {
     this._home = f._home;
     if kind != iokind.dynamic {
@@ -3144,7 +3150,8 @@ proc fileWriter.withSerializer(type st) : fileWriter(this.kind, this.locking, st
 
 pragma "no doc"
 proc fileWriter.withSerializer(s: ?st) : fileWriter(this.kind, this.locking, st) {
-  var ret = new fileWriter(this.kind, this.locking, s);
+  var ret = new fileWriter(this.kind, this.locking, st);
+  ret._serializer = new unmanaged _serializeWrapper(st, s);
   ret._channel_internal = this._channel_internal;
   ret._home = _home;
   ret._readWriteThisFromLocale = _readWriteThisFromLocale;
@@ -3215,8 +3222,8 @@ record ioNewline {
   }
 
   pragma "no doc"
-  proc serialize(w) throws {
-    w.writeNewline();
+  proc serialize(writer: fileWriter, ref serializer: writer.serializerType) throws {
+    writer.writeNewline();
   }
 }
 
@@ -5351,7 +5358,7 @@ private proc escapedNonUTF8ErrorMessage() : string {
 pragma "no doc"
 proc fileWriter._serializeOne(const x:?t, loc:locale) throws {
   var writer = new fileWriter(iokind.dynamic, locking=false,
-                              serializer=_serializer,
+                              _serializer=_serializer,
                               home=here,
                               _channel_internal=_channel_internal,
                               _readWriteThisFromLocale=loc);
@@ -5359,12 +5366,14 @@ proc fileWriter._serializeOne(const x:?t, loc:locale) throws {
   // Set the fileWriter pointer to NULL to make the
   // destruction of the local writer record safe
   // (it shouldn't release anything since it's a local copy).
-  defer { writer._channel_internal = QIO_CHANNEL_PTR_NULL; }
+  defer { writer._channel_internal = QIO_CHANNEL_PTR_NULL;
+          writer._serializer = nil; }
 
   if t == ioLiteral || t == ioNewline || t == _internalIoBits || t == _internalIoChar {
     writer._writeOne(writer.kind, x, writer.getLocaleOfIoRequest());
     return;
   }
+  extern proc printf(str: c_string) : void;
 
   // TODO: Should this pass an unmanaged or borrowed version, to reduce
   // the number of instantiations for a type?
@@ -10064,8 +10073,8 @@ class _channel_regex_info {
     f.write(", ... capturei = " + capturei: string);
     f.write(", ncaptures = " + ncaptures: string + "}");
   }
-  override proc serialize(f) throws {
-    writeThis(f);
+  override proc serialize(writer, ref serializer) throws {
+    writeThis(writer);
   }
 }
 

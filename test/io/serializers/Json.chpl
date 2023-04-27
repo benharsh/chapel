@@ -45,10 +45,12 @@ module Json {
         if x == nil {
           writer._writeLiteral("null");
         } else {
-          x!.serialize(writer.withSerializer(new JsonSerializer()));
+          var alias = writer.withSerializer(new JsonSerializer());
+          x!.serialize(writer=alias, serializer=alias.serializer);
         }
       } else {
-        x.serialize(writer.withSerializer(new JsonSerializer()));
+        var alias = writer.withSerializer(new JsonSerializer());
+        x.serialize(writer=alias, serializer=alias.serializer);
       }
     }
 

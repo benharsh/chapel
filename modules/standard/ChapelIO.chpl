@@ -305,29 +305,29 @@ module ChapelIO {
     // TODO: would any formats want to print type or param fields?
     // - more useful for param fields, e.g., an enum
     //
-    proc serializeDefaultImpl(writer:fileWriter, const x:?t) throws {
+    proc serializeDefaultImpl(writer:fileWriter, ref serializer, const x:?t) throws {
       if isClassType(t) then
-        writer.serializer.startClass(writer, __numIOFields(t));
+        serializer.startClass(writer, __numIOFields(t));
       else
-        writer.serializer.startRecord(writer, __numIOFields(t));
+        serializer.startRecord(writer, __numIOFields(t));
 
       if isClassType(t) && _to_borrowed(t) != borrowed object {
-        serializeDefaultImpl(writer, x.super);
+        serializeDefaultImpl(writer, serializer, x.super);
       }
 
       param num_fields = __primitive("num fields", t);
       for param i in 1..num_fields {
         if isIoField(x, i) {
           param name : string = __primitive("field num to name", x, i);
-          writer.serializer.serializeField(writer, name,
-                                           __primitive("field by num", x, i));
+          serializer.serializeField(writer, name,
+                                    __primitive("field by num", x, i));
         }
       }
 
       if isClassType(t) then
-        writer.serializer.endClass(writer);
+        serializer.endClass(writer);
       else
-        writer.serializer.endRecord(writer);
+        serializer.endRecord(writer);
     }
 
     //
@@ -630,14 +630,14 @@ module ChapelIO {
   }
 
   pragma "no doc"
-  proc _ddata.serialize(f) throws { writeThis(f); }
+  proc _ddata.serialize(writer, ref serializer) throws { writeThis(writer); }
 
   pragma "no doc"
   proc chpl_taskID_t.writeThis(f) throws {
     f.write(this : uint(64));
   }
   pragma "no doc"
-  proc chpl_taskID_t.serialize(f) throws { writeThis(f); }
+  proc chpl_taskID_t.serialize(writer, ref serializer) throws { writeThis(writer); }
 
   pragma "no doc"
   proc chpl_taskID_t.readThis(f) throws {
@@ -654,7 +654,7 @@ module ChapelIO {
   pragma "no doc"
   proc nothing.writeThis(f) {}
   pragma "no doc"
-  proc nothing.serialize(f) {}
+  proc nothing.serialize(writer, ref serializer) {}
 
   pragma "no doc"
   proc _tuple.readThis(f) throws {
@@ -735,15 +735,14 @@ module ChapelIO {
   }
 
   // TODO: what about tuples-of-types?
-  proc const _tuple.serialize(w) throws {
-    ref fmt = w.serializer;
-    fmt.startTuple(w, this.size);
+  proc const _tuple.serialize(writer, ref serializer) throws {
+    serializer.startTuple(writer, this.size);
     for param i in 0..<size {
       const ref elt = this(i);
       // TODO: should probably have something like 'writeElement'
-      fmt.serializeField(w, "", elt);
+      serializer.serializeField(writer, "", elt);
     }
-    fmt.endTuple(w);
+    serializer.endTuple(writer);
   }
 
   // Moved here to avoid circular dependencies in ChapelRange

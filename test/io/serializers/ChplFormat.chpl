@@ -47,10 +47,12 @@ module ChplFormat {
         if x == nil {
           writer._writeLiteral("nil");
         } else {
-          x!.serialize(writer.withSerializer(new ChplSerializer(_typename=t:string)));
+          var alias = writer.withSerializer(new ChplSerializer(_typename=t:string));
+          x!.serialize(writer=alias, serializer=alias.serializer);
         }
       } else {
-        x.serialize(writer.withSerializer(new ChplSerializer(_typename=t:string)));
+        var alias = writer.withSerializer(new ChplSerializer(_typename=t:string));
+        x.serialize(writer=alias, serializer=alias.serializer);
       }
     }
 

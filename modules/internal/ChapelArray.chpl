@@ -808,8 +808,8 @@ module ChapelArray {
       f.write(_value);
     }
     pragma "no doc"
-    proc serialize(f) throws {
-      f.write(_value);
+    proc serialize(writer, ref serializer) throws {
+      writer.write(_value);
     }
 
     proc displayRepresentation() { _value.dsiDisplayRepresentation(); }
@@ -1601,8 +1601,8 @@ module ChapelArray {
     // resort. Without this method we would incur promotion when trying
     // to print arrays.
     pragma "no doc"
-    proc serialize(f) throws {
-      writeThis(f);
+    proc serialize(writer, ref serializer) throws {
+      writeThis(writer);
     }
 
     pragma "no doc"

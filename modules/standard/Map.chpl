@@ -703,22 +703,22 @@ module Map {
       _readWriteHelper(ch);
     }
 
-    proc serialize(ch: fileWriter) throws {
+    proc serialize(writer: fileWriter(?), ref serializer) throws {
       _enter(); defer _leave();
 
-      ref fmt = ch.serializer;
-      fmt.writeMapStart(ch, _size);
+      ref fmt = serializer;
+      fmt.writeMapStart(writer, _size);
 
       for slot in table.allSlots() {
         if table.isSlotFull(slot) {
           ref tabEntry = table.table[slot];
           ref key = tabEntry.key;
           ref val = tabEntry.val;
-          fmt.writeMapPair(ch, key, val);
+          fmt.writeMapPair(writer, key, val);
         }
       }
 
-      fmt.writeMapEnd(ch);
+      fmt.writeMapEnd(writer);
     }
 
     pragma "no doc"

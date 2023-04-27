@@ -1235,8 +1235,8 @@ private module AlignedTSupport {
     this = f.read(uint(64)) : aligned_t;
   }
 
-  proc aligned_t.serialize(f) throws {
-    writeThis(f);
+  proc aligned_t.serialize(writer, ref serializer) throws {
+    writeThis(writer);
   }
   proc type aligned_t.readThis(f) throws {
     var ret : aligned_t;

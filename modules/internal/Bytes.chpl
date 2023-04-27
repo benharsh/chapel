@@ -266,7 +266,7 @@ module Bytes {
     proc writeThis(f) throws {
       compilerError("not implemented: writeThis");
     }
-    proc serialize(f) throws {
+    proc serialize(writer, ref serializer) throws {
       compilerError("not implemented: serialize");
     }
     proc readThis(f) throws {

@@ -1731,29 +1731,28 @@ module List {
       _leave();
     }
 
-    proc serialize(ch: fileWriter(serializerType=IO.DefaultSerializer)) throws {
+    proc serialize(writer: fileWriter(?), ref serializer: IO.DefaultSerializer) throws {
       _enter();
 
-      ch._writeLiteral("[");
+      writer._writeLiteral("[");
       var first = true;
       for i in 0..<this._size {
-        if !first then ch._writeLiteral(", ");
+        if !first then writer._writeLiteral(", ");
         first = false;
-        ch.write(_getRef(i));
+        writer.write(_getRef(i));
       }
-      ch._writeLiteral("]");
+      writer._writeLiteral("]");
 
       _leave();
     }
 
-    proc serialize(ch: fileWriter) throws {
+    proc serialize(writer: fileWriter(?), ref serializer) throws {
       _enter();
 
-      ref fmt = ch.serializer;
-      fmt.writeArrayStart(ch, this._size);
+      serializer.writeArrayStart(writer, this._size);
       for i in 0..<this._size do
-        fmt.writeArrayElement(ch, i, _getRef(i));
-      fmt.writeArrayEnd(ch);
+        serializer.writeArrayElement(writer, i, _getRef(i));
+      serializer.writeArrayEnd(writer);
 
       _leave();
     }

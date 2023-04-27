@@ -820,7 +820,7 @@ module String {
     }
 
     // These should never be called (but are default functions for records)
-    proc serialize(f) throws {
+    proc serialize(writer, ref serializer) throws {
       compilerError("not implemented: serialize");
     }
 

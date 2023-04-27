@@ -1781,7 +1781,8 @@ FnSymbol* buildWriteThisFnSymbol(AggregateType* ct, ArgSymbol** filearg, const c
   fn->_this = new ArgSymbol(INTENT_BLANK, "this", ct);
   fn->_this->addFlag(FLAG_ARG_THIS);
 
-  ArgSymbol* fileArg = new ArgSymbol(INTENT_BLANK, "f", dtAny);
+  bool isSerialize = strcmp(name, "serialize") == 0;
+  ArgSymbol* fileArg = new ArgSymbol(INTENT_BLANK, isSerialize ? "writer" : "f", dtAny);
   *filearg = fileArg;
 
   fileArg->addFlag(FLAG_MARKED_GENERIC);
@@ -1880,6 +1881,10 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
     ArgSymbol* fileArg = NULL;
     FnSymbol* fn = buildWriteThisFnSymbol(ct, &fileArg, "serialize");
 
+    CallExpr* initExpr = new CallExpr(".", fileArg, new_StringSymbol("serializerType"));
+    ArgSymbol* serializer = new ArgSymbol(INTENT_REF, "serializer", dtUnknown, initExpr);
+    fn->insertFormalAtTail(serializer);
+
     // Compiler generated versions of readThis/writeThis now throw.
     fn->throwsErrorInit();
 
@@ -1891,6 +1896,7 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
       } else {
         fn->insertAtTail(new CallExpr("serializeDefaultImpl",
                                       fileArg,
+                                      serializer,
                                       fn->_this));
       }
     }

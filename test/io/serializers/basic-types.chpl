@@ -73,12 +73,12 @@ record CustomizedRecord {
     r.readLiteral(">");
   }
 
-  proc serialize(w: fileWriter) {
-    w.writeLiteral("<");
-    w.write(x);
-    w.writeLiteral(", ");
-    w.write(y);
-    w.writeLiteral(">");
+  proc serialize(writer: fileWriter, ref serializer) {
+    writer.writeLiteral("<");
+    writer.write(x);
+    writer.writeLiteral(", ");
+    writer.write(y);
+    writer.writeLiteral(">");
   }
 }
 

@@ -4,8 +4,8 @@ use IO;
 record R {
   var x : int;
 
-  proc serialize(w: fileWriter) {
-    w.write(x);
+  proc serialize(writer: fileWriter, ref serializer) {
+    writer.write(x);
   }
 
   proc type deserializeFrom(r: fileReader) {
@@ -16,8 +16,8 @@ record R {
 record G {
   var x;
 
-  proc serialize(w: fileWriter) {
-    w.write(x);
+  proc serialize(writer: fileWriter, ref serializer) {
+    writer.write(x);
   }
 
   proc type deserializeFrom(r: fileReader) {
@@ -29,10 +29,10 @@ record G {
 class C {
   var x : int;
 
-  proc serialize(w: fileWriter) {
-    w.writeLiteral("<");
-    w.write(x);
-    w.writeLiteral(">");
+  proc serialize(writer: fileWriter, ref serializer) {
+    writer.writeLiteral("<");
+    writer.write(x);
+    writer.writeLiteral(">");
   }
 
   proc type deserializeFrom(r: fileReader) {

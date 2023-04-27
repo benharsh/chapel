@@ -66,10 +66,12 @@ module BinaryIO {
           writer.writeByte(0);
         } else {
           writer.writeByte(1);
-          x!.serialize(writer.withSerializer(_fork()));
+          var alias = writer.withSerializer(_fork());
+          x!.serialize(writer=alias, serializer=alias.serializer);
         }
       } else {
-        x.serialize(writer.withSerializer(_fork()));
+        var alias = writer.withSerializer(_fork());
+        x.serialize(writer=alias, serializer=alias.serializer);
       }
     }
 

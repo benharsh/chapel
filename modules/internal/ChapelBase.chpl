@@ -61,10 +61,9 @@ module ChapelBase {
   pragma "no object"
   class _object { }
 
-  proc object.serialize(f) throws {
-    ref fmt = f.serializer;
-    fmt.startClass(f, 0);
-    fmt.endClass(f);
+  proc object.serialize(writer, ref serializer) throws {
+    serializer.startClass(writer, 0);
+    serializer.endClass(writer);
   }
 
 
