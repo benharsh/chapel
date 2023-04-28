@@ -61,11 +61,6 @@ module ChapelBase {
   pragma "no object"
   class _object { }
 
-  proc object.serialize(writer, ref serializer) throws {
-    serializer.startClass(writer, 0);
-    serializer.endClass(writer);
-  }
-
 
   enum iterKind {leader, follower, standalone};
 

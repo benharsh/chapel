@@ -1772,7 +1772,7 @@ FnSymbol* buildWriteThisFnSymbol(AggregateType* ct, ArgSymbol** filearg, const c
 
   fn->addFlag(FLAG_COMPILER_GENERATED);
   fn->addFlag(FLAG_LAST_RESORT);
-  if (ct->isClass() && ct != dtObject)
+  if (ct->isClass() && ct != dtObject && ct->inherits.length != 0)
     fn->addFlag(FLAG_OVERRIDE);
   else
     fn->addFlag(FLAG_INLINE);
@@ -1843,7 +1843,7 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
     hasReadThis = true;
   }
 
-  if (functionExists("serialize", dtMethodToken, ct, dtAny)) {
+  if (functionExists("serialize", dtMethodToken, ct, dtAny, dtAny)) {
     hasEncodeTo = true;
   }
 
@@ -1877,7 +1877,7 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
   // Keep generating the 'serialize' method so that the override versions don't
   // cause errors.
   //
-  if (makeEncodeTo && !hasEncodeTo) {
+  if (makeEncodeTo && !hasEncodeTo && ct != dtObject) {
     ArgSymbol* fileArg = NULL;
     FnSymbol* fn = buildWriteThisFnSymbol(ct, &fileArg, "serialize");
 

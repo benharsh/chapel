@@ -2484,7 +2484,8 @@ record fileReader {
   var _channel_internal:qio_channel_ptr_t = QIO_CHANNEL_PTR_NULL;
 
   pragma "no doc"
-  var _deserializer : deserializerType;
+  //var _deserializer : deserializerType;
+  var _deserializer : unmanaged _serializeWrapper?(deserializerType);
 
   // The member variable _readWriteThisFromLocale is used to support
   // writeThis needing to know where the I/O started. It is a member
@@ -2504,8 +2505,8 @@ proc fileReader.writing param: bool {
 }
 
 pragma "no doc"
-proc fileReader.deserializer const ref {
-  return _deserializer;
+proc fileReader.deserializer ref {
+  return _deserializer!.member;
 }
 
 /*
@@ -2943,10 +2944,12 @@ operator fileReader.=(ref lhs:fileReader, rhs:fileReader) {
 
   on lhs._home {
     qio_channel_release(lhs._channel_internal);
+    if lhs._deserializer != nil then delete lhs._deserializer;
   }
 
   lhs._home = rhs._home;
   lhs._channel_internal = rhs._channel_internal;
+  lhs._deserializer = new unmanaged _serializeWrapper(rhs.deserializerType, rhs.deserializer);
 }
 
 pragma "no doc"
@@ -2968,16 +2971,9 @@ operator fileWriter.=(ref lhs:fileWriter, rhs:fileWriter) {
 
 pragma "no doc"
 proc fileReader.init(param kind:iokind, param locking:bool, type deserializerType) {
-  var default : deserializerType;
-  this.init(kind, locking, default);
-}
-
-pragma "no doc"
-proc fileReader.init(param kind:iokind, param locking:bool, in deserializer:?) {
   this.kind = kind;
   this.locking = locking;
-  this.deserializerType = deserializer.type;
-  this._deserializer = deserializer;
+  this.deserializerType = deserializerType;
 }
 
 pragma "no doc"
@@ -2998,7 +2994,7 @@ proc fileReader.init=(x: fileReader) {
   this.deserializerType = x.deserializerType;
   this._home = x._home;
   this._channel_internal = x._channel_internal;
-  this._deserializer = x._deserializer;
+  this._deserializer = new unmanaged _serializeWrapper(deserializerType, x._deserializer!.member);
   this._readWriteThisFromLocale = x._readWriteThisFromLocale;
   this.complete();
   on x._home {
@@ -3041,13 +3037,13 @@ pragma "no doc"
 proc fileReader.init(param kind:iokind, param locking:bool,
                      home: locale, _channel_internal:qio_channel_ptr_t,
                      _readWriteThisFromLocale: locale,
-                     in deserializer:?) {
+                     _deserializer: unmanaged _serializeWrapper?(?dt)) {
   this.kind = kind;
   this.locking = locking;
-  this.deserializerType = deserializer.type;
+  this.deserializerType = dt;
   this._home = home;
   this._channel_internal = _channel_internal;
-  this._deserializer = deserializer;
+  this._deserializer = _deserializer;
   this._readWriteThisFromLocale = _readWriteThisFromLocale;
 }
 
@@ -3056,8 +3052,9 @@ proc fileReader.init(param kind:iokind, param locking:bool, in deserializer:?,
                      f:file, out error:errorCode, hints: ioHintSet,
                      start:int(64), end:int(64),
                      in local_style:iostyleInternal) {
-  this.init(kind, locking, deserializer);
+  this.init(kind, locking, deserializer.type);
   on f._home {
+    this._deserializer = new unmanaged _serializeWrapper(deserializer.type, deserializer);
     this._home = f._home;
     if kind != iokind.dynamic {
       local_style.binary = true;
@@ -3092,8 +3089,8 @@ proc fileWriter.init(param kind:iokind, param locking:bool, in serializer:?,
                      start:int(64), end:int(64),
                      in local_style:iostyleInternal) {
   this.init(kind, locking, serializer.type);
-  this._serializer = new unmanaged _serializeWrapper(serializer.type, serializer);
   on f._home {
+    this._serializer = new unmanaged _serializeWrapper(serializer.type, serializer);
     this._home = f._home;
     if kind != iokind.dynamic {
       local_style.binary = true;
@@ -3112,6 +3109,7 @@ proc ref fileReader.deinit() {
   on this._home {
     qio_channel_release(_channel_internal);
     this._channel_internal = QIO_CHANNEL_PTR_NULL;
+    //if _deserializer != nil then delete _deserializer;
   }
 }
 
@@ -3120,6 +3118,7 @@ proc ref fileWriter.deinit() {
   on this._home {
     qio_channel_release(_channel_internal);
     this._channel_internal = QIO_CHANNEL_PTR_NULL;
+    //if _serializer != nil then delete _serializer;
   }
 }
 
@@ -3132,7 +3131,8 @@ proc fileReader.withDeserializer(type dt) : fileReader(this.kind, this.locking, 
 
 pragma "no doc"
 proc fileReader.withDeserializer(d: ?dt) : fileReader(this.kind, this.locking, dt) {
-  var ret = new fileReader(this.kind, this.locking, d);
+  var ret = new fileReader(this.kind, this.locking, dt);
+  ret._deserializer = new unmanaged _serializeWrapper(dt, d);
   ret._channel_internal = this._channel_internal;
   ret._home = _home;
   ret._readWriteThisFromLocale = _readWriteThisFromLocale;
@@ -5285,7 +5285,7 @@ proc fileWriter._constructIoErrorMsg(param kind: iokind, const x:?t): string {
 pragma "no doc"
 proc fileReader._deserializeOne(type readType, loc:locale) throws {
   var reader = new fileReader(iokind.dynamic, locking=false,
-                              deserializer=_deserializer,
+                              _deserializer=_deserializer,
                               home=here,
                               _channel_internal=_channel_internal,
                               _readWriteThisFromLocale=loc);
@@ -5319,7 +5319,7 @@ pragma "no doc"
 proc fileReader._deserializeOne(ref x:?t, loc:locale) throws {
   // _read_one_internal
   var reader = new fileReader(iokind.dynamic, locking=false,
-                              deserializer=_deserializer,
+                              _deserializer=_deserializer,
                               home=here,
                               _channel_internal=_channel_internal,
                               _readWriteThisFromLocale=loc);
@@ -10073,7 +10073,7 @@ class _channel_regex_info {
     f.write(", ... capturei = " + capturei: string);
     f.write(", ncaptures = " + ncaptures: string + "}");
   }
-  override proc serialize(writer, ref serializer) throws {
+  proc serialize(writer, ref serializer) throws {
     writeThis(writer);
   }
 }

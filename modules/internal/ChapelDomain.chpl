@@ -2393,12 +2393,12 @@ module ChapelDomain {
     }
     pragma "no doc"
     proc serialize(writer, ref serializer) throws {
-      _value.dsiSerialWrite(writer, serializer);
+      _value.dsiSerialWrite(writer);
     }
 
     pragma "no doc"
     proc ref readThis(f) throws {
-      _value.dsiSerialRead(f, f.deserializer);
+      _value.dsiSerialRead(f);
     }
 
     // TODO: Can we convert this to an initializer despite the potential issues
