@@ -808,7 +808,8 @@ module ChapelIO {
   proc range.init(type idxType = int,
                   param bounds : boundKind = boundKind.both,
                   param stridable : bool = false,
-                  reader: fileReader(?)) {
+                  reader: fileReader(?),
+                  ref deserializer) {
     this.init(idxType, bounds, stridable);
 
     // TODO:

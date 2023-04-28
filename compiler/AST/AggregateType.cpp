@@ -2301,7 +2301,8 @@ void AggregateType::buildReaderInitializer() {
     ArgSymbol* _mt   = new ArgSymbol(INTENT_BLANK, "_mt",  dtMethodToken);
     ArgSymbol* _this = new ArgSymbol(INTENT_BLANK, "this", this);
 
-    ArgSymbol* reader = new ArgSymbol(INTENT_BLANK, "chpl__reader", dtAny);
+    ArgSymbol* reader = new ArgSymbol(INTENT_BLANK, "reader", dtAny);
+    ArgSymbol* deser  = new ArgSymbol(INTENT_REF, "deserializer", dtAny);
 
     // TODO: Can we avoid the where-clause with an import in ChapelIO?
     //   import IO.fileReader as chpl__fileReader
@@ -2320,7 +2321,7 @@ void AggregateType::buildReaderInitializer() {
     fn->insertFormalAtTail(_mt);
     fn->insertFormalAtTail(_this);
     fn->insertFormalAtTail(reader);
-
+    fn->insertFormalAtTail(deser);
 
     if (this->isUnion() == false) {
       std::set<const char*> names;
@@ -2330,23 +2331,18 @@ void AggregateType::buildReaderInitializer() {
       // for compatibility with the new-expression-type-alias feature, in
       // which instantiated fields are passed to this initializer with
       // named-expressions.
-      if (handleSuperFields(fn, names, fieldArgMap, reader) == true) {
-
-        VarSymbol* formatter = newTemp("_fmt", QualifiedType(QUAL_REF, dtUnknown));
-        formatter->addFlag(FLAG_REF_VAR);
-        CallExpr* getFormatter = new CallExpr(".", reader, new_CStringSymbol("deserializer"));
+      if (handleSuperFields(fn, names, fieldArgMap, reader, deser) == true) {
 
         auto startKind = this->isClass() ? "startClass" : "startRecord";
-        CallExpr* readStart = new CallExpr(startKind, gMethodToken, formatter,
+        CallExpr* readStart = new CallExpr(startKind, gMethodToken, deser,
                                            reader, new_IntSymbol(numIOFields(this)));
         fn->insertAtHead(readStart);
-        fn->insertAtHead(new DefExpr(formatter, getFormatter));
 
         // Parent fields before child fields
-        fieldToArg(fn, names, fieldArgMap, reader, formatter);
+        fieldToArg(fn, names, fieldArgMap, reader, deser);
 
         auto endKind = this->isClass() ? "endClass" : "endRecord";
-        CallExpr* readEnd = new CallExpr(endKind, gMethodToken, formatter,
+        CallExpr* readEnd = new CallExpr(endKind, gMethodToken, deser,
                                          reader);
         fn->insertAtTail(readEnd);
 
@@ -2376,8 +2372,12 @@ void AggregateType::buildReaderInitializer() {
       }
     }
 
+    // TODO: currently need to juggle these formals around while other things
+    // are inserted. Can we avoid these touch-ups?
     reader->defPoint->remove();
     fn->insertFormalAtTail(reader);
+    deser->defPoint->remove();
+    fn->insertFormalAtTail(deser);
 
     builtReaderInit = true;
   }
@@ -2387,7 +2387,7 @@ void AggregateType::fieldToArg(FnSymbol*              fn,
                                std::set<const char*>& names,
                                SymbolMap&             fieldArgMap,
                                ArgSymbol*             fileReader,
-                               VarSymbol*             formatter) {
+                               ArgSymbol*             formatter) {
   bool isReaderInit = (fileReader != nullptr);
   for_fields(fieldDefExpr, this) {
     SET_LINENO(fieldDefExpr);
@@ -2555,7 +2555,8 @@ void AggregateType::fieldToArgType(DefExpr* fieldDef, ArgSymbol* arg) {
 bool AggregateType::handleSuperFields(FnSymbol*                    fn,
                                       const std::set<const char*>& names,
                                       SymbolMap& fieldArgMap,
-                                      ArgSymbol* fileReader) {
+                                      ArgSymbol* fileReader,
+                                      ArgSymbol* deser) {
   bool retval = true;
 
   // Lydia NOTE 06/16/17: be sure to avoid applying this to tuples, too!
@@ -2623,7 +2624,8 @@ bool AggregateType::handleSuperFields(FnSymbol*                    fn,
         }
 
         if (fileReader != nullptr) {
-          superCall->insertAtTail(new SymExpr(fileReader));
+          superCall->insertAtTail(new NamedExpr("reader", new SymExpr(fileReader)));
+          superCall->insertAtTail(new NamedExpr("deserializer", new SymExpr(deser)));
         }
 
       }

@@ -2833,7 +2833,8 @@ record DefaultDeserializer {
       // false.
       return readType.deserializeFrom(reader.withDeserializer(new DefaultDeserializer()));
     } else {
-      return new readType(reader.withDeserializer(new DefaultDeserializer()));
+      var alias = reader.withDeserializer(new DefaultDeserializer());
+      return new readType(reader=alias, deserializer=alias.deserializer);
     }
   }
 

@@ -242,7 +242,8 @@ module ChplFormat {
                 isArrayType(readType) {
         return readType.deserializeFrom(reader.withDeserializer(new ChplDeserializer(_typename=readType:string)));
       } else {
-        return new readType(reader.withDeserializer(new ChplDeserializer(_typename=readType:string)));
+        var alias = reader.withDeserializer(new ChplDeserializer(_typename=readType:string));
+        return new readType(reader=alias, deserializer=alias.deserializer);
       }
     }
 

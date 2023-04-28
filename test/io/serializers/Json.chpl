@@ -273,7 +273,8 @@ module Json {
                 isArrayType(readType) {
         return readType.deserializeFrom(reader.withDeserializer(new JsonDeserializer()));
       } else {
-        return new readType(reader.withDeserializer(new JsonDeserializer()));
+        var alias = reader.withDeserializer(new JsonDeserializer());
+        return new readType(reader=alias, deserializer=alias.deserializer);
       }
     }
 

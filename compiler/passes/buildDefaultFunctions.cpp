@@ -1772,7 +1772,7 @@ FnSymbol* buildWriteThisFnSymbol(AggregateType* ct, ArgSymbol** filearg, const c
 
   fn->addFlag(FLAG_COMPILER_GENERATED);
   fn->addFlag(FLAG_LAST_RESORT);
-  if (ct->isClass() && ct != dtObject && ct->inherits.length != 0)
+  if (ct->isClass() && ct != dtObject && ct->dispatchParents.only() != dtObject)
     fn->addFlag(FLAG_OVERRIDE);
   else
     fn->addFlag(FLAG_INLINE);

@@ -11,7 +11,8 @@ record R {
     this.y = y;
   }
 
-  proc init(r: fileReader) {
+  proc init(reader: fileReader, ref deserializer) {
+    const ref r = reader;
     ref fmt = r.deserializer;
     fmt.startRecord(r, 2);
     this.x = fmt.deserializeField(r, "x", int);
@@ -38,9 +39,10 @@ record G {
     this.y = y;
   }
 
-  proc init(type A, type B, r: fileReader) {
+  proc init(type A, type B, reader: fileReader, ref deserializer) {
     this.A = A;
     this.B = B;
+    const ref r = reader;
     ref fmt = r.deserializer;
     fmt.startRecord(r, 2);
     this.x = fmt.deserializeField(r, "x", A);
@@ -60,7 +62,8 @@ class Parent {
   proc init(x: int = 0) {
     this.x = x;
   }
-  proc init(r: fileReader) {
+  proc init(reader: fileReader, ref deserializer) {
+    const ref r = reader;
     ref fmt = r.deserializer;
     fmt.startClass(r, 1);
     this.x = fmt.deserializeField(r, "x", int);
@@ -85,10 +88,11 @@ class Child : Parent {
     super.init(x);
     this.y = y;
   }
-  proc init(r: fileReader) {
+  proc init(reader: fileReader, ref deserializer) {
+    const ref r = reader;
     ref fmt = r.deserializer;
     fmt.startClass(r, 1);
-    super.init(r);
+    super.init(r, deserializer);
     this.y = fmt.deserializeField(r, "y", real);
     fmt.endClass(r);
   }

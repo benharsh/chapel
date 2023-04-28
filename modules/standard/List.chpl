@@ -1827,12 +1827,12 @@ module List {
     // TODO: rewrite to use formatter interface
     //
     pragma "no doc"
-    proc init(type eltType, param parSafe : bool, r: fileReader) throws {
+    proc init(type eltType, param parSafe : bool, reader: fileReader, ref deserializer) throws {
       this.init(eltType, parSafe);
       // TODO: a couple of silly initializer things I noticed:
       // - why can't we have a try with a catch? probably old rule...
       // - still some error that says we can't have throws stmts...
-      _readHelper(r);
+      _readHelper(reader);
     }
 
     proc _readHelper(r: fileReader(deserializerType=DefaultDeserializer)) throws {

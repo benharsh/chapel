@@ -202,7 +202,8 @@ module BinaryIO {
                 isArrayType(readType) {
         return readType.deserializeFrom(reader.withDeserializer(_fork()));
       } else {
-        return new readType(reader.withDeserializer(_fork()));
+        var alias = reader.withDeserializer(_fork());
+        return new readType(reader=alias, deserializer=alias.deserializer);
       }
     }
 

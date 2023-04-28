@@ -678,16 +678,18 @@ module Map {
     // TODO: rewrite to use formatter interface
     //
     pragma "no doc"
-    proc init(type keyType, type valType, r: fileReader) throws {
+    proc init(type keyType, type valType,
+              reader: fileReader, ref deserializer) throws {
       this.init(keyType, valType, parSafe);
-      _readHelper(r);
+      _readHelper(reader);
     }
 
     pragma "no doc"
     @unstable("'Map.parSafe' is unstable")
-    proc init(type keyType, type valType, param parSafe, r: fileReader) throws {
+    proc init(type keyType, type valType, param parSafe,
+              reader: fileReader, ref deserializer) throws {
       this.init(keyType, valType, parSafe);
-      _readHelper(r);
+      _readHelper(reader);
     }
 
     /*
