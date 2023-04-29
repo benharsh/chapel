@@ -8422,6 +8422,11 @@ proc fileReader.readlnHelper(ref args ...?k,
 proc fileReader.read(type t) throws {
   const origLocale = this.getLocaleOfIoRequest();
 
+  // TODO: can't return an array here because 'ret' is RVF'd across the locale,
+  // which means we're not 'move'-ing into a reference. Most likely need to
+  // create a pointer to 'ret' and do some kind of chpl_comm_put. Also probably
+  // need to make it a specialized function to avoid issues with other types,
+  // like 'nothing'. Either that or make 'nothing' its own thing.
   pragma "no init"
   var ret : t;
 
