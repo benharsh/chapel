@@ -16,9 +16,6 @@ module ChplFormat {
     var _arrayFirst : list(bool);
     var _typename : string;
 
-    proc type isBinary() param : bool do return false;
-    proc isBinary() param : bool do return false;
-
     // TODO: rewrite in terms of writef, or something
     proc _oldWrite(ch: _writeType, const val:?t) throws {
       var _def = new DefaultSerializer();
@@ -198,9 +195,6 @@ module ChplFormat {
     var _arrayDim = 0;
     var _arrayMax = 0;
     var _arrayFirst : list(bool);
-
-    proc type isBinary() param : bool do return false;
-    proc isBinary() param : bool do return false;
 
     // TODO: rewrite in terms of writef, or something
     proc _oldRead(ch: _readerT, ref val:?t) throws {

@@ -49,7 +49,7 @@ module FormatHelper {
     writeln("===== writing: =====");
     stdout.writeln(val);
     writeln("--------------------");
-    if FormatWriter.isBinary() {
+    if format == FormatKind.little || format == FormatKind.big {
       var f = openMemFile();
       {
         var w = f.writer();

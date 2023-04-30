@@ -2613,9 +2613,6 @@ record DefaultSerializer {
   var _arrayMax : int;
   var _curSize : int;
 
-  proc type isBinary() param : bool do return false;
-  proc isBinary() param : bool do return false;
-
   proc _serializeClassOrPtr(writer:fileWriter, x: ?t) : void throws {
     if x == nil {
       writer._writeLiteral("nil");
@@ -2810,9 +2807,6 @@ record DefaultDeserializer {
   var _inheritLevel = 0;
   var _arrayDim = 0;
   var _arrayMax : int;
-
-  proc type isBinary() param : bool do return false;
-  proc isBinary() param : bool do return false;
 
   proc deserialize(reader:fileReader, type readType) : readType throws {
     if isNilableClassType(readType) {

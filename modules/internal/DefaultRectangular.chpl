@@ -1777,13 +1777,17 @@ module DefaultRectangular {
     recursiveArrayReaderWriter(zeroTup);
   }
 
-  proc _isBinary(f) param : bool {
-    if f.writing then return f.serializer.isBinary();
-    else return f.deserializer.isBinary();
+  proc _supportsBulkElements(f, arr) param : bool {
+    use Reflection;
+    var temp : c_ptr(arr.eltType);
+    if f.writing then
+      return Reflection.canResolveMethod(f.serializer, "writeBulkElements", f, temp);
+    else
+      return Reflection.canResolveMethod(f.deserializer, "readBulkElements", f, temp);
   }
 
   proc _readWriteHelper(f, arr, dom) throws
-  where _isBinary(f) {
+  where _supportsBulkElements(f, arr) {
     ref fmt = if f.writing then f.serializer else f.deserializer;
 
     if f.writing then
@@ -1791,15 +1795,11 @@ module DefaultRectangular {
     else
       fmt.readArrayStart(f);
 
+    var ptr = c_ptrTo(arr.dsiAccess(dom.dsiFirst));
     if f.writing {
-      for (i, val) in zip(dom, arr) {
-        fmt.writeArrayElement(f, none, val);
-      }
+      fmt.writeBulkElements(f, ptr);
     } else {
-      for i in dom {
-        const (_, readElt) = fmt.readArrayElement(f, nothing, arr.eltType);
-        arr.dsiAccess(i) = readElt;
-      }
+      fmt.readBulkElements(f, ptr);
     }
 
     if f.writing then

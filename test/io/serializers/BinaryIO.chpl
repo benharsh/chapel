@@ -32,9 +32,7 @@ module BinaryIO {
 
   record BinarySerializer {
     const endian : IO.ioendian = IO.ioendian.native;
-
-    proc type isBinary() param : bool do return true;
-    proc isBinary() param : bool do return true;
+    var _size: uint;
 
     proc _fork() {
       return new BinarySerializer(endian=endian);
@@ -114,6 +112,7 @@ module BinaryIO {
 
     proc writeArrayStart(w: _writeType, size: uint) throws {
       w.write(size);
+      _size = size;
     }
 
     // TODO: I sort of feel like we should print associative arrays/domains as
@@ -121,6 +120,11 @@ module BinaryIO {
     proc writeArrayElement(w: _writeType, const idx: ?, const val: ?) throws {
       w.write(idx);
       w.write(val);
+    }
+
+    proc writeBulkElements(w: _writeType, data: c_ptr(?eltType)) throws {
+      const n = c_sizeof(eltType)*_size;
+      w.writeBinary(data, n.safeCast(int));
     }
 
     proc writeArrayEnd(w: _writeType) throws {
@@ -132,6 +136,7 @@ module BinaryIO {
 
     proc writeMapStart(w: _writeType, size: uint) throws {
       w.write(size);
+      _size = size;
     }
 
     proc writeMapPair(w: _writeType, const key: ?, const val: ?) throws {
@@ -153,9 +158,6 @@ module BinaryIO {
       this.endian = endian;
       this.complete();
     }
-
-    proc type isBinary() param : bool do return true;
-    proc isBinary() param : bool do return true;
 
     proc _fork() {
       return new BinaryDeserializer(endian=endian);
@@ -251,6 +253,13 @@ module BinaryIO {
 
       _numElements -= 1;
       return (r.read(idxType), r.read(eltType));
+    }
+
+    proc readBulkElements(r: fileReader, data: c_ptr(?eltType)) throws {
+      const n = c_sizeof(eltType)*_numElements;
+      const got = r.readBinary(data, n.safeCast(int));
+      if got < n then throw new UnexpectedEofError();
+      else _numElements = 0;
     }
 
     proc readArrayEnd(r: fileReader) throws {
