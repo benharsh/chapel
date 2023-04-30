@@ -238,9 +238,10 @@ module ChplFormat {
       } else if isEnumType(readType) {
         var ret = reader.withDeserializer(DefaultDeserializer).read(readType);
         return ret;
-      } else if canResolveTypeMethod(readType, "deserializeFrom", reader) ||
+      } else if canResolveTypeMethod(readType, "deserializeFrom", reader, this) ||
                 isArrayType(readType) {
-        return readType.deserializeFrom(reader.withDeserializer(new ChplDeserializer(_typename=readType:string)));
+        var alias = reader.withDeserializer(new ChplDeserializer(_typename=readType:string));
+        return readType.deserializeFrom(reader=alias, deserializer=alias.deserializer);
       } else {
         var alias = reader.withDeserializer(new ChplDeserializer(_typename=readType:string));
         return new readType(reader=alias, deserializer=alias.deserializer);

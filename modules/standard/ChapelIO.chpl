@@ -645,9 +645,9 @@ module ChapelIO {
   }
 
   pragma "no doc"
-  proc type chpl_taskID_t.deserializeFrom(f) throws {
+  proc type chpl_taskID_t.deserializeFrom(reader, ref deserializer) throws {
     var ret : chpl_taskID_t;
-    ret.readThis(f);
+    ret.readThis(reader);
     return ret;
   }
 
@@ -720,8 +720,9 @@ module ChapelIO {
     }
   }
 
-  proc type _tuple.deserializeFrom(f) throws {
-    ref fmt = f.deserializer;
+  proc type _tuple.deserializeFrom(reader, ref deserializer) throws {
+    const ref f = reader;
+    ref fmt = deserializer;
     pragma "no init"
     var ret : this;
     fmt.startTuple(f, this.size);

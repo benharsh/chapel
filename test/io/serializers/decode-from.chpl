@@ -8,8 +8,8 @@ record R {
     writer.write(x);
   }
 
-  proc type deserializeFrom(r: fileReader) {
-    return new R(r.read(int));
+  proc type deserializeFrom(reader: fileReader, ref deserializer) {
+    return new R(reader.read(int));
   }
 }
 
@@ -20,9 +20,9 @@ record G {
     writer.write(x);
   }
 
-  proc type deserializeFrom(r: fileReader) {
+  proc type deserializeFrom(reader: fileReader, ref deserializer) {
     type fieldType = __primitive("field by num", this, 1);
-    return new G(r.read(fieldType));
+    return new G(reader.read(fieldType));
   }
 }
 
@@ -35,11 +35,11 @@ class C {
     writer.writeLiteral(">");
   }
 
-  proc type deserializeFrom(r: fileReader) {
+  proc type deserializeFrom(reader: fileReader, ref deserializer) {
     type retType = this;
-    r.readLiteral("<");
-    var ret = new retType(r.read(int));
-    r.readLiteral(">");
+    reader.readLiteral("<");
+    var ret = new retType(reader.read(int));
+    reader.readLiteral(">");
     return ret;
   }
 

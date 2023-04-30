@@ -2826,12 +2826,13 @@ record DefaultDeserializer {
       var x : readType;
       reader._readOne(reader.kind, x, here);
       return x;
-    } else if canResolveTypeMethod(readType, "deserializeFrom", reader) ||
+    } else if canResolveTypeMethod(readType, "deserializeFrom", reader, this) ||
               isArrayType(readType) {
       // Always run 'deserializeFrom' on arrays, for now, to work around issues
       // where a compilerError might cause 'canResolveTypeMethod' to return
       // false.
-      return readType.deserializeFrom(reader.withDeserializer(new DefaultDeserializer()));
+      var alias = reader.withDeserializer(new DefaultDeserializer());
+      return readType.deserializeFrom(reader=alias, deserializer=alias.deserializer);
     } else {
       var alias = reader.withDeserializer(new DefaultDeserializer());
       return new readType(reader=alias, deserializer=alias.deserializer);

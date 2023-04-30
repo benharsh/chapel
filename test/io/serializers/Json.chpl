@@ -269,9 +269,10 @@ module Json {
         var ret = reader.withDeserializer(DefaultDeserializer).read(readType);
         reader.readLiteral('"');
         return ret;
-      } else if canResolveTypeMethod(readType, "deserializeFrom", reader) ||
+      } else if canResolveTypeMethod(readType, "deserializeFrom", reader, this) ||
                 isArrayType(readType) {
-        return readType.deserializeFrom(reader.withDeserializer(new JsonDeserializer()));
+        var alias = reader.withDeserializer(new JsonDeserializer());
+        return readType.deserializeFrom(reader=alias, deserializer=alias.deserializer);
       } else {
         var alias = reader.withDeserializer(new JsonDeserializer());
         return new readType(reader=alias, deserializer=alias.deserializer);
