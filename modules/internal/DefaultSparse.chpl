@@ -570,7 +570,7 @@ module DefaultSparse {
   }
 
 
-  proc DefaultSparseDom.dsiSerialWrite(f, ref serializer, printBrackets=true) throws {
+  proc DefaultSparseDom.dsiSerialWrite(f, printBrackets=true) throws {
     if (rank == 1) {
       if printBrackets then f.write("{");
       if (_nnz >= 1) {
@@ -599,7 +599,7 @@ module DefaultSparse {
   }
 
 
-  proc DefaultSparseArr.dsiSerialWrite(f, ref serializer) throws {
+  proc DefaultSparseArr.dsiSerialWrite(f) throws {
     if (rank == 1) {
       if (dom._nnz >= 1) {
         f.write(data(0));

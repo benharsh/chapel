@@ -3069,7 +3069,7 @@ pragma "no doc"
 proc fileWriter.init(param kind:iokind, param locking:bool,
                      home: locale, _channel_internal:qio_channel_ptr_t,
                      _readWriteThisFromLocale: locale,
-                     _serializer: unmanaged _serializeWrapper?(?st)) {
+                     _serializer: unmanaged _serializeWrapper(?st)?) {
   this.kind = kind;
   this.locking = locking;
   this.serializerType = st;
@@ -4420,7 +4420,7 @@ proc openReader(path:string,
                 in deserializer: ?dt = defaultSerializeVal(false))
     : fileReader(kind, locking, dt) throws where (!region.hasHighBound() ||
                                               useNewOpenReaderRegionBounds) {
-  return openReaderHelper(path, kind, locking, region, hints, deserializer);
+  return openReaderHelper(path, kind, locking, region, hints, deserializer=deserializer);
 }
 
 @deprecated(notes="openreader is deprecated - please use :proc:`openReader` instead")
@@ -5489,8 +5489,9 @@ private proc _read_one_internal(_channel_internal:qio_channel_ptr_t,
   // Create a new fileReader that borrows the pointer in the
   // existing fileReader so we can avoid locking (because we
   // already have the lock)
+  var temp : unmanaged _serializeWrapper?(nothing);
   var reader = new fileReader(iokind.dynamic, locking=false,
-                              deserializer=defaultSerializeVal(false),
+                              _deserializer=temp,
                               home=here,
                               _channel_internal=_channel_internal,
                               _readWriteThisFromLocale=loc);
@@ -5541,8 +5542,9 @@ private proc _write_one_internal(_channel_internal:qio_channel_ptr_t,
   // Create a new fileWriter that borrows the pointer in the
   // existing fileWriter so we can avoid locking (because we
   // already have the lock)
+  var temp : unmanaged _serializeWrapper?(nothing);
   var writer = new fileWriter(iokind.dynamic, locking=false,
-                              serializer=defaultSerializeVal(true),
+                              _serializer=temp,
                               home=here,
                               _channel_internal=_channel_internal,
                               _readWriteThisFromLocale=loc);
