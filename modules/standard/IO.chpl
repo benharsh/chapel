@@ -3105,7 +3105,7 @@ proc ref fileReader.deinit() {
   on this._home {
     qio_channel_release(_channel_internal);
     this._channel_internal = QIO_CHANNEL_PTR_NULL;
-    //if _deserializer != nil then delete _deserializer;
+    if _deserializer != nil then delete _deserializer;
   }
 }
 
@@ -3114,7 +3114,7 @@ proc ref fileWriter.deinit() {
   on this._home {
     qio_channel_release(_channel_internal);
     this._channel_internal = QIO_CHANNEL_PTR_NULL;
-    //if _serializer != nil then delete _serializer;
+    if _serializer != nil then delete _serializer;
   }
 }
 
@@ -5285,7 +5285,8 @@ proc fileReader._deserializeOne(type readType, loc:locale) throws {
                               home=here,
                               _channel_internal=_channel_internal,
                               _readWriteThisFromLocale=loc);
-  defer { reader._channel_internal = QIO_CHANNEL_PTR_NULL; }
+  defer { reader._channel_internal = QIO_CHANNEL_PTR_NULL;
+          reader._deserializer = nil; }
 
   if isGenericType(readType) then
     compilerError("reading generic types is not supported: '" + readType:string + "'");
@@ -5319,7 +5320,8 @@ proc fileReader._deserializeOne(ref x:?t, loc:locale) throws {
                               home=here,
                               _channel_internal=_channel_internal,
                               _readWriteThisFromLocale=loc);
-  defer { reader._channel_internal = QIO_CHANNEL_PTR_NULL; }
+  defer { reader._channel_internal = QIO_CHANNEL_PTR_NULL;
+          reader._deserializer = nil; }
 
   if t == ioLiteral || t == ioNewline || t == _internalIoBits || t == _internalIoChar {
     reader._readOne(reader.kind, x, reader.getLocaleOfIoRequest());
