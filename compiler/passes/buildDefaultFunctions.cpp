@@ -1768,20 +1768,23 @@ static bool inheritsFromError(Type* t) {
 
 // common code to create a writeThis() function without filling in the body
 FnSymbol* buildWriteThisFnSymbol(AggregateType* ct, ArgSymbol** filearg, const char* name) {
+  bool isSerialize = strcmp(name, "serialize") == 0;
   FnSymbol* fn = new FnSymbol(name);
 
   fn->addFlag(FLAG_COMPILER_GENERATED);
   fn->addFlag(FLAG_LAST_RESORT);
-  if (ct->isClass() && ct != dtObject && ct->dispatchParents.only() != dtObject)
-    fn->addFlag(FLAG_OVERRIDE);
-  else
+  if (ct->isClass() && ct != dtObject) {
+    bool skipOverride = isSerialize && ct->dispatchParents.only() == dtObject;
+    if (!skipOverride)
+      fn->addFlag(FLAG_OVERRIDE);
+  } else {
     fn->addFlag(FLAG_INLINE);
+  }
 
   fn->cname = astr("_auto_", ct->symbol->name, "_write");
   fn->_this = new ArgSymbol(INTENT_BLANK, "this", ct);
   fn->_this->addFlag(FLAG_ARG_THIS);
 
-  bool isSerialize = strcmp(name, "serialize") == 0;
   ArgSymbol* fileArg = new ArgSymbol(INTENT_BLANK, isSerialize ? "writer" : "f", dtAny);
   *filearg = fileArg;
 
