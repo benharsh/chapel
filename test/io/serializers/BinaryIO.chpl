@@ -4,6 +4,7 @@ module BinaryIO {
   private use CTypes;
   private use Map;
   private use List;
+  private use Types;
 
   // Question:
   // - should we implement these things in a single type for brevity?
@@ -118,12 +119,15 @@ module BinaryIO {
     // TODO: I sort of feel like we should print associative arrays/domains as
     // proper json maps, rather than an array of elements.....
     proc writeArrayElement(w: _writeType, const idx: ?, const val: ?) throws {
+      // TODO: validate number of elements being written...
       w.write(idx);
       w.write(val);
     }
 
-    proc writeBulkElements(w: _writeType, data: c_ptr(?eltType)) throws {
-      const n = c_sizeof(eltType)*_size;
+    proc writeBulkElements(w: _writeType, data: c_ptr(?eltType), numElements: uint) throws
+    where isNumericType(eltType) {
+      if numElements > _size then throw new IllegalArgumentError("len", "Cannot write more elements than specified in 'writeArrayStart'");
+      const n = c_sizeof(eltType)*numElements;
       w.writeBinary(data, n.safeCast(int));
     }
 
@@ -243,27 +247,28 @@ module BinaryIO {
     //   - idea: serialize into internal buffer, count calls, then actually write things
     // - TODO: check size mismatches
     proc readArrayStart(r: fileReader) throws {
-      _sizeKnown = true;
       _numElements = r.read(uint);
+      _sizeKnown = _numElements != 0;
     }
 
     proc readArrayElement(r: fileReader, type idxType, type eltType) throws {
-      if _numElements <= 0 then
+      if _sizeKnown && _numElements <= 0 then
         throw new BadFormatError("no more array elements remain!");
 
-      _numElements -= 1;
+      if _sizeKnown then _numElements -= 1;
       return (r.read(idxType), r.read(eltType));
     }
 
-    proc readBulkElements(r: fileReader, data: c_ptr(?eltType)) throws {
-      const n = c_sizeof(eltType)*_numElements;
+    proc readBulkElements(r: fileReader, data: c_ptr(?eltType), numElements: uint) throws
+    where isNumericType(eltType) {
+      const n = c_sizeof(eltType)*numElements;
       const got = r.readBinary(data, n.safeCast(int));
       if got < n then throw new UnexpectedEofError();
-      else _numElements = 0;
+      else _numElements -= numElements;
     }
 
     proc readArrayEnd(r: fileReader) throws {
-      if _numElements != 0 then
+      if _sizeKnown && _numElements != 0 then
         throw new Error("failed to read all expected elements in array!");
     }
 
