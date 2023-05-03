@@ -10720,7 +10720,11 @@ proc fileWriter._writefOne(fmtStr, ref arg, i: int,
         // a regex. So we just don't handle it.
         err = qio_format_error_write_regex();
       } when QIO_CONV_ARG_TYPE_REPR {
-        try _writeOne(iokind.dynamic, arg, origLocale);
+        if chpl_useIOSerializers {
+          try _serializeOne(arg, origLocale);
+        } else {
+          try _writeOne(iokind.dynamic, arg, origLocale);
+        }
       } otherwise {
         // Unhandled argument type!
         throw new owned IllegalArgumentError("args(" + i:string + ")",
