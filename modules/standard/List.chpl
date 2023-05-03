@@ -1852,7 +1852,7 @@ module List {
         try {
           // read an element
           pragma "no auto destroy"
-          var (readIdx, elt) = fmt.readArrayElement(r, int, eltType);
+          var (readIdx, elt) = fmt.readArrayElement(r, nothing, eltType);
           // TODO: what if we got an index???
           _appendByRef(elt);
         } catch {
