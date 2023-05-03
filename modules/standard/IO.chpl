@@ -2484,7 +2484,6 @@ record fileReader {
   var _channel_internal:qio_channel_ptr_t = QIO_CHANNEL_PTR_NULL;
 
   pragma "no doc"
-  //var _deserializer : deserializerType;
   var _deserializer : unmanaged _serializeWrapper?(deserializerType);
 
   // The member variable _readWriteThisFromLocale is used to support
@@ -2550,7 +2549,6 @@ record fileWriter {
   var _channel_internal:qio_channel_ptr_t = QIO_CHANNEL_PTR_NULL;
 
   pragma "no doc"
-  //var _serializer : serializerType;
   var _serializer : unmanaged _serializeWrapper?(serializerType);
 
   // The member variable _readWriteThisFromLocale is used to support
@@ -2692,10 +2690,8 @@ record DefaultSerializer {
       w._writeLiteral(")");
   }
 
-  // TODO: Should we support an optional 'size' field on the *Start methods
-  // in order to more easily support common binary IO patterns?
-  // TODO: what should we do for sparse arrays? The current format is kind of
-  // weird. I'd personally lean towards doing a " => " pattern...
+  // BHARSH TODO: what should we do for sparse arrays? The current format is
+  // kind of weird. I'd personally lean towards doing a " => " pattern...
   proc writeArrayStart(w: fileWriter, _size : uint = 0) throws {
     _arrayDim += 1;
     if _arrayMax >= _arrayDim {
@@ -2712,15 +2708,6 @@ record DefaultSerializer {
       firstField = false;
     w.write(val);
   }
-
-  // TODO: should we have some kind of procs or args that relate to the
-  // beginning or end of a dimension?
-
-  // TODO: 'writeArrayElementPair' ???
-  // We've decided to print out associative arrays like [1 => lb
-  // Or should 'writeArrayElements' just take an index, just in case???
-  //   - would this have any negative perf effects for rectangular arrays?
-  // Note: we might want/need this for sparse arrays too, so....
 
   proc writeArrayEnd(w: fileWriter) throws {
     _arrayDim -= 1;
@@ -2748,17 +2735,9 @@ record DefaultSerializer {
     w._writeLiteral(" }");
   }
 
-  // TODO: do we need to support something for domains as well?
-  // TODO: maybe for some types we should have a way of just saying something
-  // like "idk, put this in a string for the given format..."
-  // - or maybe the opposite: opt-into formatter-exclusive stuff?
-  // - and otherwise it all gets put into a string?
-  //
-  // TODO: should we have an argument for implementors to call 'serialize'
-  // that says "no, really, do your own thing"
-  //
-  // TODO: Should we have a way of checking to see if 'serialize' resolves?
-  // - if it doesn't, the formatter should fall back onto something...?
+  // TODO: How should we handle types that don't have a format-specific
+  // representation, like domains or ranges? Is there a way we can determine
+  // that such types should just be printed inside a string for compatibility?
 }
 
 
@@ -2871,18 +2850,9 @@ record DefaultDeserializer {
     r.readLiteral(")");
   }
 
-  // What's the story for resizing arrays in 2.0? Do we have one? If not,
+  // TODO: What's the story for resizing arrays in 2.0? Do we have one? If not,
   // does that suggest anything about the stability of this part of the
   // interface?
-  //
-  // I mean, does it make sense to even stabilize this before we stabilize
-  // aspects of the DSI interface?
-  //
-  // Well, I guess it does make sense to have these, but maybe they don't
-  // need to be super complicated and can just do like 1D stuff by default.
-  //
-  // The serializer can handle arrays directly (bypassing DSI/serialize stuff)
-  // with special cases...?
   proc readArrayStart(r: fileReader) throws {
     _arrayDim += 1;
     if _arrayMax >= _arrayDim {
@@ -2893,10 +2863,8 @@ record DefaultDeserializer {
   }
 
   // TODO: should this be defined to return a tuple of (idxType, eltType) ?
-  // Answer: no, because CHPL format wants to read the return type, so we
-  // can't always return 'none' for a particular format. I think it's OK
-  // for a type to pass in 'nothing' as the idxType though... - that should
-  // take care of things.
+  // Or can we indicate that this format doesn't support array indices by
+  // returning (nothing, eltType)?
   proc readArrayElement(r: fileReader, type idxType, type eltType) throws {
     if !firstField then
       r._readLiteral(" ");

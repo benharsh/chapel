@@ -1845,10 +1845,6 @@ module DefaultRectangular {
       type strType = idxSignedType;
       var makeStridePositive = if dom.dsiDim(dim).stride > 0 then 1:strType else (-1):strType;
 
-      // 1) start with the format you want for the 1D case
-      // 2) then write an 'array' of that output, with suitable separators
-      //    for each greater dimension
-
       if isjson || ischpl {
         if dim != rank-1 {
           rwLiteral("[\n");
