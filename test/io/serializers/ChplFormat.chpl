@@ -35,9 +35,6 @@ module ChplFormat {
     proc serialize(writer: _writeType, const x:?t) throws {
       if t == string  || isEnumType(t) || t == bytes {
         _oldWrite(writer, x);
-        //writer.writeLiteral('"');
-        //writer.withSerializer(DefaultSerializer).write(x);
-        //writer.writeLiteral('"');
       } else if isNumericType(t) || isBoolType(t) {
         _oldWrite(writer, x);
       } else if isClassType(t) {
@@ -67,6 +64,9 @@ module ChplFormat {
     }
 
     // TODO: How should generic types be printed?
+    // - 'new G(int,real)(5, 42.0)' vs 'new G(int, real, 5, 42.0)'
+    // - is the latter even possible?
+    // TODO: Should the name be an argument to 'startClass', etc?
     proc startClass(writer: _writeType, size: int) throws {
       if _inheritLevel == 0 {
         writer._writeLiteral("new ");
@@ -100,8 +100,6 @@ module ChplFormat {
       writer.writeLiteral(")");
     }
 
-    // TODO: I think we should just embed some kind of dimensionality into
-    // this. If people want a 1D thing then that will be easy.
     proc writeArrayStart(w: _writeType, _size:uint = 0) throws {
       _arrayDim += 1;
       if _arrayFirst.size < _arrayDim {
@@ -123,8 +121,6 @@ module ChplFormat {
       w._writeLiteral("[");
     }
 
-    // TODO: I sort of feel like we should print associative arrays/domains as
-    // proper json maps, rather than an array of elements.....
     proc writeArrayElement(w: _writeType, const idx: ?, const val: ?) throws {
       if !firstField then
         w._writeLiteral(", ");
@@ -217,16 +213,12 @@ module ChplFormat {
         return nil:readType;
       }
 
-      // TODO:
-      // - escaped strings
-      // - arrays/lists
       if isNumericType(readType) || isBoolType(readType) {
         var x : readType;
         reader._readOne(reader.kind, x, here);
         return x;
       } else if isStringType(readType) {
         var tmp : readType;
-        //reader.readf("%{\"S\"}", tmp);
         _oldRead(reader, tmp);
         return tmp;
       } else if isEnumType(readType) {
@@ -325,9 +317,6 @@ module ChplFormat {
         r._readLiteral(" " * (_arrayDim-1));
       }
 
-      // Don't need to read the newline and pretty-printed spaces, as JSON
-      // arrays can come in other forms. Relies on 'readLiteral' ignoring
-      // whitespace by default.
       r._readLiteral("]");
 
       if _arrayDim < _arrayFirst.size then
@@ -341,7 +330,6 @@ module ChplFormat {
       r._readLiteral("{");
     }
 
-    // TODO: don't need to always read the spaces after commas...
     proc readMapPair(r: fileReader, type keyType, type valType) throws {
       if !firstField {
         r._readLiteral(",");

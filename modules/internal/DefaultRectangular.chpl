@@ -1758,7 +1758,6 @@ module DefaultRectangular {
       else
         fmt.readArrayStart(f);
 
-      // TODO: test for column-major ordering
       // The simple 1D case
       if dim == rank-1 {
         for j in dom.dsiDim(dim) by makeStridePositive {

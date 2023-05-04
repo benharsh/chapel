@@ -93,8 +93,6 @@ module Json {
       writer.writeLiteral("]");
     }
 
-    // TODO: I think we should just embed some kind of dimensionality into
-    // this. If people want a 1D thing then that will be easy.
     proc writeArrayStart(w: _writeType, _size:uint = 0) throws {
       _arrayDim += 1;
       if _arrayFirst.size < _arrayDim {
@@ -116,8 +114,6 @@ module Json {
       w._writeLiteral("[");
     }
 
-    // TODO: I sort of feel like we should print associative arrays/domains as
-    // proper json maps, rather than an array of elements.....
     proc writeArrayElement(w: _writeType, const idx: ?, const val: ?) throws {
       if !firstField then
         w._writeLiteral(", ");

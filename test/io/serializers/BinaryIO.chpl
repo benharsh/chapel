@@ -6,27 +6,10 @@ module BinaryIO {
   private use List;
   private use Types;
 
-  // Question:
-  // - should we implement these things in a single type for brevity?
-
-  // TODO: would it be possible to handle the weird nested inheritance stuff
-  // if we returned a type from 'startType' ?
-  // Also important to recognize that the current mechanism would break
-  // down if used afterward...
-
-  // TODO: how to allow for optimized bulk-reads or writes of arrays?
-  // - pass in a ref to something that can be memcpy'd ?
-  //   - guarded by a config param method on the (de)serializer?
-  //   - defined to do the same thing as a series of readArrayElements?
-  // - or should this be handled by the particular format?
-
-  // TODO: Should endianness be param? Or did Michael just want to know if
-  // something was a kind of binary format at compile-time?
-
-  // TODO: use IO.ioendian
-
+  // TODO: should we implement these things in a single type for brevity?
+  // TODO: Should endianness be param?
   // TODO: Right now this is a very homebrew format, but we should switch to
-  // something more standard...
+  //       something more standard...
 
   type _writeType = fileWriter(serializerType=BinarySerializer, ?);
   type _readerT = fileReader(deserializerType=BinaryDeserializer, ?);
@@ -40,6 +23,7 @@ module BinaryIO {
     }
 
     // TODO: rewrite in terms of writef, or something
+    // Uses old 'iostyle' for now so that I don't have to think about 'writef'
     proc _oldWrite(ch: _writeType, const val:?t) throws {
       var _def = new DefaultSerializer();
       var dc = ch.withSerializer(_def);
@@ -79,12 +63,8 @@ module BinaryIO {
     }
 
     // TODO: what if this returned a new 'Serializer' instead?
-    // var ser = writer.serializer.startType(writer, T);
-    // super.serialize(writer.withSerializer(ser));
-    //
-    // or maybe it returns an aliased channel?
     // var sw = writer.serializer.startClass(writer, 4);
-    // super.serialize(sw);
+    // super.serialize(sw, sw.serializer);
     // ref ser = sw.serializer;
     // ser.serializeField(...);
     // ser.endType(writer, T);
@@ -103,12 +83,8 @@ module BinaryIO {
     proc endTuple(writer: _writeType) throws {
     }
 
-
-
-    // TODO: I think we should just embed some kind of dimensionality into
-    // this. If people want a 1D thing then that will be easy.
     proc writeArrayStart(w: _writeType) throws {
-      throw new Error("maps of unknown size are not yet supported by BinarySerializer");
+      throw new Error("arrays of unknown size are not yet supported by BinarySerializer");
     }
 
     proc writeArrayStart(w: _writeType, size: uint) throws {
@@ -116,8 +92,6 @@ module BinaryIO {
       _size = size;
     }
 
-    // TODO: I sort of feel like we should print associative arrays/domains as
-    // proper json maps, rather than an array of elements.....
     proc writeArrayElement(w: _writeType, const idx: ?, const val: ?) throws {
       // TODO: validate number of elements being written...
       w.write(idx);
@@ -233,13 +207,7 @@ module BinaryIO {
     proc endTuple(r: fileReader) throws {
     }
 
-    //proc sizeHint() : uint throws {
-    //  if !_sizeKnown then throw new Error("'sizeHint' called when size was unknown");
-
-    //  return _numElements;
-    //}
-
-    // TODO: add stuff for known sizes
+    // TODO: add stuff for known sizes, size 'hints'
     // TODO: add support for 'hasNext' kind of thing
     //
     // LATER:
