@@ -862,6 +862,15 @@ module ChapelIO {
     f.write(chpl_describe_error(this));
   }
 
+  override proc Error.serialize(writer, ref serializer) throws {
+    writer.write(chpl_describe_error(this));
+  }
+
+  proc object.serialize(writer, ref serializer) throws {
+    serializer.startClass(writer, 0);
+    serializer.endClass(writer);
+  }
+
   /* Equivalent to ``try! stdout.write``. See :proc:`IO.fileWriter.write` */
   proc write(const args ...?n) {
     try! stdout.write((...args));

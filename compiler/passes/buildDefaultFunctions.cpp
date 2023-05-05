@@ -1774,9 +1774,7 @@ FnSymbol* buildWriteThisFnSymbol(AggregateType* ct, ArgSymbol** filearg, const c
   fn->addFlag(FLAG_COMPILER_GENERATED);
   fn->addFlag(FLAG_LAST_RESORT);
   if (ct->isClass() && ct != dtObject) {
-    bool skipOverride = isSerialize && ct->dispatchParents.only() == dtObject;
-    if (!skipOverride)
-      fn->addFlag(FLAG_OVERRIDE);
+    fn->addFlag(FLAG_OVERRIDE);
   } else {
     fn->addFlag(FLAG_INLINE);
   }
@@ -1795,6 +1793,12 @@ FnSymbol* buildWriteThisFnSymbol(AggregateType* ct, ArgSymbol** filearg, const c
   fn->insertFormalAtTail(new ArgSymbol(INTENT_BLANK, "_mt", dtMethodToken));
   fn->insertFormalAtTail(fn->_this);
   fn->insertFormalAtTail(fileArg);
+
+  if (isSerialize) {
+    CallExpr* initExpr = new CallExpr(".", fileArg, new_StringSymbol("serializerType"));
+    ArgSymbol* serializer = new ArgSymbol(INTENT_REF, "serializer", dtUnknown, initExpr);
+    fn->insertFormalAtTail(serializer);
+  }
 
   fn->retType = dtVoid;
 
@@ -1883,10 +1887,7 @@ static void buildDefaultReadWriteFunctions(AggregateType* ct) {
   if (makeEncodeTo && !hasEncodeTo && ct != dtObject) {
     ArgSymbol* fileArg = NULL;
     FnSymbol* fn = buildWriteThisFnSymbol(ct, &fileArg, "serialize");
-
-    CallExpr* initExpr = new CallExpr(".", fileArg, new_StringSymbol("serializerType"));
-    ArgSymbol* serializer = new ArgSymbol(INTENT_REF, "serializer", dtUnknown, initExpr);
-    fn->insertFormalAtTail(serializer);
+    ArgSymbol* serializer = fn->getFormal(fn->numFormals());
 
     // Compiler generated versions of readThis/writeThis now throw.
     fn->throwsErrorInit();

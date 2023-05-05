@@ -2442,6 +2442,9 @@ pragma "no doc"
 class _serializeWrapper {
   type T;
   var member: T;
+
+  override proc serialize(writer, ref serializer) throws {
+  }
 }
 
 /*
@@ -2856,7 +2859,9 @@ record DefaultDeserializer {
   proc readArrayStart(r: fileReader) throws {
     _arrayDim += 1;
     if _arrayMax >= _arrayDim {
-      r.readNewline();
+      // use 'match' rather than 'read' to allow for reading in a non-shaped
+      // sequence of numbers into an N-D array...
+      r.matchNewline();
     } else {
       _arrayMax = _arrayDim;
     }
@@ -10046,7 +10051,7 @@ class _channel_regex_info {
     f.write(", ... capturei = " + capturei: string);
     f.write(", ncaptures = " + ncaptures: string + "}");
   }
-  proc serialize(writer, ref serializer) throws {
+  override proc serialize(writer, ref serializer) throws {
     writeThis(writer);
   }
 }
@@ -11026,7 +11031,11 @@ proc fileReader.readf(fmtStr:?t, ref args ...?k): bool throws
                 }
               }
             } when QIO_CONV_ARG_TYPE_REPR {
-              try _readOne(iokind.dynamic, args(i), origLocale);
+              if chpl_useIOSerializers {
+                try _deserializeOne(args(i), origLocale);
+              } else {
+                try _readOne(iokind.dynamic, args(i), origLocale);
+              }
             } when QIO_CONV_SET_CAPTURE {
               if r == nil {
                 err = qio_format_error_bad_regex();

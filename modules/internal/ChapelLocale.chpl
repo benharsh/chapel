@@ -361,7 +361,7 @@ module ChapelLocale {
       HaltWrappers.pureVirtualMethodHalt();
     }
 
-    proc serialize(writer, ref serializer) throws {
+    override proc serialize(writer, ref serializer) throws {
       HaltWrappers.pureVirtualMethodHalt();
     }
 

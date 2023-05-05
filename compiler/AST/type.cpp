@@ -331,8 +331,14 @@ bool QualifiedType::isWideRefType() const {
 }
 
 const char* QualifiedType::qualStr() const {
-  if (isRefType())
-    return qualifierToStr(QUAL_REF);
+  if (isRefType()) {
+    if (_qual == QUAL_CONST_REF ||
+        _qual == QUAL_CONST) {
+      return qualifierToStr(QUAL_CONST_REF);
+    } else {
+      return qualifierToStr(QUAL_REF);
+    }
+  }
 
   if (isWideRefType())
     return qualifierToStr(QUAL_WIDE_REF);

@@ -347,7 +347,7 @@ bool fDynoDebugTrace = false;
 bool fDynoVerifySerialization = false;
 size_t fDynoBreakOnHash = 0;
 
-bool fUseIOSerializers = false;
+bool fUseIOSerializers = true;
 
 bool fWarnUnknownAttributeToolname = true;
 
