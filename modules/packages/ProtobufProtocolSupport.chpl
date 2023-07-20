@@ -48,8 +48,8 @@ module ProtobufProtocolSupport {
     use CTypes;
     use OS.POSIX;
 
-    type writingChannel = fileWriter(iokind.little,false);
-    type readingChannel = fileReader(iokind.little,false);
+    type writingChannel = fileWriter(IO._iokind.little,false);
+    type readingChannel = fileReader(IO._iokind.little,false);
 
     // wireTypes
     const varint = 0;
@@ -300,14 +300,14 @@ module ProtobufProtocolSupport {
     proc serializeHelper(ref message, ch) throws {
       ch.lock();
       defer { ch.unlock(); }
-      var binCh: fileWriter(kind=iokind.little, locking=false) = ch;
+      var binCh: fileWriter(kind=IO._iokind.little, locking=false) = ch;
       message._serialize(binCh);
     }
 
     proc deserializeHelper(ref message, ch) throws {
       ch.lock();
       defer { ch.unlock(); }
-      var binCh: fileReader(kind=iokind.little, locking=false) = ch;
+      var binCh: fileReader(kind=IO._iokind.little, locking=false) = ch;
       message._deserialize(binCh);
     }
 
@@ -510,8 +510,8 @@ module ProtobufProtocolSupport {
 
     proc messageConsume(ch:readingChannel, type messageType) throws {
       var tmpMem = openMemFile();
-      var memWriter = tmpMem.writer(kind=iokind.little, locking=false);
-      var memReader = tmpMem.reader(kind=iokind.little, locking=false);
+      var memWriter = tmpMem.writer(kind=IO._iokind.little, locking=false);
+      var memReader = tmpMem.reader(kind=IO._iokind.little, locking=false);
 
       var tmpObj: messageType;
       messageConsumeBase(ch, tmpObj, memWriter, memReader);
@@ -631,8 +631,8 @@ module ProtobufProtocolSupport {
       */
       var s: bytes;
       var tmpMem = openMemFile();
-      var memWriter = tmpMem.writer(kind=iokind.little, locking=false);
-      var memReader = tmpMem.reader(kind=iokind.little, locking=false);
+      var memWriter = tmpMem.writer(kind=IO._iokind.little, locking=false);
+      var memReader = tmpMem.reader(kind=IO._iokind.little, locking=false);
 
       tagAppend(fieldNumber, wireType, memWriter);
       if wireType == varint {
@@ -662,8 +662,8 @@ module ProtobufProtocolSupport {
       proc pack(messageObj) throws {
         var s: bytes;
         var tmpMem = openMemFile();
-        var memWriter = tmpMem.writer(kind=iokind.little, locking=false);
-        var memReader = tmpMem.reader(kind=iokind.little, locking=false);
+        var memWriter = tmpMem.writer(kind=IO._iokind.little, locking=false);
+        var memReader = tmpMem.reader(kind=IO._iokind.little, locking=false);
 
         messageAppend(messageObj, 2, memWriter);
         memWriter.close();
@@ -681,8 +681,8 @@ module ProtobufProtocolSupport {
         }
 
         var tmpMem = openMemFile();
-        var memWriter = tmpMem.writer(kind=iokind.little, locking=false);
-        var memReader = tmpMem.reader(kind=iokind.little, locking=false);
+        var memWriter = tmpMem.writer(kind=IO._iokind.little, locking=false);
+        var memReader = tmpMem.reader(kind=IO._iokind.little, locking=false);
 
         memWriter.write(this.value);
         memWriter.close();
@@ -1154,8 +1154,8 @@ module ProtobufProtocolSupport {
     proc messageRepeatedConsume(ch: readingChannel, type messageType) throws {
       var returnList: list(messageType);
       var tmpMem = openMemFile();
-      var memWriter = tmpMem.writer(kind=iokind.little, locking=false);
-      var memReader = tmpMem.reader(kind=iokind.little, locking=false);
+      var memWriter = tmpMem.writer(kind=IO._iokind.little, locking=false);
+      var memReader = tmpMem.reader(kind=IO._iokind.little, locking=false);
 
       var tmpObj: messageType;
       messageConsumeBase(ch, tmpObj, memWriter, memReader);
