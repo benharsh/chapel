@@ -950,6 +950,24 @@ static void checkRangeDeprecations(AggregateType* at, NamedExpr* ne,
   }
 }
 
+static bool checkKindDeprecation(AggregateType* at, NamedExpr* ne,
+                                 Symbol*& field) {
+  if (at->getModule() == ioModule) {
+    bool isFileReader = strcmp(at->symbol->name, "fileReader") == 0;
+    bool isFileWriter = strcmp(at->symbol->name, "fileWriter") == 0;
+    if (isFileReader || isFileWriter) {
+      const char* serdeStr = isFileReader ? "Deserializers" : "Serializers";
+      if (strcmp(ne->name, "kind") == 0) {
+        USR_WARN(ne, "%s.kind is deprecated; please use %s instead", at->symbol->name, serdeStr);
+        field = at->getField("_kind");
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 AggregateType* AggregateType::generateType(CallExpr* call, const char* callString) {
 
   checkNumArgsErrors(this, call, callString);
@@ -967,11 +985,13 @@ AggregateType* AggregateType::generateType(CallExpr* call, const char* callStrin
   // Separate named and positional args, storing named-exprs in a map
   SymbolMap map;
   std::queue<Symbol*> notNamed;
+  bool replacedKind = false;
   for (int i = 1; i <= call->numActuals(); i++) {
     Expr* actual = call->get(i);
     if (NamedExpr* ne = toNamedExpr(actual)) {
       Symbol* field = getField(ne->name, false);
       checkRangeDeprecations(this, ne, field); // may update 'field'
+      replacedKind = replacedKind || checkKindDeprecation(this, ne, field);
       if (field == NULL) {
         USR_FATAL_CONT(call, "invalid type specifier '%s'", callString);
         USR_PRINT(call, "type specifier did not match: %s", typeSignature);
@@ -986,6 +1006,20 @@ AggregateType* AggregateType::generateType(CallExpr* call, const char* callStrin
       } else {
         notNamed.push(toSymExpr(actual)->symbol());
       }
+    }
+  }
+
+  if (this->getModule() == ioModule &&
+      (strcmp(symbol->name, "fileReader") == 0 ||
+       strcmp(symbol->name, "fileWriter") == 0) &&
+      !replacedKind &&
+      notNamed.size() > 0 &&
+      (strcmp(notNamed.front()->type->symbol->name, "iokind") == 0 ||
+       strcmp(notNamed.front()->type->symbol->name, "_iokind") == 0)) {
+    Symbol* field = getField("_kind");
+    if (substitutionForField(field, map) == NULL) {
+      map.put(field, notNamed.front());
+      notNamed.pop();
     }
   }
 
