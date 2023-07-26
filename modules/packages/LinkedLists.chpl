@@ -327,11 +327,10 @@ record LinkedList {
     if writer.serializerType == IO.DefaultSerializer {
       writeThis(writer);
     } else {
-      ref ser = serializer;
-      ser.startList(writer, size);
+      var ser = serializer.startList(writer, size);
       for e in this do
-        ser.writeListElement(writer, e);
-      ser.endList(writer);
+        ser.writeElement(e);
+      ser.endList();
     }
   }
 

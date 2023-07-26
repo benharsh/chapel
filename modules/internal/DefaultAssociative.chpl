@@ -648,19 +648,19 @@ module DefaultAssociative {
 
     proc dsiSerialReadWrite(f, in printBraces=true, inout first = true) throws
     where _usingSerializers(f) && !_isDefaultDeser(f) {
-      ref fmt = if f._writing then f.serializer else f.deserializer;
+      if f._writing {
+        var ser = f.serializer.startMap(f, dom.dsiNumIndices:uint);
 
-      if f._writing then
-        fmt.startMap(f, dom.dsiNumIndices:uint);
-      else
+        for (key, val) in zip(this.dom, this) {
+          ser.writeKey(key);
+          ser.writeValue(val);
+        }
+
+        ser.endMap();
+      } else {
+        ref fmt = f.deserializer;
         fmt.startMap(f);
 
-      if f._writing {
-        for (key, val) in zip(this.dom, this) {
-          fmt.writeKey(f, key);
-          fmt.writeValue(f, val);
-        }
-      } else {
         for 0..<dom.dsiNumIndices {
           const k = fmt.readKey(f, idxType);
 
@@ -670,9 +670,9 @@ module DefaultAssociative {
             dsiAccess(k) = fmt.readValue(f, eltType);
           }
         }
-      }
 
-      fmt.endMap(f);
+        fmt.endMap(f);
+      }
     }
 
     proc _isDefaultDeser(f) param : bool {
@@ -682,28 +682,28 @@ module DefaultAssociative {
 
     proc dsiSerialReadWrite(f, in printBraces=true, inout first = true) throws
     where _isDefaultDeser(f) {
-      ref fmt = if f._writing then f.serializer else f.deserializer;
-
       if f._writing {
-        fmt.startArray(f, dom.dsiNumIndices:uint);
-        fmt.startArrayDim(f, dom.dsiNumIndices:uint);
+        var ser = f.serializer.startArray(f, dom.dsiNumIndices:uint);
+        ser.startDim(dom.dsiNumIndices:uint);
+
+        for (key, val) in zip(this.dom, this) {
+          ser.writeElement(val);
+        }
+
+        ser.endDim();
+        ser.endArray();
       } else {
+        ref fmt = f.deserializer;
         fmt.startArray(f);
         fmt.startArrayDim(f);
-      }
 
-      if f._writing {
-        for (key, val) in zip(this.dom, this) {
-          fmt.writeArrayElement(f, val);
-        }
-      } else {
         for (key, val) in zip(this.dom, this) {
           val = fmt.readArrayElement(f, val.type);
         }
-      }
 
-      fmt.endArrayDim(f);
-      fmt.endArray(f);
+        fmt.endArrayDim(f);
+        fmt.endArray(f);
+      }
     }
 
     proc dsiSerialReadWrite(f /*: channel*/, in printBraces=true, inout first = true) throws {

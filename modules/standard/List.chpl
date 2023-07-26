@@ -1909,10 +1909,10 @@ module List {
     proc serialize(writer: fileWriter(?), ref serializer) throws {
       _enter();
 
-      serializer.startList(writer, this._size);
+      var ser = serializer.startList(writer, this._size);
       for i in 0..<this._size do
-        serializer.writeListElement(writer, _getRef(i));
-      serializer.endList(writer);
+        ser.writeElement(_getRef(i));
+      ser.endList();
 
       _leave();
     }

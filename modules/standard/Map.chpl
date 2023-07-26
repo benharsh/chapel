@@ -720,18 +720,17 @@ module Map {
     proc serialize(writer: fileWriter(?), ref serializer) throws {
       _enter(); defer _leave();
 
-      ref ser = serializer;
-      ser.startMap(writer, _size);
+      var ser = serializer.startMap(writer, _size);
 
       for slot in table.allSlots() {
         if table.isSlotFull(slot) {
           ref tabEntry = table.table[slot];
-          ser.writeKey(writer, tabEntry.key);
-          ser.writeValue(writer, tabEntry.val);
+          ser.writeKey(tabEntry.key);
+          ser.writeValue(tabEntry.val);
         }
       }
 
-      ser.endMap(writer);
+      ser.endMap();
     }
 
     @chpldoc.nodoc

@@ -2704,65 +2704,133 @@ record DefaultSerializer {
     writer.write(val);
   }
 
+  record AggregateDeserializer {
+    var writer;
+    var name : string;
+    var size : int;
+    var _first : bool = true;
+    const _ending : string;
+
+    proc serializeField(name: string, const val: ?) throws {
+      if !_first then writer._writeLiteral(", ");
+      else _first = false;
+
+      writer._writeLiteral(name);
+      writer._writeLiteral(" = ");
+      writer.write(val);
+    }
+
+    @chpldoc.nodoc
+    proc endClass() throws {
+      writer._writeLiteral(_ending);
+    }
+
+    @chpldoc.nodoc
+    proc endRecord() throws {
+      writer._writeLiteral(_ending);
+    }
+  }
+
   // Class helpers
   //
   // TODO: If this is called in a nested way for inheriting classes, then we
   // can increment 'size' internally to track the total number of fields...?
   @chpldoc.nodoc
   proc startClass(writer: fileWriter, name: string, size: int) throws {
-    if _inheritLevel == 0 {
-      writer._writeLiteral("{");
-    }
-    _inheritLevel += 1;
-  }
-  @chpldoc.nodoc
-  proc endClass(writer: fileWriter) throws {
-    if _inheritLevel == 1 {
-      writer._writeLiteral("}");
-    }
-    _inheritLevel -= 1;
+    writer._writeLiteral("{");
+    return new AggregateDeserializer(writer, name, size, _ending="}");
   }
 
   // Record helpers
   @chpldoc.nodoc
   proc startRecord(writer: fileWriter, name: string, size: int) throws {
     writer._writeLiteral("(");
+    return new AggregateDeserializer(writer, name, size, _ending=")");
   }
-  @chpldoc.nodoc
-  proc endRecord(writer: fileWriter) throws {
-    writer._writeLiteral(")");
+
+  record TupleSerializer {
+    var writer;
+    const size : int;
+    var _first : bool = true;
+
+    proc writeElement(const val: ?) throws {
+      if !_first then writer._writeLiteral(", ");
+      else _first = false;
+
+      writer.write(val);
+    }
+
+    @chpldoc.nodoc
+    proc endTuple() throws {
+      if size == 1 then
+        writer._writeLiteral(",)");
+      else
+        writer._writeLiteral(")");
+    }
   }
 
   // Tuple helpers
   @chpldoc.nodoc
   proc startTuple(writer: fileWriter, size: int) throws {
-    _oneTuple = size==1;
     writer._writeLiteral("(");
-  }
-  @chpldoc.nodoc
-  proc endTuple(writer: fileWriter) throws {
-    if _oneTuple then
-      writer._writeLiteral(",)");
-    else
-      writer._writeLiteral(")");
+    return new TupleSerializer(writer, size);
   }
 
+  record ListSerializer {
+    var writer;
+    var _first : bool = true;
+
+    proc writeElement(const val: ?) throws {
+      if !_first then writer._writeLiteral(", ");
+      else _first = false;
+
+      writer.write(val);
+    }
+
+    @chpldoc.nodoc
+    proc endList() throws {
+      writer._writeLiteral("]");
+    }
+  }
   // List helpers
   @chpldoc.nodoc
   proc startList(writer: fileWriter, size: uint) throws {
     writer._writeLiteral("[");
-    _firstThing = true;
+    return new ListSerializer(writer);
   }
-  @chpldoc.nodoc
-  proc writeListElement(writer: fileWriter, const val: ?) throws {
-    if !_firstThing then writer._writeLiteral(", ");
-    else _firstThing = false;
 
-    writer.write(val);
-  }
-  @chpldoc.nodoc
-  proc endList(writer: fileWriter) throws {
-    writer._writeLiteral("]");
+  record ArraySerializer {
+    var writer;
+    var _arrayDim : int;
+    var _arrayMax : int;
+    var _first : bool = true;
+
+    @chpldoc.nodoc
+    proc startDim(size: uint) throws {
+      _arrayDim += 1;
+
+      if _arrayMax >= _arrayDim then
+        writer.writeNewline();
+      else
+        _arrayMax = _arrayDim;
+    }
+
+    @chpldoc.nodoc
+    proc endDim() throws {
+      _arrayDim -= 1;
+      _first = true;
+    }
+
+    @chpldoc.nodoc
+    proc writeElement(const val: ?) throws {
+      if !_first then writer._writeLiteral(" ");
+      else _first = false;
+
+      writer.write(val);
+    }
+
+    @chpldoc.nodoc
+    proc endArray() throws { }
   }
 
   // Array helpers
@@ -2771,59 +2839,38 @@ record DefaultSerializer {
   // kind of weird. I'd personally lean towards writing them as a map.
   @chpldoc.nodoc
   proc startArray(writer: fileWriter, size: uint) throws {
+    return new ArraySerializer(writer);
   }
 
-  @chpldoc.nodoc
-  proc startArrayDim(writer: fileWriter, size: uint) throws {
-    _arrayDim += 1;
+  record MapSerializer {
+    var writer;
+    var _first : bool = true;
 
-    if _arrayMax >= _arrayDim then
-      writer.writeNewline();
-    else
-      _arrayMax = _arrayDim;
-  }
+    @chpldoc.nodoc
+    proc writeKey(const key: ?) throws {
+      if !_first then writer._writeLiteral(" , ");
+      else _first = false;
 
-  @chpldoc.nodoc
-  proc endArrayDim(writer: fileWriter) throws {
-    _arrayDim -= 1;
-    _firstThing = true;
-  }
+      writer.write(key);
+    }
 
-  @chpldoc.nodoc
-  proc writeArrayElement(writer: fileWriter, const val: ?) throws {
-    if !_firstThing then writer._writeLiteral(" ");
-    else _firstThing = false;
+    @chpldoc.nodoc
+    proc writeValue(const val: ?) throws {
+      writer._writeLiteral(" : ");
+      writer.write(val);
+    }
 
-    writer.write(val);
-  }
-
-  @chpldoc.nodoc
-  proc endArray(writer: fileWriter) throws {
+    @chpldoc.nodoc
+    proc endMap() throws {
+      writer._writeLiteral(" }");
+    }
   }
 
   // Map helpers
   @chpldoc.nodoc
   proc startMap(writer: fileWriter, size: uint) throws {
     writer._writeLiteral("{ ");
-  }
-
-  @chpldoc.nodoc
-  proc writeKey(writer: fileWriter, const key: ?) throws {
-    if !_firstThing then writer._writeLiteral(" , ");
-    else _firstThing = false;
-
-    writer.write(key);
-  }
-
-  @chpldoc.nodoc
-  proc writeValue(writer: fileWriter, const val: ?) throws {
-    writer._writeLiteral(" : ");
-    writer.write(val);
-  }
-
-  @chpldoc.nodoc
-  proc endMap(writer: fileWriter) throws {
-    writer._writeLiteral(" }");
+    return new MapSerializer(writer);
   }
 
   // TODO: How should we handle types that don't have a format-specific

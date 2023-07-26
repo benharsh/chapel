@@ -310,28 +310,34 @@ module ChapelIO {
                               const x:?t) throws {
       const name = __primitive("simple type name", x);
       const numIO = __numIOFields(t);
-      if isClassType(t) then
-        serializer.startClass(writer, name, numIO);
+      var ser = if isClassType(t) then
+        serializer.startClass(writer, name, numIO)
       else
         serializer.startRecord(writer, name, numIO);
 
-      if isClassType(t) && _to_borrowed(t) != borrowed RootClass {
-        serializeDefaultImpl(writer, serializer, x.super);
-      }
+      proc printFields(obj: ?t) throws {
+        if  _to_borrowed(t) == borrowed RootClass then return;
 
-      param num_fields = __primitive("num fields", t);
-      for param i in 1..num_fields {
-        if isIoField(x, i) {
-          param name : string = __primitive("field num to name", x, i);
-          serializer.serializeField(writer, name,
-                                    __primitive("field by num", x, i));
+        if isClassType(t) {
+          printFields(obj.super);
+        }
+
+        param num_fields = __primitive("num fields", t);
+        for param i in 1..num_fields {
+          if isIoField(obj, i) {
+            param name : string = __primitive("field num to name", obj, i);
+            ser.serializeField(name,
+                               __primitive("field by num", obj, i));
+          }
         }
       }
 
+      printFields(x);
+
       if isClassType(t) then
-        serializer.endClass(writer);
+        ser.endClass();
       else
-        serializer.endRecord(writer);
+        ser.endRecord();
     }
 
     @chpldoc.nodoc
@@ -771,12 +777,12 @@ module ChapelIO {
 
   @chpldoc.nodoc
   proc const _tuple.serialize(writer, ref serializer) throws {
-    serializer.startTuple(writer, this.size);
+    var ser = serializer.startTuple(writer, this.size);
     for param i in 0..<size {
       const ref elt = this(i);
-      serializer.serializeField(writer, "", elt);
+      ser.writeElement(elt);
     }
-    serializer.endTuple(writer);
+    ser.endTuple();
   }
 
   // Moved here to avoid circular dependencies in ChapelRange
