@@ -2648,19 +2648,6 @@ proc fileWriter.serializer ref : serializerType {
   methods for records and classes.
 */
 record DefaultSerializer {
-  @chpldoc.nodoc
-  var _firstThing = true;
-  @chpldoc.nodoc
-  var _inheritLevel = 0;
-
-  // Array state to track position in multidimensional arrays
-  @chpldoc.nodoc
-  var _arrayDim = 0;
-  @chpldoc.nodoc
-  var _arrayMax : int;
-
-  @chpldoc.nodoc
-  var _oneTuple : bool = false;
 
   @chpldoc.nodoc
   proc _serializeClassOrPtr(writer:fileWriter, x: ?t) : void throws {
@@ -2689,19 +2676,6 @@ record DefaultSerializer {
       var alias = writer.withSerializer(new DefaultSerializer());
       val.serialize(writer=alias, serializer=alias.serializer);
     }
-  }
-
-  @chpldoc.nodoc
-  proc serializeField(writer:fileWriter, name: string, const val: ?) : void throws {
-    if !_firstThing then writer._writeLiteral(", ");
-    else _firstThing = false;
-
-    if !name.isEmpty() {
-      writer._writeLiteral(name);
-      writer._writeLiteral(" = ");
-    }
-
-    writer.write(val);
   }
 
   record AggregateDeserializer {
@@ -2960,6 +2934,31 @@ record DefaultDeserializer {
     }
   }
 
+  record AggregateDeserializer {
+    var reader;
+    var _first : bool = true;
+
+    @chpldoc.nodoc
+    proc deserializeField(name: string, type T) throws {
+      reader.readLiteral(name);
+      reader.readLiteral("=");
+
+      var ret = reader.read(T);
+      reader.matchLiteral(",");
+      return ret;
+    }
+
+    @chpldoc.nodoc
+    proc endClass() throws {
+      reader.readLiteral("}");
+    }
+
+    @chpldoc.nodoc
+    proc endRecord() throws {
+      reader.readLiteral(")");
+    }
+  }
+
   @chpldoc.nodoc
   proc deserializeField(reader:fileReader, name: string, type T) throws {
     if !name.isEmpty() {
@@ -2975,118 +2974,139 @@ record DefaultDeserializer {
   // Class helpers
   @chpldoc.nodoc
   proc startClass(reader: fileReader, name: string) throws {
-    if _inheritLevel == 0 {
-      reader.readLiteral("{");
-    }
-    _inheritLevel += 1;
-  }
-  @chpldoc.nodoc
-  proc endClass(reader: fileReader) throws {
-    if _inheritLevel == 1 {
-      reader.readLiteral("}");
-    }
-    _inheritLevel -= 1;
+    reader.readLiteral("{");
+    return new AggregateDeserializer(reader);
   }
 
   // Record helpers
   @chpldoc.nodoc
   proc startRecord(reader: fileReader, name: string) throws {
     reader.readLiteral("(");
+    return new AggregateDeserializer(reader);
   }
-  @chpldoc.nodoc
-  proc endRecord(reader: fileReader) throws {
-    reader.readLiteral(")");
+
+  record TupleDeserializer {
+    var reader;
+
+    @chpldoc.nodoc
+    proc readElement(type T) throws {
+      var ret = reader.read(T);
+      reader.matchLiteral(",");
+      return ret;
+    }
+
+    @chpldoc.nodoc
+    proc endTuple() throws {
+      reader.readLiteral(")");
+    }
   }
 
   // Tuple helpers
   @chpldoc.nodoc
   proc startTuple(reader: fileReader) throws {
     reader.readLiteral("(");
+    return new TupleDeserializer(reader);
   }
-  @chpldoc.nodoc
-  proc endTuple(reader: fileReader) throws {
-    reader.readLiteral(")");
+
+  record ListDeserializer {
+    var reader;
+    var _first : bool = true;
+
+    @chpldoc.nodoc
+    proc readElement(type eltType) throws {
+      if !_first then reader._readLiteral(",");
+      else _first = false;
+
+      return reader.read(eltType);
+    }
+    @chpldoc.nodoc
+    proc endList() throws {
+      reader._readLiteral("]");
+    }
   }
 
   // List helpers
   @chpldoc.nodoc
   proc startList(reader: fileReader) throws {
     reader._readLiteral("[");
-    _firstThing = true;
+    return new ListDeserializer(reader);
   }
-  @chpldoc.nodoc
-  proc readListElement(reader: fileReader, type eltType) throws {
-    if !_firstThing then reader._readLiteral(",");
-    else _firstThing = false;
 
-    return reader.read(eltType);
-  }
-  @chpldoc.nodoc
-  proc endList(reader: fileReader) throws {
-    reader._readLiteral("]");
+  record ArrayDeserializer {
+    var reader;
+    var _first : bool = true;
+    var _arrayDim : int;
+    var _arrayMax : int;
+
+    @chpldoc.nodoc
+    proc startDim() throws {
+      _arrayDim += 1;
+
+      if _arrayMax >= _arrayDim {
+        // use 'match' rather than 'read' to allow for reading in a non-shaped
+        // sequence of numbers into an N-D array...
+        reader.matchNewline();
+      } else {
+        _arrayMax = _arrayDim;
+      }
+    }
+
+    @chpldoc.nodoc
+    proc endDim() throws {
+      _arrayDim -= 1;
+
+      _first = true;
+    }
+
+    @chpldoc.nodoc
+    proc readElement(type eltType) throws {
+      if !_first then reader._readLiteral(" ");
+      else _first = false;
+
+      return reader.read(eltType);
+    }
+
+    @chpldoc.nodoc
+    proc endArray() throws {
+    }
   }
 
   // Array helpers
   @chpldoc.nodoc
   proc startArray(reader: fileReader) throws {
+    return new ArrayDeserializer(reader);
   }
 
-  @chpldoc.nodoc
-  proc startArrayDim(reader: fileReader) throws {
-    _arrayDim += 1;
+  record MapDeserializer {
+    var reader;
+    var _first : bool = true;
 
-    if _arrayMax >= _arrayDim {
-      // use 'match' rather than 'read' to allow for reading in a non-shaped
-      // sequence of numbers into an N-D array...
-      reader.matchNewline();
-    } else {
-      _arrayMax = _arrayDim;
+    @chpldoc.nodoc
+    proc readKey(type keyType) : keyType throws {
+      if !_first then reader._readLiteral(", ");
+      else _first = false;
+
+      return reader.read(keyType);
     }
-  }
 
-  @chpldoc.nodoc
-  proc endArrayDim(reader: fileReader) throws {
-    _arrayDim -= 1;
+    @chpldoc.nodoc
+    proc readValue(type valType) throws {
+      reader._readLiteral(": ");
 
-    _firstThing = true;
-  }
+      return reader.read(valType);
+    }
 
-  @chpldoc.nodoc
-  proc readArrayElement(reader: fileReader, type eltType) throws {
-    if !_firstThing then reader._readLiteral(" ");
-    else _firstThing = false;
-
-    return reader.read(eltType);
-  }
-
-  @chpldoc.nodoc
-  proc endArray(reader: fileReader) throws {
+    @chpldoc.nodoc
+    proc endMap() throws {
+      reader._readLiteral("}");
+    }
   }
 
   // Map helpers
   @chpldoc.nodoc
   proc startMap(reader: fileReader) throws {
     reader._readLiteral("{");
-  }
-
-  @chpldoc.nodoc
-  proc readKey(reader: fileReader, type keyType) : keyType throws {
-    if !_firstThing then reader._readLiteral(", ");
-    else _firstThing = false;
-
-    return reader.read(keyType);
-  }
-
-  @chpldoc.nodoc
-  proc readValue(reader: fileReader, type valType) throws {
-    reader._readLiteral(": ");
-
-    return reader.read(valType);
-  }
-
-  @chpldoc.nodoc
-  proc endMap(reader: fileReader) throws {
-    reader._readLiteral("}");
+    return new MapDeserializer(reader);
   }
 }
 
