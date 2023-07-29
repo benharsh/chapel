@@ -3246,6 +3246,7 @@ record BinaryDeserializer {
     st.binary = 1;
     st.byteorder = 1 + endian:uint(8);
     st.str_style = iostringstyleInternal.lenVb_data: int(64);
+    st.str_style = stringStyleWithVariableLength():int(64);
 
     dc._set_styleInternal(st);
     dc._readOne(dc.kind, val, here);
