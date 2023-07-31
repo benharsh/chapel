@@ -636,21 +636,21 @@ module Map {
     }
 
     @chpldoc.nodoc
-    proc _readHelper(r: fileReader, ref des) throws {
+    proc _readHelper(r: fileReader, ref deserializer) throws {
       _enter(); defer _leave();
 
-      des.startMap(r);
+      var des = deserializer.startMap(r);
 
       var done = false;
       while !done {
         try {
-          add(des.readKey(r, keyType), des.readValue(r, valType));
+          add(des.readKey(keyType), des.readValue(valType));
         } catch e: BadFormatError {
           done = true;
         }
       }
 
-      des.endMap(r);
+      des.endMap();
     }
 
     @chpldoc.nodoc

@@ -658,20 +658,19 @@ module DefaultAssociative {
 
         ser.endMap();
       } else {
-        ref fmt = f.deserializer;
-        fmt.startMap(f);
+        var des = f.deserializer.startMap(f);
 
         for 0..<dom.dsiNumIndices {
-          const k = fmt.readKey(f, idxType);
+          const k = des.readKey(idxType);
 
           if !dom.dsiMember(k) {
             // TODO: throw error
           } else {
-            dsiAccess(k) = fmt.readValue(f, eltType);
+            dsiAccess(k) = des.readValue(eltType);
           }
         }
 
-        fmt.endMap(f);
+        des.endMap();
       }
     }
 
@@ -693,16 +692,15 @@ module DefaultAssociative {
         ser.endDim();
         ser.endArray();
       } else {
-        ref fmt = f.deserializer;
-        fmt.startArray(f);
-        fmt.startArrayDim(f);
+        var des = f.deserializer.startArray(f);
+        des.startDim();
 
         for (key, val) in zip(this.dom, this) {
-          val = fmt.readArrayElement(f, val.type);
+          val = des.readElement(val.type);
         }
 
-        fmt.endArrayDim(f);
-        fmt.endArray(f);
+        des.endDim();
+        des.endArray();
       }
     }
 

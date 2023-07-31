@@ -2025,18 +2025,18 @@ module List {
     }
 
     @chpldoc.nodoc
-    proc _readHelper(r: fileReader, ref des) throws {
+    proc _readHelper(r: fileReader, ref deserializer) throws {
       _enter();
 
       _clearLocked();
 
-      des.startList(r);
+      var des = deserializer.startList(r);
 
       var done = false;
       while !done {
         try {
           pragma "no auto destroy"
-          var elt = des.readListElement(r, eltType);
+          var elt = des.readElement(eltType);
           // read an element
           _appendByRef(elt);
         } catch e: BadFormatError {
@@ -2044,7 +2044,7 @@ module List {
         }
       }
 
-      des.endList(r);
+      des.endList();
 
       _leave();
     }

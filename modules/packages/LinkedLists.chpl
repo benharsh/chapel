@@ -409,40 +409,38 @@ record LinkedList {
     destroy();
 
     // Default format works as a 1D array
-    ref des = deserializer;
-    des.startArray(reader);
-    des.startArrayDim(reader);
+    var des = deserializer.startArray(reader);
+    des.startDim();
 
     var done = false;
     while !done {
       try {
-        append(des.readArrayElement(reader, eltType));
+        append(des.readElement(eltType));
       } catch {
         done = true;
       }
     }
 
-    des.endArrayDim(reader);
-    des.endArray(reader);
+    des.endDim();
+    des.endArray();
   }
 
   proc deserialize(reader: fileReader, ref deserializer) throws {
     // Clear out existing elements in the list.
     destroy();
 
-    ref des = deserializer;
-    des.startList(reader);
+    var des = deserializer.startList(reader);
 
     var done = false;
     while !done {
       try {
-        append(des.readListElement(reader, eltType));
+        append(des.readElement(eltType));
       } catch {
         done = true;
       }
     }
 
-    des.endList(reader);
+    des.endList();
   }
 
   // TODO: temporary implementation to get some tests passing, but needs to

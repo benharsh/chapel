@@ -315,7 +315,7 @@ module ChapelIO {
       else
         serializer.startRecord(writer, name, numIO);
 
-      proc printFields(obj: ?t) throws {
+      proc printFields(const obj: ?t) throws {
         if  _to_borrowed(t) == borrowed RootClass then return;
 
         if isClassType(t) {
@@ -344,29 +344,35 @@ module ChapelIO {
     proc deserializeDefaultImpl(reader: fileReader, ref deserializer,
                                 ref x:?t) throws {
       const name = __primitive("simple type name", x);
-      if isClassType(t) then
-        deserializer.startClass(reader, name);
+      var des = if isClassType(t) then
+        deserializer.startClass(reader, name)
       else
         deserializer.startRecord(reader, name);
 
-      if isClassType(t) && _to_borrowed(t) != borrowed RootClass {
-        deserializeDefaultImpl(reader, deserializer, x.super, "super");
-      }
+      proc readFields(const obj: ?t) throws {
+        if  _to_borrowed(t) == borrowed RootClass then return;
 
-      param num_fields = __primitive("num fields", t);
-      for param i in 1..num_fields {
-        if isIoField(x, i) {
-          param name : string = __primitive("field num to name", x, i);
-          ref field = __primitive("field by num", x, i);
-          field = deserializer.deserializeField(reader, name,
-                                                __primitive("field by num", x, i).type);
+        if isClassType(t) {
+          readFields(obj.super);
+        }
+
+        param num_fields = __primitive("num fields", t);
+        for param i in 1..num_fields {
+          if isIoField(obj, i) {
+            param name : string = __primitive("field num to name", obj, i);
+            ref field = __primitive("field by num", obj, i);
+            field = des.deserializeField(name,
+                                         __primitive("field by num", x, i).type);
+          }
         }
       }
 
+      readFields(x);
+
       if isClassType(t) then
-        deserializer.endClass(reader);
+        des.endClass();
       else
-        deserializer.endRecord(reader);
+        des.endRecord();
     }
 
     //
@@ -765,14 +771,13 @@ module ChapelIO {
 
   @chpldoc.nodoc
   proc _tuple.deserialize(reader, ref deserializer) throws {
-    ref des = deserializer;
-    des.startTuple(reader);
+    var des = deserializer.startTuple(reader);
     for param i in 0..<this.size {
       pragma "no auto destroy"
-      var elt = des.deserializeField(reader, "", this(i).type);
+      var elt = des.readElement(this(i).type);
       __primitive("=", this(i), elt);
     }
-    des.endTuple(reader);
+    des.endTuple();
   }
 
   @chpldoc.nodoc

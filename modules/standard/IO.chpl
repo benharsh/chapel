@@ -2678,7 +2678,7 @@ record DefaultSerializer {
     }
   }
 
-  record AggregateDeserializer {
+  record AggregateSerializer {
     var writer;
     var name : string;
     var size : int;
@@ -2712,14 +2712,14 @@ record DefaultSerializer {
   @chpldoc.nodoc
   proc startClass(writer: fileWriter, name: string, size: int) throws {
     writer._writeLiteral("{");
-    return new AggregateDeserializer(writer, name, size, _ending="}");
+    return new AggregateSerializer(writer, name, size, _ending="}");
   }
 
   // Record helpers
   @chpldoc.nodoc
   proc startRecord(writer: fileWriter, name: string, size: int) throws {
     writer._writeLiteral("(");
-    return new AggregateDeserializer(writer, name, size, _ending=")");
+    return new AggregateSerializer(writer, name, size, _ending=")");
   }
 
   record TupleSerializer {
@@ -2891,14 +2891,6 @@ record DefaultSerializer {
   'deserialize' methods and deserializing initializers for records and classes.
 */
 record DefaultDeserializer {
-  @chpldoc.nodoc
-  var _firstThing = true;
-  @chpldoc.nodoc
-  var _inheritLevel = 0;
-  @chpldoc.nodoc
-  var _arrayDim = 0;
-  @chpldoc.nodoc
-  var _arrayMax : int;
 
   proc deserializeType(reader:fileReader, type readType) : readType throws {
     if isNilableClassType(readType) {
