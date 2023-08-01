@@ -2404,7 +2404,8 @@ void AggregateType::buildDefaultInitializer() {
       SymbolMap fieldArgMap;
 
       if (!badParentInit()) {
-        assert(handleSuperFields(fn, names, fieldArgMap, /*desHelper=*/nullptr));
+        bool ret = handleSuperFields(fn, names, fieldArgMap, /*desHelper=*/nullptr);
+        assert(ret);
         // Parent fields before child fields
         fieldToArg(fn, names, fieldArgMap,
                    /*formatter=*/nullptr);
@@ -2550,7 +2551,8 @@ void AggregateType::buildReaderInitializer() {
         DefExpr* helperDef = new DefExpr(desHelper, readStart);
         fn->insertAtHead(helperDef);
 
-        assert(handleSuperFields(fn, names, fieldArgMap, desHelper));
+        bool ret = handleSuperFields(fn, names, fieldArgMap, desHelper);
+        assert(ret);
 
         fn->insertAtHead(helperDef->remove());
 
