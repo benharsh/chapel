@@ -95,33 +95,60 @@ module BinaryIO {
       }
     }
 
-    @chpldoc.nodoc
-    proc serializeField(writer: _writeType, name: string, const val: ?T) throws {
-      writer.write(val);
+    record AggregateSerializer {
+      var writer;
+
+      @chpldoc.nodoc
+      proc serializeField(name: string, const val: ?T) throws {
+        writer.write(val);
+      }
+      @chpldoc.nodoc
+      proc endClass() throws {
+      }
+      @chpldoc.nodoc
+      proc endRecord() throws {
+      }
     }
 
     // Class helpers
     @chpldoc.nodoc
     proc startClass(writer: _writeType, name: string, size: int) throws {
-    }
-    @chpldoc.nodoc
-    proc endClass(writer: _writeType) throws {
+      return new AggregateSerializer(writer);
     }
 
     // Record helpers
     @chpldoc.nodoc
     proc startRecord(writer: _writeType, name: string, size: int) throws {
+      return new AggregateSerializer(writer);
     }
-    @chpldoc.nodoc
-    proc endRecord(writer: _writeType) throws {
+
+    record TupleSerializer {
+      var writer;
+
+      proc writeElement(const val: ?T) throws {
+        writer.write(val);
+      }
+      @chpldoc.nodoc
+      proc endTuple() throws {
+      }
     }
 
     // Tuple helpers
     @chpldoc.nodoc
     proc startTuple(writer: _writeType, size: int) throws {
+      return new TupleSerializer(writer);
     }
-    @chpldoc.nodoc
-    proc endTuple(writer: _writeType) throws {
+
+    record ListSerializer {
+      var writer;
+
+      @chpldoc.nodoc
+      proc writeElement(const val: ?) throws {
+        writer.write(val);
+      }
+      @chpldoc.nodoc
+      proc endList() throws {
+      }
     }
 
     // List helpers
@@ -129,60 +156,65 @@ module BinaryIO {
     @chpldoc.nodoc
     proc startList(writer: _writeType, size: uint) throws {
       writer.write(size);
+      return new ListSerializer(writer);
     }
-    @chpldoc.nodoc
-    proc writeListElement(writer: _writeType, const val: ?) throws {
-      writer.write(val);
-    }
-    @chpldoc.nodoc
-    proc endList(writer: _writeType) throws {
+
+    record ArraySerializer {
+      var writer;
+
+      @chpldoc.nodoc
+      proc startDim(size: uint) throws {
+      }
+      @chpldoc.nodoc
+      proc endDim() throws {
+      }
+
+      @chpldoc.nodoc
+      proc writeElement(const val: ?) throws {
+        writer.write(val);
+      }
+
+      @chpldoc.nodoc
+      proc writeBulkElements(data: c_ptr(?eltType), numElements: uint) throws
+      where isNumericType(eltType) {
+        const n = c_sizeof(eltType)*numElements;
+        writer.writeBinary(data, n.safeCast(int));
+      }
+
+      @chpldoc.nodoc
+      proc endArray() throws {
+      }
     }
 
     // Array helpers
     @chpldoc.nodoc
     proc startArray(writer: _writeType, size: uint) throws {
-    }
-    @chpldoc.nodoc
-    proc startArrayDim(writer: _writeType, size: uint) throws {
-    }
-    @chpldoc.nodoc
-    proc endArrayDim(writer: _writeType) throws {
+      return new ArraySerializer(writer);
     }
 
-    @chpldoc.nodoc
-    proc writeArrayElement(writer: _writeType, const val: ?) throws {
-      writer.write(val);
-    }
+    record MapSerializer {
+      var writer;
 
-    @chpldoc.nodoc
-    proc writeBulkElements(writer: _writeType, data: c_ptr(?eltType), numElements: uint) throws
-    where isNumericType(eltType) {
-      const n = c_sizeof(eltType)*numElements;
-      writer.writeBinary(data, n.safeCast(int));
-    }
+      @chpldoc.nodoc
+      proc writeKey(const key: ?) throws {
+        writer.write(key);
+      }
 
-    @chpldoc.nodoc
-    proc endArray(writer: _writeType) throws {
+      @chpldoc.nodoc
+      proc writeValue(const val: ?) throws {
+        writer.write(val);
+      }
+
+      @chpldoc.nodoc
+      proc endMap() throws {
+      }
     }
 
     // Map helpers
     @chpldoc.nodoc
     proc startMap(writer: _writeType, size: uint) throws {
       writer.write(size);
-    }
-
-    @chpldoc.nodoc
-    proc writeKey(writer: _writeType, const key: ?) throws {
-      writer.write(key);
-    }
-
-    @chpldoc.nodoc
-    proc writeValue(writer: _writeType, const val: ?) throws {
-      writer.write(val);
-    }
-
-    @chpldoc.nodoc
-    proc endMap(writer: _writeType) throws {
+      return new MapSerializer(writer);
     }
   }
 
@@ -271,111 +303,142 @@ module BinaryIO {
       }
     }
 
-    @chpldoc.nodoc
-    proc deserializeField(reader: _readerType, name: string, type T) throws {
-      return reader.read(T);
+    record AggregateDeserializer {
+      var reader;
+
+      @chpldoc.nodoc
+      proc deserializeField(name: string, type T) throws {
+        return reader.read(T);
+      }
+      @chpldoc.nodoc
+      proc endClass() throws {
+      }
+      @chpldoc.nodoc
+      proc endRecord() throws {
+      }
     }
 
     // Class helpers
     @chpldoc.nodoc
     proc startClass(reader: _readerType, name: string) throws {
-    }
-    @chpldoc.nodoc
-    proc endClass(reader: _readerType) throws {
+      return new AggregateDeserializer(reader);
     }
 
     // Record helpers
     @chpldoc.nodoc
     proc startRecord(reader: _readerType, name: string) throws {
+      return new AggregateDeserializer(reader);
     }
-    @chpldoc.nodoc
-    proc endRecord(reader: _readerType) throws {
+
+    record TupleDeserializer {
+      var reader;
+
+      proc readElement(type T) throws {
+        return reader.read(T);
+      }
+
+      @chpldoc.nodoc
+      proc endTuple() throws {
+      }
     }
 
     // Tuple helpers
     @chpldoc.nodoc
     proc startTuple(reader: _readerType) throws {
+      return new TupleDeserializer(reader);
     }
-    @chpldoc.nodoc
-    proc endTuple(reader: _readerType) throws {
+
+    record ListDeserializer {
+      var reader;
+      var _numElements : uint;
+
+      @chpldoc.nodoc
+      proc readElement(type eltType) throws {
+        if _numElements <= 0 then
+          throw new BadFormatError("no more list elements remain");
+
+        _numElements -= 1;
+
+        return reader.read(eltType);
+      }
+      @chpldoc.nodoc
+      proc endList() throws {
+        if _numElements != 0 then
+          throw new BadFormatError("read too few elements for list");
+      }
     }
 
     // List helpers
     @chpldoc.nodoc
     proc startList(reader: _readerType) throws {
-      _numElements = reader.read(uint);
+      return new ListDeserializer(reader, reader.read(uint));
     }
-    @chpldoc.nodoc
-    proc readListElement(reader: _readerType, type eltType) throws {
-      if _numElements <= 0 then
-        throw new BadFormatError("no more list elements remain");
 
-      _numElements -= 1;
+    record ArrayDeserializer {
+      var reader;
 
-      return reader.read(eltType);
-    }
-    @chpldoc.nodoc
-    proc endList(reader: _readerType) throws {
-      if _numElements != 0 then
-        throw new BadFormatError("read too few elements for list");
+      @chpldoc.nodoc
+      proc startDim() throws {
+      }
+      @chpldoc.nodoc
+      proc endDim() throws {
+      }
+
+      @chpldoc.nodoc
+      proc readElement(type eltType) throws {
+        return reader.read(eltType);
+      }
+
+      @chpldoc.nodoc
+      proc readBulkElements(data: c_ptr(?eltType), numElements: uint) throws
+      where isNumericType(eltType) {
+        const n = c_sizeof(eltType)*numElements;
+        const got = reader.readBinary(data, n.safeCast(int));
+        if got < n then throw new EofError();
+      }
+
+      @chpldoc.nodoc
+      proc endArray() throws {
+      }
     }
 
     // Array helpers
     @chpldoc.nodoc
     proc startArray(reader: _readerType) throws {
+      return new ArrayDeserializer(reader);
     }
 
-    @chpldoc.nodoc
-    proc startArrayDim(reader: _readerType) throws {
-    }
-    @chpldoc.nodoc
-    proc endArrayDim(reader: _readerType) throws {
-    }
+    record MapDeserializer {
+      var reader;
+      var _numElements : uint;
 
-    @chpldoc.nodoc
-    proc readArrayElement(reader: _readerType, type eltType) throws {
-      _numElements -= 1;
-      return reader.read(eltType);
-    }
+      @chpldoc.nodoc
+      proc readKey(type keyType) throws {
+        if _numElements <= 0 then
+          throw new BadFormatError("no more map elements remain!");
 
-    @chpldoc.nodoc
-    proc readBulkElements(reader: _readerType, data: c_ptr(?eltType), numElements: uint) throws
-    where isNumericType(eltType) {
-      const n = c_sizeof(eltType)*numElements;
-      const got = reader.readBinary(data, n.safeCast(int));
-      if got < n then throw new EofError();
-      else _numElements -= numElements;
-    }
+        _numElements -= 1;
 
-    @chpldoc.nodoc
-    proc endArray(reader: _readerType) throws {
+        return reader.read(keyType);
+      }
+
+      @chpldoc.nodoc
+      proc readValue(type valType) throws {
+        return reader.read(valType);
+      }
+
+      @chpldoc.nodoc
+      proc endMap() throws {
+        if _numElements != 0 then
+          throw new BadFormatError("failed to read all expected elements in map");
+      }
     }
 
     // Map helpers
     @chpldoc.nodoc
     proc startMap(reader: _readerType) throws {
-      _numElements = reader.read(uint);
+      return new MapDeserializer(reader, reader.read(uint));
     }
 
-    @chpldoc.nodoc
-    proc readKey(reader: _readerType, type keyType) throws {
-      if _numElements <= 0 then
-        throw new BadFormatError("no more map elements remain!");
-
-      _numElements -= 1;
-
-      return reader.read(keyType);
-    }
-
-    @chpldoc.nodoc
-    proc readValue(reader: _readerType, type valType) throws {
-      return reader.read(valType);
-    }
-
-    @chpldoc.nodoc
-    proc endMap(reader: _readerType) throws {
-      if _numElements != 0 then
-        throw new BadFormatError("failed to read all expected elements in map");
-    }
   }
 }
