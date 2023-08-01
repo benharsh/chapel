@@ -2945,18 +2945,6 @@ record DefaultDeserializer {
     }
   }
 
-  @chpldoc.nodoc
-  proc deserializeField(reader:fileReader, name: string, type T) throws {
-    if !name.isEmpty() {
-      reader.readLiteral(name);
-      reader.readLiteral("=");
-    }
-
-    var ret = reader.read(T);
-    reader.matchLiteral(",");
-    return ret;
-  }
-
   // Class helpers
   @chpldoc.nodoc
   proc startClass(reader: fileReader, name: string) throws {
