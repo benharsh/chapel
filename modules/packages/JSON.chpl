@@ -60,12 +60,10 @@ module JSON {
         if val == nil {
           writer._writeLiteral("null");
         } else {
-          var alias = writer.withSerializer(new JsonSerializer());
-          val!.serialize(writer=alias, serializer=alias.serializer);
+          val!.serialize(writer=writer, serializer=this);
         }
       } else {
-        var alias = writer.withSerializer(new JsonSerializer());
-        val.serialize(writer=alias, serializer=alias.serializer);
+        val.serialize(writer=writer, serializer=this);
       }
     }
 
@@ -346,10 +344,6 @@ module JSON {
   }
 
   record JsonDeserializer {
-    @chpldoc.nodoc
-    var _inheritLevel = 0;
-    @chpldoc.nodoc
-    var _firstThing = true;
 
     // Keep track of information gained from reading ahead
 
@@ -402,18 +396,15 @@ module JSON {
         return ret;
       } else if canResolveTypeMethod(readType, "deserializeFrom", reader, this) ||
                 isArrayType(readType) {
-        var alias = reader.withDeserializer(new JsonDeserializer());
-        return readType.deserializeFrom(reader=alias, deserializer=alias.deserializer);
+        return readType.deserializeFrom(reader=reader, deserializer=this);
       } else {
-        var alias = reader.withDeserializer(new JsonDeserializer());
-        return new readType(reader=alias, deserializer=alias.deserializer);
+        return new readType(reader=reader, deserializer=this);
       }
     }
 
     proc deserializeValue(reader: _readerType, ref val: ?readType) : void throws {
       if canResolveMethod(val, "deserialize", reader, this) {
-        var alias = reader.withDeserializer(new JsonDeserializer());
-        val.deserialize(reader=alias, deserializer=alias.deserializer);
+        val.deserialize(reader=reader, deserializer=this);
       } else {
         val = deserializeType(reader, readType);
       }

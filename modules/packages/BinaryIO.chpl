@@ -43,11 +43,6 @@ module BinaryIO {
     // number of fields or elements, and throw errors if that expectation is
     // violated.
 
-    @chpldoc.nodoc
-    proc _fork() {
-      return new BinarySerializer(endian=endian);
-    }
-
     // TODO: rewrite to use correct IO methods (e.g. writeBinary)
     // For now, this is just a helper to mirror the old behavior for basic
     // types
@@ -86,12 +81,10 @@ module BinaryIO {
           writer.writeByte(0);
         } else {
           writer.writeByte(1);
-          var alias = writer.withSerializer(_fork());
-          val!.serialize(writer=alias, serializer=alias.serializer);
+          val!.serialize(writer=writer, serializer=this);
         }
       } else {
-        var alias = writer.withSerializer(_fork());
-        val.serialize(writer=alias, serializer=alias.serializer);
+        val.serialize(writer=writer, serializer=this);
       }
     }
 
@@ -221,17 +214,9 @@ module BinaryIO {
   record BinaryDeserializer {
     const endian : IO.ioendian = IO.ioendian.native;
 
-    @chpldoc.nodoc
-    var _numElements : uint;
-
     proc init(endian: IO.ioendian = IO.ioendian.native) {
       this.endian = endian;
       this.complete();
-    }
-
-    @chpldoc.nodoc
-    proc _fork() {
-      return new BinaryDeserializer(endian=endian);
     }
 
     // TODO: rewrite in terms of writef, or something
@@ -286,18 +271,15 @@ module BinaryIO {
         // nothing...
       } else if canResolveTypeMethod(readType, "deserializeFrom", reader, this) ||
                 isArrayType(readType) {
-        var alias = reader.withDeserializer(_fork());
-        return readType.deserializeFrom(reader=alias, deserializer=alias.deserializer);
+        return readType.deserializeFrom(reader=reader, deserializer=this);
       } else {
-        var alias = reader.withDeserializer(_fork());
-        return new readType(reader=alias, deserializer=alias.deserializer);
+        return new readType(reader=reader, deserializer=this);
       }
     }
 
     proc deserializeValue(reader: _readerType, ref val: ?readType) : void throws {
       if canResolveMethod(val, "deserialize", reader, this) {
-        var alias = reader.withDeserializer(_fork());
-        val.deserialize(reader=alias, deserializer=alias.deserializer);
+        val.deserialize(reader=reader, deserializer=this);
       } else {
         val = deserializeType(reader, readType);
       }
