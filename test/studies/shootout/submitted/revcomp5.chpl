@@ -19,9 +19,9 @@ param eol = '\n'.toByte(),  // end-of-line, as an integer
 
 
 proc main(args: [] string) {
-  var stdinBin  = openfd(0).reader(iokind.native, locking=false,
+  var stdinBin  = openfd(0).reader(deserializer=new BinaryDeserializer(), locking=false,
                            hints=ioHintSet.fromFlag(QIO_CH_ALWAYS_UNBUFFERED)),
-      stdoutBin = openfd(1).writer(iokind.native, locking=false,
+      stdoutBin = openfd(1).writer(serializer=new BinarySerializer(), locking=false,
                            hints=ioHintSet.fromFlag(QIO_CH_ALWAYS_UNBUFFERED)),
       bufLen = 8 * 1024,
       bufDom = {0..<bufLen},

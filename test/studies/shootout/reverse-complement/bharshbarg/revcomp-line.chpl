@@ -128,7 +128,7 @@ proc main(args: [] string) {
     process(data, sectionStart, data.size-2);
   }
 
-  const stdoutBin = (new file(1)).writer(iokind.native, locking=false);
+  const stdoutBin = (new file(1)).writer(serializer=new BinarySerializer(), locking=false);
   //
   // Necessary for now because list `readWriteThis` includes formatting chars,
   // while arrays do not.
