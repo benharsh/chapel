@@ -3112,7 +3112,7 @@ record BinarySerializer {
     st.str_style = iostringstyleInternal.lenVb_data: int(64);
 
     dc._set_styleInternal(st);
-    dc._writeOne(dc.kind, val, here);
+    dc._writeOne(dc._kind, val, here);
   }
 
   /*
@@ -3280,10 +3280,9 @@ record BinaryDeserializer {
     st.binary = 1;
     st.byteorder = 1 + endian:uint(8);
     st.str_style = iostringstyleInternal.lenVb_data: int(64);
-    st.str_style = stringStyleWithVariableLength():int(64);
 
     dc._set_styleInternal(st);
-    dc._readOne(dc.kind, val, here);
+    dc._readOne(dc._kind, val, here);
   }
 
   /*
@@ -3664,7 +3663,7 @@ proc fileReader.withDeserializer(type deserializerType) :
 
 @chpldoc.nodoc
 proc fileReader.withDeserializer(in deserializer: ?dt) : fileReader(this._kind, this.locking, dt) {
-  var ret = new fileReader(this._kind, this.locking, dt);
+  var ret = new fileReader(this.locking, dt, this._kind);
   ret._deserializer = new unmanaged _serializeWrapper(dt, deserializer);
   ret._channel_internal = this._channel_internal;
   ret._home = _home;
@@ -3685,7 +3684,7 @@ proc fileWriter.withSerializer(type serializerType) :
 
 @chpldoc.nodoc
 proc fileWriter.withSerializer(in serializer: ?st) : fileWriter(this._kind, this.locking, st) {
-  var ret = new fileWriter(this._kind, this.locking, st);
+  var ret = new fileWriter(this.locking, st, this._kind);
   ret._serializer = new unmanaged _serializeWrapper(st, serializer);
   ret._channel_internal = this._channel_internal;
   ret._home = _home;
