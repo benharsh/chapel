@@ -3109,7 +3109,7 @@ record BinarySerializer {
 
     st.binary = 1;
     st.byteorder = 1 + endian:uint(8);
-    st.str_style = iostringstyleInternal.lenVb_data: int(64);
+    st.str_style = iostringstyleInternal.data_toeof: int(64);
 
     dc._set_styleInternal(st);
     dc._writeOne(dc._kind, val, here);
@@ -3279,7 +3279,7 @@ record BinaryDeserializer {
 
     st.binary = 1;
     st.byteorder = 1 + endian:uint(8);
-    st.str_style = iostringstyleInternal.lenVb_data: int(64);
+    st.str_style = iostringstyleInternal.data_toeof: int(64);
 
     dc._set_styleInternal(st);
     dc._readOne(dc._kind, val, here);
