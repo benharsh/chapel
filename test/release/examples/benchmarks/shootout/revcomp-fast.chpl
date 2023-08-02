@@ -10,7 +10,7 @@ const table = initTable("ATCGGCTAUAMKRYWWSSYRKMVBHDDHBVNN\n\n");
 
 proc main(args: [] string) {
   const stdin = new file(0),
-        input = stdin.reader(iokind.native, locking=false,
+        input = stdin.reader(deserializer=new BinaryDeserializer(), locking=false,
                              hints=ioHintSet.mmap(true)),
         len = stdin.size;
   var data: [0..#len] uint(8);
@@ -53,7 +53,7 @@ proc main(args: [] string) {
   }
 
   // write the data out to stdout once all tasks have completed
-  const stdoutBin = (new file(1)).writer(iokind.native, locking=false);
+  const stdoutBin = (new file(1)).writer(serializer=new BinarySerializer(), locking=false);
   stdoutBin.writeBinary(data);
 }
 

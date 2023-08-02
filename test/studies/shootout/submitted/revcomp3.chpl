@@ -12,9 +12,9 @@ const table = createTable();    // create the table of code complements
 
 proc main(args: [] string) {
   use IO;
-  const stdinBin = openfd(0).reader(iokind.native, locking=false,
+  const stdinBin = openfd(0).reader(deserializer=new BinaryDeserializer(), locking=false,
                            hints=ioHintSet.fromFlag(QIO_CH_ALWAYS_UNBUFFERED)),
-        stdoutBin = openfd(1).writer(iokind.native, locking=false,
+        stdoutBin = openfd(1).writer(serializer=new BinarySerializer(), locking=false,
                            hints=ioHintSet.fromFlag(QIO_CH_ALWAYS_UNBUFFERED));
 
   // read in the data using an incrementally growing buffer
