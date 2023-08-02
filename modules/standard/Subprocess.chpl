@@ -177,7 +177,8 @@ module Subprocess {
   record subprocess {
     /* The kind of a subprocess is used to create the types
        for any channels that are necessary. */
-    param kind:iokind;
+    @deprecated("the 'kind' field is deprecated")
+    param kind:_iokind;
     /* As with kind, this value is used to create the types
        for any channels that are necessary. */
     param locking:bool;
@@ -223,19 +224,19 @@ module Subprocess {
     @chpldoc.nodoc
     var stdin_buffering:bool;
     @chpldoc.nodoc
-    var stdin_channel:fileWriter(kind=kind, locking=locking);
+    var stdin_channel:fileWriter(locking=locking);
     @chpldoc.nodoc
     var stdout_pipe:bool;
     @chpldoc.nodoc
     var stdout_file:file;
     @chpldoc.nodoc
-    var stdout_channel:fileReader(kind=kind, locking=locking);
+    var stdout_channel:fileReader(locking=locking);
     @chpldoc.nodoc
     var stderr_pipe:bool;
     @chpldoc.nodoc
     var stderr_file:file;
     @chpldoc.nodoc
-    var stderr_channel:fileReader(kind=kind, locking=locking);
+    var stderr_channel:fileReader(locking=locking);
 
     // Ideally we don't have the _file versions, but they
     // are there now because of issues with when the reference counts
@@ -446,10 +447,27 @@ module Subprocess {
 
      :throws IllegalArgumentError: Thrown when ``args`` is an empty array.
      */
+  pragma "last resort"
+  @deprecated("'spawn' with a 'kind' is deprecated")
   proc spawn(args:[] string, env:[] string=Subprocess.empty_env, executable="",
              stdin:?t = pipeStyle.forward, stdout:?u = pipeStyle.forward,
              stderr:?v = pipeStyle.forward,
              param kind=iokind.dynamic, param locking=true) throws
+  {
+    return spawnHelper(args, env, executable, stdin, stdout, stderr, kind, locking);
+  }
+  proc spawn(args:[] string, env:[] string=Subprocess.empty_env, executable="",
+             stdin:?t = pipeStyle.forward, stdout:?u = pipeStyle.forward,
+             stderr:?v = pipeStyle.forward,
+             param locking=true) throws
+  {
+    return spawnHelper(args, env, executable, stdin, stdout, stderr, _iokind.dynamic, locking);
+  }
+
+  private proc spawnHelper(args:[] string, env:[] string=Subprocess.empty_env, executable="",
+             stdin:?t = pipeStyle.forward, stdout:?u = pipeStyle.forward,
+             stderr:?v = pipeStyle.forward,
+             param kind=_iokind.dynamic, param locking=true) throws
   {
     use ChplConfig;
     extern proc sys_getenv(name:c_ptrConst(c_char), ref string_out:c_ptrConst(c_char)):c_int;
@@ -680,11 +698,30 @@ module Subprocess {
 
      :throws IllegalArgumentError: Thrown when ``command`` is an empty string.
   */
+  @deprecated("'spawnshell' with a 'kind' argument is deprecated")
   proc spawnshell(command:string, env:[] string=Subprocess.empty_env,
                   stdin:?t = pipeStyle.forward, stdout:?u = pipeStyle.forward,
                   stderr:?v = pipeStyle.forward,
                   executable="/bin/sh", shellarg="-c",
                   param kind=iokind.dynamic, param locking=true) throws
+  {
+    return spawnshellHelper(command, env, stdin, stdout, stderr, executable, shellarg, _iokind.dynamic, locking);
+  }
+
+  proc spawnshell(command:string, env:[] string=Subprocess.empty_env,
+                  stdin:?t = pipeStyle.forward, stdout:?u = pipeStyle.forward,
+                  stderr:?v = pipeStyle.forward,
+                  executable="/bin/sh", shellarg="-c",
+                  param locking=true) throws
+  {
+    return spawnshellHelper(command, env, stdin, stdout, stderr, executable, shellarg, _iokind.dynamic, locking);
+  }
+
+  proc spawnshellHelper(command:string, env:[] string=Subprocess.empty_env,
+                  stdin:?t = pipeStyle.forward, stdout:?u = pipeStyle.forward,
+                  stderr:?v = pipeStyle.forward,
+                  executable="/bin/sh", shellarg="-c",
+                  param kind=_iokind.dynamic, param locking=true) throws
   {
     if command.isEmpty() then
       throw new owned IllegalArgumentError('command cannot be an empty string');
