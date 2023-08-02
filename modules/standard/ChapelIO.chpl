@@ -315,24 +315,18 @@ module ChapelIO {
       else
         serializer.startRecord(writer, name, numIO);
 
-      proc printFields(const obj: ?t) throws {
-        if  _to_borrowed(t) == borrowed RootClass then return;
-
-        if isClassType(t) {
-          printFields(obj.super);
-        }
-
-        param num_fields = __primitive("num fields", t);
-        for param i in 1..num_fields {
-          if isIoField(obj, i) {
-            param name : string = __primitive("field num to name", obj, i);
-            ser.serializeField(name,
-                               __primitive("field by num", obj, i));
-          }
-        }
+      if isClassType(t) && _to_borrowed(t) != borrowed RootClass {
+        x.super.serialize(writer, ser);
       }
 
-      printFields(x);
+      param num_fields = __primitive("num fields", t);
+      for param i in 1..num_fields {
+        if isIoField(x, i) {
+          param name : string = __primitive("field num to name", x, i);
+          ser.serializeField(name,
+                             __primitive("field by num", x, i));
+        }
+      }
 
       if isClassType(t) then
         ser.endClass();
