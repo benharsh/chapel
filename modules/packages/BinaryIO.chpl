@@ -356,6 +356,10 @@ module BinaryIO {
         if _numElements != 0 then
           throw new BadFormatError("read too few elements for list");
       }
+
+      proc hasMore() : bool throws {
+        return _numElements > 0;
+      }
     }
 
     // List helpers
@@ -421,6 +425,10 @@ module BinaryIO {
       proc endMap() throws {
         if _numElements != 0 then
           throw new BadFormatError("failed to read all expected elements in map");
+      }
+
+      proc hasMore() : bool throws {
+        return _numElements > 0;
       }
     }
 

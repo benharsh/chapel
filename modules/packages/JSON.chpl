@@ -530,6 +530,12 @@ module JSON {
       proc endTuple() throws {
         endList();
       }
+
+      proc hasMore() : bool throws {
+        reader.mark();
+        defer reader.revert();
+        return !reader.matchLiteral("]");
+      }
     }
 
     // Tuple helpers
@@ -644,6 +650,12 @@ module JSON {
       @chpldoc.nodoc
       proc endMap() throws {
         reader._readLiteral("}");
+      }
+
+      proc hasMore() : bool throws {
+        reader.mark();
+        defer reader.revert();
+        return !reader.matchLiteral("}");
       }
     }
 

@@ -2033,15 +2033,11 @@ module List {
       var des = deserializer.startList(r);
 
       var done = false;
-      while !done {
-        try {
-          pragma "no auto destroy"
-          var elt = des.readElement(eltType);
-          // read an element
-          _appendByRef(elt);
-        } catch e: BadFormatError {
-          done = true;
-        }
+      while des.hasMore() {
+        pragma "no auto destroy"
+        var elt = des.readElement(eltType);
+        // read an element
+        _appendByRef(elt);
       }
 
       des.endList();

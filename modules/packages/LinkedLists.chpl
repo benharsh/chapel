@@ -432,12 +432,8 @@ record LinkedList {
     var des = deserializer.startList(reader);
 
     var done = false;
-    while !done {
-      try {
-        append(des.readElement(eltType));
-      } catch {
-        done = true;
-      }
+    while des.hasMore() {
+      append(des.readElement(eltType));
     }
 
     des.endList();

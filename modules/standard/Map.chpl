@@ -642,12 +642,8 @@ module Map {
       var des = deserializer.startMap(r);
 
       var done = false;
-      while !done {
-        try {
-          add(des.readKey(keyType), des.readValue(valType));
-        } catch e: BadFormatError {
-          done = true;
-        }
+      while des.hasMore() {
+        add(des.readKey(keyType), des.readValue(valType));
       }
 
       des.endMap();

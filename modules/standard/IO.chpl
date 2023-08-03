@@ -3017,6 +3017,12 @@ record DefaultDeserializer {
     proc endList() throws {
       reader._readLiteral("]");
     }
+
+    proc hasMore() : bool throws {
+      reader.mark();
+      defer reader.revert();
+      return !reader.matchLiteral("]");
+    }
   }
 
   // List helpers
@@ -3093,6 +3099,12 @@ record DefaultDeserializer {
     @chpldoc.nodoc
     proc endMap() throws {
       reader._readLiteral("}");
+    }
+
+    proc hasMore() : bool throws {
+      reader.mark();
+      defer reader.revert();
+      return !reader.matchLiteral("}");
     }
   }
 
