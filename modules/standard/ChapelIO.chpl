@@ -316,7 +316,8 @@ module ChapelIO {
         serializer.startRecord(writer, name, numIO);
 
       if isClassType(t) && _to_borrowed(t) != borrowed RootClass {
-        x.super.serialize(writer, ser);
+        if x.super.type != borrowed RootClass then
+          x.super.serialize(writer, ser);
       }
 
       param num_fields = __primitive("num fields", t);

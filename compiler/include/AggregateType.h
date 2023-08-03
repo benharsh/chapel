@@ -275,6 +275,7 @@ private:
   bool                        handleSuperFields(FnSymbol*                    fn,
                                                 const std::set<const char*>& names,
                                                 SymbolMap&                   fieldArgMap,
+                                                Symbol* fileReader,
                                                 Symbol* desHelper);
 
   std::vector<AggregateType*> instantiations;

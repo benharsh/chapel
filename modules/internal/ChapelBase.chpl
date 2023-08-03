@@ -64,6 +64,16 @@ module ChapelBase {
   @deprecated(notes="the 'object' abstract root class has been deprecated; please use 'RootClass' instead")
   class object { }
 
+  // This function exists to avoid some as-yet-unexplained infinite loop
+  // in the compiler related to finding visible functions. To try debugging,
+  // run the test 'io/serializers/write-objects.chpl'.
+  //
+  // 'last resort' currently needed to work around bus error in basic-types test...???
+  pragma "last resort"
+  @chpldoc.nodoc
+  proc RootClass.serialize(writer, ref serializer) throws {
+  }
+
   enum iterKind {leader, follower, standalone};
 
   // This flag toggles on the new pointer-based implementation.

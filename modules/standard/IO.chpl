@@ -2675,10 +2675,11 @@ record DefaultSerializer {
     }
   }
 
-  record AggregateSerializer {
+  class AggregateSerializer {
     var writer;
     var name : string;
     var size : int;
+    var _inheritLevel = 1;
     var _first : bool = true;
     const _ending : string;
 
@@ -2691,9 +2692,18 @@ record DefaultSerializer {
       writer.write(val);
     }
 
+    proc startClass(writer: fileWriter, name: string, size: int) throws {
+      //assert(this.writer == writer);
+      _inheritLevel += 1;
+      return this.borrow();
+    }
+
     @chpldoc.nodoc
     proc endClass() throws {
-      writer._writeLiteral(_ending);
+      _inheritLevel -= 1;
+
+      if _inheritLevel == 0 then
+        writer._writeLiteral(_ending);
     }
 
     @chpldoc.nodoc
@@ -2709,7 +2719,7 @@ record DefaultSerializer {
   @chpldoc.nodoc
   proc startClass(writer: fileWriter, name: string, size: int) throws {
     writer._writeLiteral("{");
-    return new AggregateSerializer(writer, name, size, _ending="}");
+    return new owned AggregateSerializer(writer, name, size, _ending="}");
   }
 
   // Record helpers
@@ -2920,9 +2930,10 @@ record DefaultDeserializer {
     }
   }
 
-  record AggregateDeserializer {
+  class AggregateDeserializer {
     var reader;
     var _first : bool = true;
+    var _inheritLevel = 1;
 
     @chpldoc.nodoc
     proc deserializeField(name: string, type T) throws {
@@ -2934,9 +2945,18 @@ record DefaultDeserializer {
       return ret;
     }
 
+    proc startClass(reader: fileReader, name: string) throws {
+      //assert(this.reader == reader);
+      _inheritLevel += 1;
+      return this.borrow();
+    }
+
     @chpldoc.nodoc
     proc endClass() throws {
-      reader.readLiteral("}");
+      _inheritLevel -= 1;
+
+      if _inheritLevel == 0 then
+        reader.readLiteral("}");
     }
 
     @chpldoc.nodoc

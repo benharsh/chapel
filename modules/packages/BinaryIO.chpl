@@ -88,13 +88,18 @@ module BinaryIO {
       }
     }
 
-    record AggregateSerializer {
+    class AggregateSerializer {
       var writer;
 
       @chpldoc.nodoc
       proc serializeField(name: string, const val: ?T) throws {
         writer.write(val);
       }
+
+      proc startClass(writer, name: string, size: int) throws {
+        return this;
+      }
+
       @chpldoc.nodoc
       proc endClass() throws {
       }
@@ -291,6 +296,9 @@ module BinaryIO {
       @chpldoc.nodoc
       proc deserializeField(name: string, type T) throws {
         return reader.read(T);
+      }
+      proc startClass(reader, name: string) throws {
+        return this;
       }
       @chpldoc.nodoc
       proc endClass() throws {

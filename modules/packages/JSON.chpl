@@ -67,12 +67,13 @@ module JSON {
       }
     }
 
-    record AggregateSerializer {
+    class AggregateSerializer {
       var writer;
       var name : string;
       var size : int;
       var _first : bool = true;
       const _ending : string;
+      var _inheritLevel = 1;
 
       proc serializeField(name: string, const val: ?) throws {
         if !_first then writer._writeLiteral(", ");
@@ -83,9 +84,17 @@ module JSON {
         writer.write(val);
       }
 
+      proc startClass(writer, name: string, size: int) throws {
+        _inheritLevel += 1;
+        return this;
+      }
+
       @chpldoc.nodoc
       proc endClass() throws {
-        writer._writeLiteral(_ending);
+        _inheritLevel -= 1;
+
+        if _inheritLevel == 0 then
+          writer._writeLiteral(_ending);
       }
 
       @chpldoc.nodoc
@@ -410,10 +419,11 @@ module JSON {
       }
     }
 
-    record AggregateDeserializer {
+    class AggregateDeserializer {
       var reader;
       var _fieldOffsets : map(string, int);
       var _lastPos = -1;
+      var _inheritLevel = 1;
       var _first : bool = true;
 
       @chpldoc.nodoc
@@ -458,11 +468,20 @@ module JSON {
         return ret;
       }
 
+      proc startClass(reader, name: string) {
+        _inheritLevel += 1;
+        return this;
+      }
+
       @chpldoc.nodoc
       proc endClass() throws {
-        const dist =  _lastPos - reader.offset();
-        reader.advance(dist);
-        reader.readLiteral("}");
+        _inheritLevel -= 1;
+
+        if _inheritLevel == 0 {
+          const dist =  _lastPos - reader.offset();
+          reader.advance(dist);
+          reader.readLiteral("}");
+        }
       }
 
       @chpldoc.nodoc

@@ -84,14 +84,14 @@ class Child : Parent {
   }
   proc init(reader: fileReader, ref deserializer) {
     var des = deserializer.startClass(reader, "Child");
-    super.init(des.deserializeField("x", int));
+    super.init(reader, des);
     this.y = des.deserializeField("y", real);
     des.endClass();
   }
 
   override proc serialize(writer: fileWriter, ref serializer) {
     var ser = serializer.startClass(writer, "Child", 1);
-    ser.serializeField("x", x);
+    super.serialize(writer, ser);
     ser.serializeField("y", y);
     ser.endClass();
   }

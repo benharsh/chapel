@@ -2404,7 +2404,9 @@ void AggregateType::buildDefaultInitializer() {
       SymbolMap fieldArgMap;
 
       if (!badParentInit()) {
-        bool ret = handleSuperFields(fn, names, fieldArgMap, /*desHelper=*/nullptr);
+        bool ret = handleSuperFields(fn, names, fieldArgMap,
+                                     /*fileReader=*/nullptr, /*desHelper=*/nullptr);
+        std::ignore = ret;
         assert(ret);
         // Parent fields before child fields
         fieldToArg(fn, names, fieldArgMap,
@@ -2551,7 +2553,8 @@ void AggregateType::buildReaderInitializer() {
         DefExpr* helperDef = new DefExpr(desHelper, readStart);
         fn->insertAtHead(helperDef);
 
-        bool ret = handleSuperFields(fn, names, fieldArgMap, desHelper);
+        bool ret = handleSuperFields(fn, names, fieldArgMap, reader, desHelper);
+        std::ignore = ret;
         assert(ret);
 
         fn->insertAtHead(helperDef->remove());
@@ -2799,6 +2802,7 @@ bool AggregateType::badParentInit() {
 bool AggregateType::handleSuperFields(FnSymbol*                    fn,
                                       const std::set<const char*>& names,
                                       SymbolMap& fieldArgMap,
+                                      Symbol* fileReader,
                                       Symbol* desHelper) {
   bool retval = true;
 
@@ -2860,31 +2864,37 @@ bool AggregateType::handleSuperFields(FnSymbol*                    fn,
 
               superCall->insertAtTail(superArg->sym);
             } else {
-              // Implement 'super' behavior for deserializing initializers
+              //// Implement 'super' behavior for deserializing initializers
 
-              // isReaderInit == true, and we need to generate code to invoke
-              // the 'deserializeField' interface from the formatter.
-              DefExpr* defPoint = field->defPoint;
-              Expr* typeExpr = nullptr;
-              if (defPoint->exprType != NULL) {
-                typeExpr = defPoint->exprType->copy();
-              } else if (defPoint->init != NULL) {
-                typeExpr = new CallExpr(PRIM_TYPEOF, defPoint->init->copy());
-              }
+              //// isReaderInit == true, and we need to generate code to invoke
+              //// the 'deserializeField' interface from the formatter.
+              //DefExpr* defPoint = field->defPoint;
+              //Expr* typeExpr = nullptr;
+              //if (defPoint->exprType != NULL) {
+              //  typeExpr = defPoint->exprType->copy();
+              //} else if (defPoint->init != NULL) {
+              //  typeExpr = new CallExpr(PRIM_TYPEOF, defPoint->init->copy());
+              //}
 
-              if (typeExpr != nullptr) {
-                CallExpr* desField = new CallExpr("deserializeField", gMethodToken, desHelper,
-                                                  new CallExpr(":", new_CStringSymbol(field->name), dtString->symbol),
-                                                  typeExpr);
-                superCall->insertAtTail(desField);
-              }
+              //if (typeExpr != nullptr) {
+              //  CallExpr* desField = new CallExpr("deserializeField", gMethodToken, desHelper,
+              //                                    new CallExpr(":", new_CStringSymbol(field->name), dtString->symbol),
+              //                                    typeExpr);
+              //  superCall->insertAtTail(desField);
+              //}
             }
           }
+        }
+
+        if (desHelper != nullptr) {
+          superCall->insertAtTail(new NamedExpr("reader", new SymExpr(fileReader)));
+          superCall->insertAtTail(new NamedExpr("deserializer", new SymExpr(desHelper)));
         }
       }
 
       fn->body->insertAtHead(superCall);
     }
+
   }
 
   // Nothing to be done for records.
