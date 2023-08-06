@@ -175,13 +175,12 @@ module Subprocess {
      subprocess record is automatically destroyed.
    */
   record subprocess {
-    /* The kind of a subprocess is used to create the types
-       for any channels that are necessary. */
-    @deprecated("the 'kind' field is deprecated")
-    param kind:_iokind;
     /* As with kind, this value is used to create the types
        for any channels that are necessary. */
     param locking:bool;
+
+    @chpldoc.nodoc
+    param _kind:_iokind = _iokind.dynamic;
 
     @chpldoc.nodoc
     var home:locale = here;
@@ -309,6 +308,9 @@ module Subprocess {
       return stderr_channel;
     }
   }
+
+  @deprecated("the 'kind' field is deprecated")
+  proc subprocess.kind param do return _kind;
 
   private extern const QIO_FD_FORWARD:c_int;
   private extern const QIO_FD_CLOSE:c_int;
@@ -557,7 +559,7 @@ module Subprocess {
     qio_spawn_free_ptrvec(use_args);
     qio_spawn_free_ptrvec(use_env);
 
-    var ret = new subprocess(kind=kind, locking=locking,
+    var ret = new subprocess(_kind=kind, locking=locking,
                              home=here,
                              pid=pid,
                              inputfd=stdin_fd,
@@ -698,6 +700,7 @@ module Subprocess {
 
      :throws IllegalArgumentError: Thrown when ``command`` is an empty string.
   */
+  pragma "last resort"
   @deprecated("'spawnshell' with a 'kind' argument is deprecated")
   proc spawnshell(command:string, env:[] string=Subprocess.empty_env,
                   stdin:?t = pipeStyle.forward, stdout:?u = pipeStyle.forward,
@@ -729,7 +732,7 @@ module Subprocess {
     var args = if shellarg == "" then [executable, command]
         else [executable, shellarg, command];
 
-    return spawn(args, env, executable,
+    return spawnHelper(args, env, executable,
                  stdin=stdin, stdout=stdout, stderr=stderr,
                  kind=kind, locking=locking);
   }

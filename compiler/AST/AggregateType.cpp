@@ -952,10 +952,12 @@ static void checkRangeDeprecations(AggregateType* at, NamedExpr* ne,
 
 static bool checkKindDeprecation(AggregateType* at, NamedExpr* ne,
                                  Symbol*& field) {
-  if (at->getModule() == ioModule) {
+  bool subprocMod = at->getModule()->modTag == MOD_STANDARD &&
+                    strcmp(at->getModule()->name, "Subprocess");
+  if (at->getModule() == ioModule || subprocMod) {
     bool isFileReader = strcmp(at->symbol->name, "fileReader") == 0;
     bool isFileWriter = strcmp(at->symbol->name, "fileWriter") == 0;
-    if (isFileReader || isFileWriter) {
+    if (isFileReader || isFileWriter || strcmp(at->symbol->name, "subprocess") == 0) {
       const char* serdeStr = isFileReader ? "Deserializers" : "Serializers";
       if (strcmp(ne->name, "kind") == 0) {
         USR_WARN(ne, "%s.kind is deprecated; please use %s instead", at->symbol->name, serdeStr);
