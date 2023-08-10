@@ -3136,9 +3136,9 @@ record BinarySerializer {
       //
       // TODO: Should 'startClass' handle this case?
       if val == nil {
-        writer.writeByte(0);
+        //writer.writeByte(0);
       } else {
-        writer.writeByte(1);
+        //writer.writeByte(1);
         var alias = writer.withSerializer(_fork());
         val!.serialize(writer=alias, serializer=alias.serializer);
       }
@@ -3210,8 +3210,12 @@ record BinarySerializer {
   @chpldoc.nodoc
   proc writeBulkElements(writer: _writeType, data: c_ptr(?eltType), numElements: uint) throws
   where isNumericType(eltType) {
-    const n = c_sizeof(eltType)*numElements;
-    writer.writeBinary(data, n.safeCast(int));
+    if endian == ioendian.native {
+      const n = c_sizeof(eltType)*numElements;
+      writer.writeBinary(data, n.safeCast(int));
+    } else {
+      for i in 0..<numElements do writer.write(data[i]);
+    }
   }
 
   @chpldoc.nodoc
@@ -3417,10 +3421,15 @@ record BinaryDeserializer {
   @chpldoc.nodoc
   proc readBulkElements(reader: _readerType, data: c_ptr(?eltType), numElements: uint) throws
   where isNumericType(eltType) {
-    const n = c_sizeof(eltType)*numElements;
-    const got = reader.readBinary(data, n.safeCast(int));
-    if got < n then throw new EofError();
-    else _numElements -= numElements;
+    if endian == ioendian.native {
+      const n = c_sizeof(eltType)*numElements;
+      const got = reader.readBinary(data, n.safeCast(int));
+      if got < n then throw new EofError();
+      else _numElements -= numElements;
+    } else {
+      for i in 0..<numElements do
+        reader.read(data[i]);
+    }
   }
 
   @chpldoc.nodoc
