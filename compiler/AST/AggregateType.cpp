@@ -953,7 +953,7 @@ static void checkRangeDeprecations(AggregateType* at, NamedExpr* ne,
 static bool checkKindDeprecation(AggregateType* at, NamedExpr* ne,
                                  Symbol*& field) {
   bool subprocMod = at->getModule()->modTag == MOD_STANDARD &&
-                    strcmp(at->getModule()->name, "Subprocess");
+                    strcmp(at->getModule()->name, "Subprocess") == 0;
   if (at->getModule() == ioModule || subprocMod) {
     bool isFileReader = strcmp(at->symbol->name, "fileReader") == 0;
     bool isFileWriter = strcmp(at->symbol->name, "fileWriter") == 0;
@@ -1656,6 +1656,17 @@ static bool buildFieldNames(AggregateType* at, std::string& str, bool cname) {
       // A fully instantiated type
       bool isFirst = true;
       for_vector(Symbol, field, root->genericFields) {
+        Symbol* newField = at->getField(field->name);
+        const char* valStr = buildValueName(newField, cname);
+
+        bool isFileReaderWriter = root->getModule() == ioModule &&
+                                  (strcmp(root->symbol->name, "fileReader") == 0 ||
+                                   strcmp(root->symbol->name, "fileWriter") == 0);
+        if (isFileReaderWriter &&
+            strcmp(field->name, "_kind") == 0 &&
+            strcmp(valStr, "dynamic") == 0) {
+          continue;
+        }
 
         if (isFirst) {
           isFirst = false;
@@ -1668,8 +1679,7 @@ static bool buildFieldNames(AggregateType* at, std::string& str, bool cname) {
           str += "=";
         }
 
-        Symbol* newField = at->getField(field->name);
-        str += buildValueName(newField, cname);
+        str += valStr;
       }
     } else {
       // A partial instantiation
