@@ -26,14 +26,14 @@ record buf {
   const bufSize : int;
   var buf : [0..#bufSize] uint(8);
   var cur, cap, numLeft : int;
-  var chan : fileReader(kind=iokind.native, locking=false);
+  var chan : fileReader(locking=false, BinaryDeserializer);
 
   proc init(fi:file, bs:int) {
     this.bufSize = bs;
 
     this.complete();
 
-    chan = fi.reader(locking=false);
+    chan = fi.reader(locking=false, deserializer=new BinaryDeserializer());
     numLeft = fi.size;
   }
 

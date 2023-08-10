@@ -25,12 +25,12 @@ proc main(args:[] string)
   var BlockNumLocales = {0..#numLocales} dmapped Block({0..#numLocales});
   var distributedBuffers: [BlockNumLocales] file;
   var distributedWriters: [BlockNumLocales]
-    fileWriter(kind=iokind.native, locking=true);
+    fileWriter(locking=true, BinarySerializer);
   
   // Open up buffers to store the hashes 
   forall (f,w) in zip(distributedBuffers, distributedWriters) {
     f = openMemFile();
-    w = f.writer();
+    w = f.writer(serializer=new BinarySerializer());
   }
   // Compute the SHA1 sums using the external program
   // Do so in parallel across all locales
