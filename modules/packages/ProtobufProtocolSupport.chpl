@@ -48,8 +48,8 @@ module ProtobufProtocolSupport {
     use CTypes;
     use OS.POSIX;
 
-    type writingChannel = fileWriter(IO._iokind.little,false);
-    type readingChannel = fileReader(IO._iokind.little,false);
+    type writingChannel = fileWriter(false, BinarySerializer);
+    type readingChannel = fileReader(false, BinaryDeserializer);
 
     // wireTypes
     const varint = 0;
