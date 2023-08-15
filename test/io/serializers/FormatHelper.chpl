@@ -26,12 +26,12 @@ module FormatHelper {
         else return new JsonDeserializer();
       }
       when FormatKind.little {
-        if writing then return new BinarySerializer(endian=IO.ioendian.little);
-        else return new BinaryDeserializer(endian=IO.ioendian.little);
+        if writing then return new BinarySerializer(endian=IO.ioendian.little, _structured=true);
+        else return new BinaryDeserializer(endian=IO.ioendian.little, _structured=true);
       }
       when FormatKind.big {
-        if writing then return new BinarySerializer(endian=IO.ioendian.big);
-        else return new BinaryDeserializer(endian=IO.ioendian.big);
+        if writing then return new BinarySerializer(endian=IO.ioendian.big, _structured=true);
+        else return new BinaryDeserializer(endian=IO.ioendian.big, _structured=true);
       }
       when FormatKind.syntax {
         if writing then return new ChplSerializer();
