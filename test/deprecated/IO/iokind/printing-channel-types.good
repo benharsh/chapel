@@ -3,5 +3,5 @@ printing-channel-types.chpl:4: warning: 'iokind' is deprecated, please use Seria
 printing-channel-types.chpl:5: warning: 'iokind' is deprecated, please use Serializers that support endianness instead
 printing-channel-types.chpl:4: warning: 'iokind' is deprecated, please use Serializers that support endianness instead
 printing-channel-types.chpl:5: warning: 'iokind' is deprecated, please use Serializers that support endianness instead
-fileReader(false,nothing,native)
-fileWriter(false,nothing,native)
+fileReader(false,DefaultDeserializer,native)
+fileWriter(false,DefaultSerializer,native)
