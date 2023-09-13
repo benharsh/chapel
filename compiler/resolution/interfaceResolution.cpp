@@ -1538,7 +1538,6 @@ static bool resolveOneRequiredFn(InterfaceSymbol* isym,  ImplementsStmt*  istm,
                          strcmp(method->getFormal(3)->name, "reader") == 0 &&
                          strcmp(method->getFormal(4)->name, "deserializer") == 0;
       if (strcmp(method->name, reqFn->name) == 0 || isInitMatch) {
-        if (strcmp(selfType->name, "InitMissing") == 0) gdbShouldBreakHere();
         if (isInitMatch) {
           if (CallExpr* call = toCallExpr(method->body->body.head)) {
             if (call->isNamed("compilerError")) {
