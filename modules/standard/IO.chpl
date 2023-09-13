@@ -6161,7 +6161,7 @@ private proc chpl__warnDeserializable(type t) {
       "'readDeserializable' or 'initDeserializable'. In the future this will ",
       "result in an error. To implement these interfaces, please add at ",
       "least one of the two interfaces to the declaration of '", t:string,
-      "': ", typeStr, " ", t:string, " : readDeserializable");
+      "': ", typeStr, " ", t:string, " : readDeserializable", 3);
     }
 
    // if warnRead {
@@ -6255,7 +6255,7 @@ private proc chpl__warnSerializable(const ref arg: ?t) {
     "'writeSerializable'. In the future this will result in ",
     "an error. To make '", t:string, "' implement writeSerializable, add ",
     "the interface to its declaration: ", typeStr, " ", t:string,
-    ": writeSerializable");
+    ": writeSerializable", 3);
   }
 }
 
