@@ -6144,6 +6144,46 @@ proc fileWriter._constructIoErrorMsg(param kind: _iokind, const x:?t): string {
   return result;
 }
 
+private proc chpl__warnDeserializable(type t) {
+  if !isPrimitiveType(t) && !isEnumType(t) {
+    if __primitive("implements interface", t, serializable) != 2 then return;
+
+    param warnRead = __primitive("implements interface", t, readDeserializable) == 2;
+    param warnInit = __primitive("implements interface", t, initDeserializable) == 2;
+
+    param typeStr = if isRecordType(t) then "record" else "class";
+    // If the user has specified at least one of these, then we're good.
+    if !warnRead || !warnInit then return;
+    else {
+      compilerWarning("'", t:string, "' has either a 'deserialize' method or ",
+      "initializer that is being used by the standard library for ",
+      "deserialization. However, '", t:string, "' does not implement ",
+      "'readDeserializable' or 'initDeserializable'. In the future this will ",
+      "result in an error. To implement these interfaces, please add at ",
+      "least one of the two interfaces to the declaration of '", t:string,
+      "': ", typeStr, " ", t:string, " : readDeserializable");
+    }
+
+   // if warnRead {
+   //   compilerWarning("'", t:string, "' has a 'deserialize' method ",
+   //   "that is being used by the standard library for ",
+   //   "deserialization. However, '", t:string, "' does not implement ",
+   //   "'readDeserializable'. In the future this will ",
+   //   "result in an error. To implement this interface, please add ",
+   //   "the interface to the declaration of '", t:string,
+   //   "': ", typeStr, " ", t:string, " : readDeserializable");
+   // } else if warnInit {
+   //   compilerWarning("'", t:string, "' has an initializer ",
+   //   "that is being used by the standard library for ",
+   //   "deserialization. However, '", t:string, "' does not implement ",
+   //   "'initDeserializable'. In the future this will ",
+   //   "result in an error. To implement this interface, please add ",
+   //   "the interface to the declaration of '", t:string,
+   //   "': ", typeStr, " ", t:string, " : initDeserializable");
+   // }
+  }
+}
+
 @chpldoc.nodoc
 proc fileReader._deserializeOne(type readType, loc:locale) throws {
   // TODO: Investigate overhead of initializer when in a loop.
@@ -6154,6 +6194,8 @@ proc fileReader._deserializeOne(type readType, loc:locale) throws {
   __primitive("=", reader._deserializer, _deserializer);
   reader._home = _home;
   reader._readWriteThisFromLocale = loc;
+
+  chpl__warnDeserializable(readType);
 
   return reader.deserializer.deserializeType(reader, readType);
 }
@@ -6173,6 +6215,8 @@ proc fileReader._deserializeOne(ref x:?t, loc:locale) throws {
     reader._readOne(reader._kind, x, reader.getLocaleOfIoRequest());
     return;
   }
+
+  chpl__warnDeserializable(t);
 
   reader.deserializer.deserializeValue(reader, x);
 }
@@ -6199,6 +6243,22 @@ private proc escapedNonUTF8ErrorMessage() : string {
   return ret;
 }
 
+private proc chpl__warnSerializable(const ref arg: ?t) {
+  if !isPrimitiveType(t) && !isEnumType(t) &&
+    __primitive("implements interface", arg, writeSerializable) == 2 {
+    if __primitive("implements interface", arg, serializable) != 2 then return;
+
+    param typeStr = if isRecordType(t) then "record" else "class";
+    compilerWarning("'", arg.type:string + "' has a 'serialize' method ",
+    "that is being used by the standard library. However, ",
+    "'" + arg.type:string + "' does not implement ",
+    "'writeSerializable'. In the future this will result in ",
+    "an error. To make '", t:string, "' implement writeSerializable, add ",
+    "the interface to its declaration: ", typeStr, " ", t:string,
+    ": writeSerializable");
+  }
+}
+
 @chpldoc.nodoc
 proc fileWriter._serializeOne(const x:?t, loc:locale) throws {
   // TODO: Investigate overhead of initializer when in a loop.
@@ -6217,6 +6277,8 @@ proc fileWriter._serializeOne(const x:?t, loc:locale) throws {
     writer._writeOne(writer._kind, x, writer.getLocaleOfIoRequest());
     return;
   }
+
+  chpl__warnSerializable(x);
 
   try writer.serializer.serializeValue(writer, x);
 }

@@ -1529,6 +1529,37 @@ static bool resolveOneRequiredFn(InterfaceSymbol* isym,  ImplementsStmt*  istm,
   INT_ASSERT(holder->body.empty());
   cgprint("%s  required fn %s\n", indent, symstring(reqFn));
 
+  if (reqFn->hasFlag(FLAG_IFC_SERDE)) {
+    auto selfType = fml2act.get(toDefExpr(isym->ifcFormals.head)->sym);
+    forv_Vec(FnSymbol, method, selfType->type->methods) {
+      bool isInitMatch = method->isInitializer() &&
+                         strcmp("chpl__reader_init", reqFn->name) == 0 &&
+                         method->numFormals() == 4 &&
+                         strcmp(method->getFormal(3)->name, "reader") == 0 &&
+                         strcmp(method->getFormal(4)->name, "deserializer") == 0;
+      if (strcmp(method->name, reqFn->name) == 0 || isInitMatch) {
+        if (strcmp(selfType->name, "InitMissing") == 0) gdbShouldBreakHere();
+        if (isInitMatch) {
+          if (CallExpr* call = toCallExpr(method->body->body.head)) {
+            if (call->isNamed("compilerError")) {
+              return false;
+            }
+          }
+        } else {
+          auto ret = toCallExpr(method->body->body.tail);
+          INT_ASSERT(ret->isPrimitive(PRIM_RETURN));
+          if (CallExpr* call = toCallExpr(ret->prev)) {
+            if (call->isNamed("compilerError")) {
+              return false;
+            }
+          }
+        }
+        istm->witnesses.symWits.put(reqFn, method);
+        return true;
+      }
+    }
+  }
+
   // Create a call to the required function inside 'holder'.
   FormalList formalDups;
   CallExpr* call = new CallExpr(reqFn->name);
@@ -2119,7 +2150,11 @@ static Expr* closestInterestingScopeAnchor(Expr*   callsite,
 }
 
 static bool isAutoImplementInternalInterface(InterfaceSymbol* isym) {
-  return isym == gHashable || isym == gContextManager;
+  return isym == gHashable || isym == gContextManager ||
+         isym == gWriteSerializable ||
+         isym == gReadDeserializable ||
+         isym == gInitDeserializable ||
+         isym == gSerializable;
 }
 
 static Expr* anchorPointForAutoImplementInterface(InterfaceSymbol* isym,

@@ -832,6 +832,7 @@ module ChapelIO {
   proc range.serialize(writer, ref serializer) throws {
     writeThis(writer);
   }
+  range implements writeSerializable;
 
   @chpldoc.nodoc
   proc ref range.readThis(f) throws {
