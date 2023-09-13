@@ -1,0 +1,26 @@
+warn-interfaces.chpl:nnnn: In function 'test':
+warn-interfaces.chpl:nnnn: warning: 'SerializeMissing' has a 'serialize' method that is being used by the standard library. However, 'SerializeMissing' does not implement 'writeSerializable'. In the future this will result in an error. To make 'SerializeMissing' implement writeSerializable, add the interface to its declaration: record SerializeMissing: writeSerializable
+  warn-interfaces.chpl:nnnn: called as test(type T = SerializeMissing, param read = mode.readVal)
+$CHPL_HOME/modules/standard/IO.chpl:nnnn: In method 'read':
+$CHPL_HOME/modules/standard/IO.chpl:nnnn: warning: 'DeserializeMissing' has either a 'deserialize' method or initializer that is being used by the standard library for deserialization. However, 'DeserializeMissing' does not implement 'readDeserializable' or 'initDeserializable'. In the future this will result in an error. To implement these interfaces, please add at least one of the two interfaces to the declaration of 'DeserializeMissing': record DeserializeMissing : readDeserializable
+  warn-interfaces.chpl:nnnn: called as (fileReader(true,defaultDeserializer)).read(args(0): DeserializeMissing) from function 'test'
+  warn-interfaces.chpl:nnnn: called as test(type T = DeserializeMissing, param read = mode.readVal)
+warn-interfaces.chpl:nnnn: In function 'test':
+warn-interfaces.chpl:nnnn: warning: 'InitMissing' has either a 'deserialize' method or initializer that is being used by the standard library for deserialization. However, 'InitMissing' does not implement 'readDeserializable' or 'initDeserializable'. In the future this will result in an error. To implement these interfaces, please add at least one of the two interfaces to the declaration of 'InitMissing': record InitMissing : readDeserializable
+  warn-interfaces.chpl:nnnn: called as test(type T = InitMissing, param read = mode.readVal)
+----- JustTwo -----
+got: 10
+----- Default -----
+got: (x = 10)
+----- Serializable -----
+got: 10
+----- SerializeMissing -----
+----- SerializePresent -----
+----- DeserializeMissing -----
+got: 10
+----- DeserializePresent -----
+got: 10
+----- InitMissing -----
+got: 10
+----- InitPresent -----
+got: 10
