@@ -368,6 +368,7 @@ module ChapelIteratorSupport {
   proc _iteratorRecord.serialize(writer, ref serializer) throws {
     writeThis(writer);
   }
+  implements writeSerializable(_iteratorRecord);
 
   operator =(ref ic: _iteratorRecord, xs) {
     for (e, x) in zip(ic, xs) do

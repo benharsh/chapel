@@ -2509,7 +2509,7 @@ private proc defaultSerializeVal(param writing : bool,
 }
 
 @chpldoc.nodoc
-class _serializeWrapper {
+class _serializeWrapper : writeSerializable {
   type T;
   var member: T;
   // TODO: Needed to avoid a weird memory error in the following test in
@@ -3923,7 +3923,7 @@ proc fileWriter.withSerializer(in serializer: ?st) : fileWriter(this._kind, this
 // represents a Unicode codepoint
 // used to pass codepoints to read and write to avoid duplicating code
 @chpldoc.nodoc
-record _internalIoChar {
+record _internalIoChar : writeSerializable {
   /* The codepoint value */
   var ch:int(32);
   @chpldoc.nodoc
@@ -3997,7 +3997,7 @@ When reading an ioNewline, read routines will skip any character sequence
 type ioNewline = chpl_ioNewline;
 
 @chpldoc.nodoc
-record chpl_ioNewline {
+record chpl_ioNewline : writeSerializable {
   /*
     Normally, we will skip anything at all to get to a ``\n``,
     but if skipWhitespaceOnly is set, it will be an error
@@ -4036,7 +4036,7 @@ will return an error for incorrectly formatted input
 type ioLiteral = chpl_ioLiteral;
 
 @chpldoc.nodoc
-record chpl_ioLiteral {
+record chpl_ioLiteral : writeSerializable {
   /* The value of the literal */
   var val: string;
   /* Should read operations using this literal ignore and consume
@@ -6145,11 +6145,12 @@ proc fileWriter._constructIoErrorMsg(param kind: _iokind, const x:?t): string {
 }
 
 private proc chpl__warnDeserializable(type t) {
+  if t == _nilType then return;
   if !isPrimitiveType(t) && !isEnumType(t) {
-    if __primitive("implements interface", t, serializable) != 2 then return;
+    if __primitive("implements interface", _to_nonnil(t), serializable) != 2 then return;
 
-    param warnRead = __primitive("implements interface", t, readDeserializable) == 2;
-    param warnInit = __primitive("implements interface", t, initDeserializable) == 2;
+    param warnRead = __primitive("implements interface", _to_nonnil(t), readDeserializable) == 2;
+    param warnInit = __primitive("implements interface", _to_nonnil(t), initDeserializable) == 2;
 
     param typeStr = if isRecordType(t) then "record" else "class";
     // If the user has specified at least one of these, then we're good.
@@ -6244,14 +6245,15 @@ private proc escapedNonUTF8ErrorMessage() : string {
 }
 
 private proc chpl__warnSerializable(const ref arg: ?t) {
+  if t == _nilType then return;
   if !isPrimitiveType(t) && !isEnumType(t) &&
-    __primitive("implements interface", arg, writeSerializable) == 2 {
-    if __primitive("implements interface", arg, serializable) != 2 then return;
+    __primitive("implements interface", _to_nonnil(t), writeSerializable) == 2 {
+    if __primitive("implements interface", _to_nonnil(t), serializable) != 2 then return;
 
     param typeStr = if isRecordType(t) then "record" else "class";
-    compilerWarning("'", arg.type:string + "' has a 'serialize' method ",
+    compilerWarning("'", t:string + "' has a 'serialize' method ",
     "that is being used by the standard library. However, ",
-    "'" + arg.type:string + "' does not implement ",
+    "'" + t:string + "' does not implement ",
     "'writeSerializable'. In the future this will result in ",
     "an error. To make '", t:string, "' implement writeSerializable, add ",
     "the interface to its declaration: ", typeStr, " ", t:string,
@@ -11013,7 +11015,7 @@ proc _toRegex(x:?t)
 }
 
 @chpldoc.nodoc
-class _channel_regex_info {
+class _channel_regex_info : writeSerializable {
   var hasRegex = false;
   var matchedRegex = false;
   var releaseRegex = false;

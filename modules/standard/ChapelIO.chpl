@@ -669,6 +669,7 @@ module ChapelIO {
   proc locale.serialize(writer, ref serializer) throws {
     writer.write(this._instance);
   }
+  locale implements writeSerializable;
 
   @chpldoc.nodoc
   proc _ddata.writeThis(f) throws {
@@ -794,6 +795,8 @@ module ChapelIO {
     }
     ser.endTuple();
   }
+  _tuple implements writeSerializable;
+  _tuple implements readDeserializable;
 
   // Moved here to avoid circular dependencies in ChapelRange
   // Write implementation for ranges
@@ -832,7 +835,6 @@ module ChapelIO {
   proc range.serialize(writer, ref serializer) throws {
     writeThis(writer);
   }
-  range implements writeSerializable;
 
   @chpldoc.nodoc
   proc ref range.readThis(f) throws {
@@ -886,6 +888,8 @@ module ChapelIO {
     this.init(idxType, bounds, strides);
     this.readThis(reader);
   }
+  range implements writeSerializable;
+  range implements readDeserializable;
 
   @chpldoc.nodoc
   override proc LocaleModel.writeThis(f) throws {
