@@ -1535,6 +1535,9 @@ static bool resolveOneRequiredFn(InterfaceSymbol* isym,  ImplementsStmt*  istm,
     if (selfType->hasFlag(FLAG_ITERATOR_RECORD)) {
       ct = dtIteratorRecord;
     }
+    if (DecoratedClassType* dc  = toDecoratedClassType(ct)) {
+      ct = dc->getCanonicalClass();
+    }
     if (AggregateType* at = toAggregateType(ct)) {
       ct = at->getRootInstantiation();
       if (ct == dtOwned || ct == dtShared) {
@@ -1542,9 +1545,6 @@ static bool resolveOneRequiredFn(InterfaceSymbol* isym,  ImplementsStmt*  istm,
         ct = at->getField(1)->getValType();
         ct = toAggregateType(ct)->getRootInstantiation();
       }
-    }
-    if (DecoratedClassType* dc  = toDecoratedClassType(ct)) {
-      ct = dc->getCanonicalClass();
     }
     forv_Vec(FnSymbol, method, ct->methods) {
       int n = method->numFormals();
