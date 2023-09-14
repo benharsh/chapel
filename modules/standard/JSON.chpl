@@ -71,7 +71,7 @@ module JSON {
         _oldWrite(writer, val);
       } else if isClassType(t) {
         if val == nil {
-          writer._writeLiteral("null");
+          writer.writeLiteral("null");
         } else {
           val!.serialize(writer=writer, serializer=this);
         }
@@ -88,11 +88,11 @@ module JSON {
       var _firstPtr : c_ptr(bool) = nil;
 
       proc ref writeField(name: string, const field: ?) throws {
-        if !_first then writer._writeLiteral(", ");
+        if !_first then writer.writeLiteral(", ");
         else _first = false;
 
         writer.write(name);
-        writer._writeLiteral(":");
+        writer.writeLiteral(":");
         writer.write(field);
       }
 
@@ -104,14 +104,14 @@ module JSON {
       @chpldoc.nodoc
       proc endClass() throws {
         if !_parent then
-          writer._writeLiteral(_ending);
+          writer.writeLiteral(_ending);
         else if _firstPtr != nil then
           _firstPtr.deref() = _first;
       }
 
       @chpldoc.nodoc
       proc endRecord() throws {
-        writer._writeLiteral(_ending);
+        writer.writeLiteral(_ending);
       }
     }
 
@@ -132,7 +132,7 @@ module JSON {
       var _first : bool = true;
 
       proc ref writeElement(const element: ?) throws {
-        if !_first then writer._writeLiteral(", ");
+        if !_first then writer.writeLiteral(", ");
         else _first = false;
 
         writer.write(element);
@@ -195,7 +195,7 @@ module JSON {
         if _arrayFirst[_arrayDim-1] {
           _arrayFirst[_arrayDim-1] = false;
         } else {
-          writer._writeLiteral(",");
+          writer.writeLiteral(",");
         }
 
         _arrayMax = max(_arrayMax, _arrayDim);
@@ -207,7 +207,7 @@ module JSON {
         }
 
         // Actually start the JSON list format
-        writer._writeLiteral("[");
+        writer.writeLiteral("[");
       }
 
       @chpldoc.nodoc
@@ -223,11 +223,11 @@ module JSON {
         */
         if _arrayDim < _arrayMax {
           writer.writeNewline();
-          writer._writeLiteral(" " * (_arrayDim-1));
+          writer.writeLiteral(" " * (_arrayDim-1));
         }
 
         // Actually close out the list
-        writer._writeLiteral("]");
+        writer.writeLiteral("]");
 
         // Reset the 'first' property so that a later 'pane' of this dimension
         // prints correctly. For example:
@@ -251,7 +251,7 @@ module JSON {
 
       @chpldoc.nodoc
       proc ref writeElement(const element: ?) throws {
-        if !_first then writer._writeLiteral(", ");
+        if !_first then writer.writeLiteral(", ");
         else _first = false;
 
         writer.write(element);
@@ -274,12 +274,12 @@ module JSON {
       @chpldoc.nodoc
       proc ref writeKey(const key: ?) throws {
         if !_first {
-          writer._writeLiteral(", ");
+          writer.writeLiteral(", ");
           writer.writeNewline();
-          writer._writeLiteral("  ");
+          writer.writeLiteral("  ");
         } else {
           writer.writeNewline();
-          writer._writeLiteral("  ");
+          writer.writeLiteral("  ");
           _first = false;
         }
 
@@ -300,14 +300,14 @@ module JSON {
 
       @chpldoc.nodoc
       proc writeValue(const val: ?) throws {
-        writer._writeLiteral(": ");
+        writer.writeLiteral(": ");
         writer.write(val);
       }
 
       @chpldoc.nodoc
       proc endMap() throws {
         writer.writeNewline();
-        writer._writeLiteral("}");
+        writer.writeLiteral("}");
       }
     }
 
@@ -320,7 +320,7 @@ module JSON {
     // }
     @chpldoc.nodoc
     proc startMap(writer: jsonWriter, size: int) throws {
-      writer._writeLiteral("{");
+      writer.writeLiteral("{");
       return new MapSerializer(writer);
     }
   }
@@ -455,10 +455,10 @@ module JSON {
       @chpldoc.nodoc
       proc _readFieldName(reader: jsonReader, key: string) throws {
         try {
-          reader._readLiteral('"');
-          reader._readLiteral(key);
-          reader._readLiteral('"');
-          reader._readLiteral(":");
+          reader.readLiteral('"');
+          reader.readLiteral(key);
+          reader.readLiteral('"');
+          reader.readLiteral(":");
         } catch e: BadFormatError {
           return false;
         }
@@ -562,7 +562,7 @@ module JSON {
 
       @chpldoc.nodoc
       proc ref readElement(type eltType) : eltType throws {
-        if !_first then reader._readLiteral(",");
+        if !_first then reader.readLiteral(",");
         else _first = false;
 
         // preemptively check if a list will end with the next byte
@@ -575,7 +575,7 @@ module JSON {
 
       @chpldoc.nodoc
       proc ref readElement(ref element) throws {
-        if !_first then reader._readLiteral(",");
+        if !_first then reader.readLiteral(",");
         else _first = false;
 
         if !this.hasMore()
@@ -585,7 +585,7 @@ module JSON {
 
       @chpldoc.nodoc
       proc endList() throws {
-        reader._readLiteral("]");
+        reader.readLiteral("]");
       }
 
       @chpldoc.nodoc
@@ -610,7 +610,7 @@ module JSON {
     }
 
     proc startList(reader: jsonReader) throws {
-      reader._readLiteral("[");
+      reader.readLiteral("[");
       return new ListDeserializer(reader);
     }
 
@@ -632,7 +632,7 @@ module JSON {
         if _arrayFirst[_arrayDim-1] {
           _arrayFirst[_arrayDim-1] = false;
         } else {
-          reader._readLiteral(",");
+          reader.readLiteral(",");
         }
 
         _arrayMax = max(_arrayMax, _arrayDim);
@@ -640,12 +640,12 @@ module JSON {
         // Don't need to read the newline and pretty-printed spaces, as JSON
         // arrays can come in other forms. Relies on 'readLiteral' ignoring
         // whitespace by default.
-        reader._readLiteral("[");
+        reader.readLiteral("[");
       }
 
       @chpldoc.nodoc
       proc ref readElement(type eltType) : eltType throws {
-        if !_first then reader._readLiteral(", ");
+        if !_first then reader.readLiteral(", ");
         else _first = false;
 
         return reader.read(eltType);
@@ -653,7 +653,7 @@ module JSON {
 
       @chpldoc.nodoc
       proc ref readElement(ref element) throws {
-        if !_first then reader._readLiteral(", ");
+        if !_first then reader.readLiteral(", ");
         else _first = false;
 
         reader.read(element);
@@ -663,13 +663,13 @@ module JSON {
       proc ref endDim() throws {
         if _arrayDim < _arrayMax {
           reader.readNewline();
-          reader._readLiteral(" " * (_arrayDim-1));
+          reader.readLiteral(" " * (_arrayDim-1));
         }
 
         // Don't need to read the newline and pretty-printed spaces, as JSON
         // arrays can come in other forms. Relies on 'readLiteral' ignoring
         // whitespace by default.
-        reader._readLiteral("]");
+        reader.readLiteral("]");
 
         if _arrayDim < _arrayFirst.size then
           _arrayFirst[_arrayDim] = true;
@@ -694,7 +694,7 @@ module JSON {
 
       @chpldoc.nodoc
       proc ref readKey(type keyType) : keyType throws {
-        if !_first then reader._readLiteral(",");
+        if !_first then reader.readLiteral(",");
         else _first = false;
 
         if keyType == string {
@@ -713,7 +713,7 @@ module JSON {
 
       @chpldoc.nodoc
       proc ref readKey(ref key: ?t) throws {
-        if !_first then reader._readLiteral(",");
+        if !_first then reader.readLiteral(",");
         else _first = false;
 
         if t == string || t == bytes {
@@ -732,19 +732,19 @@ module JSON {
 
       @chpldoc.nodoc
       proc readValue(type valType) : valType throws {
-        reader._readLiteral(":");
+        reader.readLiteral(":");
         return reader.read(valType);
       }
 
       @chpldoc.nodoc
       proc readValue(ref value) throws {
-        reader._readLiteral(":");
+        reader.readLiteral(":");
         reader.read(value);
       }
 
       @chpldoc.nodoc
       proc endMap() throws {
-        reader._readLiteral("}");
+        reader.readLiteral("}");
       }
 
       proc hasMore() : bool throws {
@@ -756,7 +756,7 @@ module JSON {
 
     @chpldoc.nodoc
     proc startMap(reader: jsonReader) throws {
-      reader._readLiteral("{");
+      reader.readLiteral("{");
       return new MapDeserializer(reader);
     }
 
