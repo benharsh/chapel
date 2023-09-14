@@ -1531,12 +1531,28 @@ static bool resolveOneRequiredFn(InterfaceSymbol* isym,  ImplementsStmt*  istm,
 
   if (reqFn->hasFlag(FLAG_IFC_SERDE)) {
     auto selfType = fml2act.get(toDefExpr(isym->ifcFormals.head)->sym);
-    forv_Vec(FnSymbol, method, selfType->type->methods) {
+    Type* ct = selfType->type;
+    if (selfType->hasFlag(FLAG_ITERATOR_RECORD)) {
+      ct = dtIteratorRecord;
+    }
+    if (AggregateType* at = toAggregateType(ct)) {
+      ct = at->getRootInstantiation();
+      if (ct == dtOwned || ct == dtShared) {
+        // Fetch the 'chpl_t' field
+        ct = at->getField(1)->getValType();
+        ct = toAggregateType(ct)->getRootInstantiation();
+      }
+    }
+    if (DecoratedClassType* dc  = toDecoratedClassType(ct)) {
+      ct = dc->getCanonicalClass();
+    }
+    forv_Vec(FnSymbol, method, ct->methods) {
+      int n = method->numFormals();
       bool isInitMatch = method->isInitializer() &&
                          strcmp("chpl__reader_init", reqFn->name) == 0 &&
-                         method->numFormals() == 4 &&
-                         strcmp(method->getFormal(3)->name, "reader") == 0 &&
-                         strcmp(method->getFormal(4)->name, "deserializer") == 0;
+                         n >= 4 &&
+                         strcmp(method->getFormal(n-1)->name, "reader") == 0 &&
+                         strcmp(method->getFormal(n)->name, "deserializer") == 0;
       if (strcmp(method->name, reqFn->name) == 0 || isInitMatch) {
         if (isInitMatch) {
           if (CallExpr* call = toCallExpr(method->body->body.head)) {
