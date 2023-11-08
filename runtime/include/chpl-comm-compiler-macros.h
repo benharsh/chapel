@@ -168,7 +168,7 @@ void chpl_gen_comm_get_strd(void *addr, void *dststr, c_nodeid_t node, void *rad
 #ifdef HAS_GPU_LOCALE
 static inline
 void chpl_gen_comm_get_strd_from_subloc(void *addr, void *dststr,
-                       c_nodeid_t node, c_sublocid_t dst_subloc,
+                       c_nodeid_t node, c_sublocid_t src_subloc,
                        void *raddr, void *srcstr,
                        void *count, int32_t strlevels, size_t elemSize,
                        int32_t commID, int ln, int32_t fn)
