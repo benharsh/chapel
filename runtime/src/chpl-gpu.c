@@ -390,11 +390,11 @@ void chpl_gpu_comm_get(c_sublocid_t dst_subloc, void *dst,
 }
 
 void chpl_gpu_comm_get_strd(c_sublocid_t dst_subloc,
-                            void* dstaddr_arg, size_t* dststrides,
-                            c_nodeid_t node, c_sublocid_t src_subloc,
-                            void* srcaddr_arg, size_t* srcstrides,
-                            size_t* count, int32_t strlevels, size_t elemSize,
-                            int32_t commID, int ln, int32_t fn) {
+                          void* dstaddr_arg, size_t* dststrides,
+                          c_nodeid_t srclocale, c_sublocid_t src_subloc,
+                          void* srcaddr_arg, size_t* srcstrides,
+                          size_t* count, int32_t stridelevels, size_t elemSize,
+                          int32_t commID, int ln, int32_t fn) {
   const size_t strlvls=(size_t)stridelevels;
   size_t i,j,k,t,total,off,x,carry;
 
@@ -408,13 +408,13 @@ void chpl_gpu_comm_get_strd(c_sublocid_t dst_subloc,
 
 
   // Communications callback support
-  if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_get_strd)) {
-    chpl_comm_cb_info_t cb_data =
-      {chpl_comm_cb_event_kind_get_strd, chpl_nodeID, srclocale,
-       .iu.comm_strd={srcaddr_arg, srcstrides, dstaddr_arg, dststrides, count,
-                      stridelevels, elemSize, commID, ln, fn}};
-    chpl_comm_do_callbacks (&cb_data);
-  }
+  //if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_get_strd)) {
+  //  chpl_comm_cb_info_t cb_data =
+  //    {chpl_comm_cb_event_kind_get_strd, chpl_nodeID, srclocale,
+  //     .iu.comm_strd={srcaddr_arg, srcstrides, dstaddr_arg, dststrides, count,
+  //                    stridelevels, elemSize, commID, ln, fn}};
+  //  chpl_comm_do_callbacks (&cb_data);
+  //}
 
   //Only count[0] and strides are measured in number of bytes.
   cnt[0]=count[0] * elemSize;
