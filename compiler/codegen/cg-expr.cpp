@@ -5625,9 +5625,17 @@ static void codegenPutGetStrd(CallExpr* call, GenRet &ret) {
     TypeSymbol* dt;
 
     if (call->primitive->tag == PRIM_CHPL_COMM_GET_STRD) {
-      fn = "chpl_gen_comm_get_strd";
+      if (usingGpuLocaleModel()) {
+        fn = "chpl_gen_comm_get_strd_from_subloc";
+      } else {
+        fn = "chpl_gen_comm_get_strd";
+      }
     } else {
-      fn = "chpl_gen_comm_put_strd";
+      if (usingGpuLocaleModel()) {
+        fn = "chpl_gen_comm_put_strd_to_subloc";
+      } else {
+        fn = "chpl_gen_comm_put_strd";
+      }
     }
 
     GenRet localAddr = codegenValuePtr(call->get(1));
@@ -5706,18 +5714,22 @@ static void codegenPutGetStrd(CallExpr* call, GenRet &ret) {
     // eltSize
     GenRet eltSize = codegenSizeof(dt->typeInfo());
 
-    codegenCall(fn,
-                codegenCastToVoidStar(localAddr),
-                codegenCastToVoidStar(dststr),
-                locale,
-                remoteAddr,
-                codegenCastToVoidStar(srcstr),
-                codegenCastToVoidStar(count),
-                stridelevels,
-                eltSize,
-                genCommID(gGenInfo),
-                call->get(8),
-                call->get(9));
+    std::vector<GenRet> args;
+
+    args.push_back(codegenCastToVoidStar(localAddr));
+    args.push_back(codegenCastToVoidStar(dststr));
+    args.push_back(locale);
+    if (usingGpuLocaleModel()) args.push_back(codegenRsubloc(locale));
+    args.push_back(remoteAddr);
+    args.push_back(codegenCastToVoidStar(srcstr));
+    args.push_back(codegenCastToVoidStar(count));
+    args.push_back(stridelevels);
+    args.push_back(eltSize);
+    args.push_back(genCommID(gGenInfo));
+    args.push_back(call->get(8));
+    args.push_back(call->get(9));
+
+    codegenCallWithArgs(fn, args);
 }
 DEFINE_PRIM(CHPL_COMM_PUT_STRD) {
   codegenPutGetStrd(call, ret);
