@@ -5671,45 +5671,51 @@ static void codegenPutGetStrd(CallExpr* call, GenRet &ret) {
     // locale id
     GenRet locale = codegenValueMaybeDeref(call->get(3));
 
-    // source data array
-    GenRet   remoteAddr = call->get(4);
+    // sublocale id
+    GenRet subloc = codegenValueMaybeDeref(call->get(4));
 
-    if (call->get(4)->isWideRef() == true) {
+    // source data array
+    auto srcExpr = call->get(5);
+    GenRet   remoteAddr = srcExpr;
+
+    if (srcExpr->isWideRef() == true) {
       remoteAddr = codegenRaddr(remoteAddr);
-    } else if (call->get(4)->isRef() == false) {
+    } else if (srcExpr->isRef() == false) {
       remoteAddr = codegenAddrOf(remoteAddr);
     }
 
     // source strides local array
-    GenRet srcstr = codegenValuePtr(call->get(5));
+    auto srcStrideExpr = call->get(6);
+    GenRet srcstr = codegenValuePtr(srcStrideExpr);
 
-    if (call->get(5)->isWideRef()) {
-      Symbol* sym = call->get(5)->typeInfo()->getField("addr", true);
+    if (srcStrideExpr->isWideRef()) {
+      Symbol* sym = srcStrideExpr->typeInfo()->getField("addr", true);
 
       INT_ASSERT(sym);
 
       srcstr = codegenRaddr(srcstr);
     } else {
-      if (call->get(5)->typeInfo()->symbol->hasFlag(FLAG_REF)) {
+      if (srcStrideExpr->typeInfo()->symbol->hasFlag(FLAG_REF)) {
         srcstr = codegenDeref(srcstr);
       }
     }
 
     // count local array
-    GenRet count = codegenValuePtr(call->get(6));
+    auto countExpr = call->get(7);
+    GenRet count = codegenValuePtr(countExpr);
 
-    if (call->get(6)->isWideRef()) {
-      Symbol* sym = call->get(6)->typeInfo()->getField("addr", true);
+    if (countExpr->isWideRef()) {
+      Symbol* sym = countExpr->typeInfo()->getField("addr", true);
 
       INT_ASSERT(sym);
 
       count = codegenRaddr(count);
-    } else if (call->get(6)->typeInfo()->symbol->hasFlag(FLAG_REF)) {
+    } else if (countExpr->typeInfo()->symbol->hasFlag(FLAG_REF)) {
       count = codegenDeref(count);
     }
 
     // stridelevels
-    GenRet stridelevels = codegenValueMaybeDeref(call->get(7));
+    GenRet stridelevels = codegenValueMaybeDeref(call->get(8));
 
     // eltSize
     GenRet eltSize = codegenSizeof(dt->typeInfo());
@@ -5719,7 +5725,7 @@ static void codegenPutGetStrd(CallExpr* call, GenRet &ret) {
     args.push_back(codegenCastToVoidStar(localAddr));
     args.push_back(codegenCastToVoidStar(dststr));
     args.push_back(locale);
-    if (usingGpuLocaleModel()) args.push_back(codegenRsubloc(locale));
+    if (usingGpuLocaleModel()) args.push_back(subloc);
     args.push_back(remoteAddr);
     args.push_back(codegenCastToVoidStar(srcstr));
     args.push_back(codegenCastToVoidStar(count));
