@@ -3298,6 +3298,7 @@ void codegenCall(const char* fnName, GenRet a1, GenRet a2, GenRet a3,
   codegenCallWithArgs(fnName, args);
 }*/
 
+/*
 static
 void codegenCall(const char* fnName, GenRet a1, GenRet a2, GenRet a3,
                  GenRet a4, GenRet a5, GenRet a6, GenRet a7, GenRet a8,
@@ -3317,6 +3318,7 @@ void codegenCall(const char* fnName, GenRet a1, GenRet a2, GenRet a3,
   args.push_back(a11);
   codegenCallWithArgs(fnName, args);
 }
+*/
 
 /*
 static
@@ -5625,46 +5627,40 @@ static void codegenPutGetStrd(CallExpr* call, GenRet &ret) {
     TypeSymbol* dt;
 
     if (call->primitive->tag == PRIM_CHPL_COMM_GET_STRD) {
-      if (usingGpuLocaleModel()) {
-        fn = "chpl_gen_comm_get_strd_from_subloc";
-      } else {
-        fn = "chpl_gen_comm_get_strd";
-      }
+      fn = "chpl_gen_comm_get_strd";
     } else {
-      if (usingGpuLocaleModel()) {
-        fn = "chpl_gen_comm_put_strd_to_subloc";
-      } else {
-        fn = "chpl_gen_comm_put_strd";
-      }
+      fn = "chpl_gen_comm_put_strd";
     }
 
-    GenRet localAddr = codegenValuePtr(call->get(1));
+    auto destData = call->get(1);
+    GenRet localAddr = codegenValuePtr(destData);
 
     // destination data array
-    if (call->get(1)->isWideRef()) {
-      Symbol* sym = call->get(1)->typeInfo()->getField("addr", true);
+    if (destData->isWideRef()) {
+      Symbol* sym = destData->typeInfo()->getField("addr", true);
 
       INT_ASSERT(sym);
       dt        = sym->typeInfo()->getValType()->symbol;
       localAddr = codegenRaddr(localAddr);
     } else {
-      dt = call->get(1)->typeInfo()->getValType()->symbol;
+      dt = destData->typeInfo()->getValType()->symbol;
 
-      if (call->get(1)->typeInfo()->symbol->hasFlag(FLAG_REF)) {
+      if (destData->typeInfo()->symbol->hasFlag(FLAG_REF)) {
         localAddr = codegenDeref(localAddr);
       }
     }
 
     // destination strides local array
-    GenRet dststr = codegenValuePtr(call->get(2));
+    auto destStride = call->get(2);
+    GenRet dststr = codegenValuePtr(destStride);
 
-    if (call->get(2)->isWideRef()) {
-      Symbol* sym = call->get(2)->typeInfo()->getField("addr", true);
+    if (destStride->isWideRef()) {
+      Symbol* sym = destStride->typeInfo()->getField("addr", true);
 
       INT_ASSERT(sym);
 
       dststr = codegenRaddr(dststr);
-    } else if (call->get(2)->typeInfo()->symbol->hasFlag(FLAG_REF)) {
+    } else if (destStride->typeInfo()->symbol->hasFlag(FLAG_REF)) {
       dststr = codegenDeref(dststr);
     }
 
@@ -5725,7 +5721,7 @@ static void codegenPutGetStrd(CallExpr* call, GenRet &ret) {
     args.push_back(codegenCastToVoidStar(localAddr));
     args.push_back(codegenCastToVoidStar(dststr));
     args.push_back(locale);
-    if (usingGpuLocaleModel()) args.push_back(subloc);
+    args.push_back(subloc);
     args.push_back(remoteAddr);
     args.push_back(codegenCastToVoidStar(srcstr));
     args.push_back(codegenCastToVoidStar(count));
