@@ -12,7 +12,7 @@ readBinary(c_ptr(int)): got 800;
 === n=100; 0..399 ===
 fileReader.read: ERROR: short read or write
 readBinary([]): got 50; FAILURE
-readBinary(int): ERROR: short read or write
+readBinary(int): FAILURE
 readBinary(c_ptr(int)): got 400; 
 === n=100; 0..398 ===
 fileReader.read: ERROR: short read or write
@@ -34,7 +34,7 @@ readBinary(c_ptr(int)): got 800;
 === n=100; 0..399 ===
 fileReader.read: ERROR: short read or write
 readBinary([]): got 50; FAILURE
-readBinary(int): ERROR: short read or write
+readBinary(int): FAILURE
 readBinary(c_ptr(int)): got 400; 
 === n=100; 0..398 ===
 fileReader.read: ERROR: short read or write
@@ -56,7 +56,7 @@ readBinary(c_ptr(int)): got 800;
 === n=100; 0..399 ===
 fileReader.read: ERROR: short read or write
 readBinary([]): got 50; FAILURE
-readBinary(int): ERROR: short read or write
+readBinary(int): FAILURE
 readBinary(c_ptr(int)): got 400; 
 === n=100; 0..398 ===
 fileReader.read: ERROR: short read or write
