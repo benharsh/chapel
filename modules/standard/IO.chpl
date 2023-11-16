@@ -9207,6 +9207,9 @@ proc fileReader.readBinary(ref data: [?d] ?t, param endian = ioendian.native): i
     } else if endian == ioendian.native {
       if data.size > 0 {
         e = qio_channel_read(false, this._channel_internal, data[d.low], (data.size * c_sizeof(data.eltType)) : c_ssize_t, numRead);
+        // number of bytes to number of _full_ elements read
+        // Note: partial reads of values are possible and are currently ignored.
+        numRead = numRead / c_sizeof(data.eltType):c_ssize_t;
       } // else no-op, reading a 0-element array reads nothing
     } else {
       for (i, b) in zip(data.domain, data) {
