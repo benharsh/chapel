@@ -9188,6 +9188,13 @@ config param ReadBinaryArrayReturnInt = true;
 
   :throws SystemError: Thrown if data could not be read from the ``fileReader``
                        due to a :ref:`system error<io-general-sys-error>`.
+
+  .. warning::
+
+    If EOF is reached in the middle of reading a value, that value may be
+    left as-is when ``readBinary`` returns. ``readBinary`` will only return
+    the number of whole values read.
+
 */
 proc fileReader.readBinary(ref data: [?d] ?t, param endian = ioendian.native): int throws
   where isSuitableForBinaryReadWrite(data) && data.strides == strideKind.one && (
@@ -9263,6 +9270,13 @@ proc fileReader.readBinary(ref data: [?d] ?t, param endian = ioendian.native): i
 
    :throws SystemError: Thrown if data could not be read from the ``fileReader``
                         due to a :ref:`system error<io-general-sys-error>`.
+
+  .. warning::
+
+    If EOF is reached in the middle of reading a value, that value may be
+    left as-is when ``readBinary`` returns. ``readBinary`` will only return
+    the number of whole values read.
+
 */
 proc fileReader.readBinary(ref data: [] ?t, endian: ioendian):int throws
   where isSuitableForBinaryReadWrite(data) && data.strides == strideKind.one && (
