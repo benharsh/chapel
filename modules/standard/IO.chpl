@@ -4383,10 +4383,12 @@ record binaryDeserializer {
       if endian == ioendian.native {
         const n = c_sizeof(eltType)*numElements;
         const got = reader.readBinary(data, n.safeCast(int));
-        if got < n then throw new EofError();
+        if got < n then throw createSystemOrChplError(ESHORT);
       } else {
-        for i in 0..<numElements do
-          reader.read(data[i]);
+        for i in 0..<numElements {
+          if !reader.read(data[i]) then
+            throw createSystemOrChplError(ESHORT);
+        }
       }
     }
 
