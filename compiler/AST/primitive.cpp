@@ -212,6 +212,8 @@ returnInfoScalarPromotionType(CallExpr* call) {
   if (type->scalarPromotionType)
     type = type->scalarPromotionType;
 
+  INT_ASSERT(type->getValType()->symbol->hasFlag(FLAG_ARRAY) == false);
+
   return QualifiedType(type, QUAL_VAL);
 }
 
