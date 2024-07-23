@@ -1243,6 +1243,54 @@ bool shouldIncludeFieldInTypeConstructor(Context* context,
   return false;
 }
 
+static void accumTypeCtorArgs(Context* context, const CompositeType* ct,
+                              std::vector<QualifiedType>& formalTypes,
+                              std::vector<std::string>& args) {
+
+  if (auto bct = ct->toBasicClassType()) {
+    if (auto parent = bct->parentClassType()) {
+      accumTypeCtorArgs(context, parent->getCompositeType(),
+                        formalTypes, args);
+    }
+  }
+  // attempt to resolve the fields
+  DefaultsPolicy defaultsPolicy = DefaultsPolicy::IGNORE_DEFAULTS;
+  const ResolvedFields& f = fieldsForTypeDecl(context, ct,
+                                              defaultsPolicy);
+
+  // find the generic fields from the type and add
+  // these as type constructor arguments.
+  int nFields = f.numFields();
+  for (int i = 0; i < nFields; i++) {
+    auto declId = f.fieldDeclId(i);
+    auto declAst = parsing::idToAst(context, declId);
+    CHPL_ASSERT(declAst);
+    const Decl* fieldDecl = declAst->toDecl();
+    CHPL_ASSERT(fieldDecl);
+    QualifiedType fieldType = f.fieldType(i);
+    QualifiedType formalType;
+    if (shouldIncludeFieldInTypeConstructor(context, declId, fieldType,
+                                            &formalType)) {
+
+      //auto defaultKind = f.fieldHasDefaultValue(i) ?
+      //                   UntypedFnSignature::DK_DEFAULT :
+      //                   UntypedFnSignature::DK_NO_DEFAULT;
+      //auto d = UntypedFnSignature::FormalDetail(f.fieldName(i),
+      //                                          defaultKind,
+      //                                          fieldDecl,
+      //                                          fieldDecl->isVarArgFormal());
+      //formals.push_back(d);
+      // formalType should have been set above
+      CHPL_ASSERT(formalType.kind() != QualifiedType::UNKNOWN);
+      formalTypes.push_back(formalType);
+
+      std::stringstream str;
+      declAst->stringify(str, chpl::StringifyKind::CHPL_SYNTAX);
+      args.push_back(str.str());
+    }
+  }
+}
+
 static const TypedFnSignature* const&
 typeConstructorInitialQuery(Context* context, const Type* t)
 {
@@ -1256,42 +1304,13 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   std::vector<types::QualifiedType> formalTypes;
   auto idTag = uast::asttags::AST_TAG_UNKNOWN;
 
+  std::vector<std::string> args;
+
   if (auto ct = t->getCompositeType()) {
     id = ct->id();
     name = ct->name();
 
-    // attempt to resolve the fields
-    DefaultsPolicy defaultsPolicy = DefaultsPolicy::IGNORE_DEFAULTS;
-    const ResolvedFields& f = fieldsForTypeDecl(context, ct,
-                                                defaultsPolicy);
-
-    // find the generic fields from the type and add
-    // these as type constructor arguments.
-    int nFields = f.numFields();
-    for (int i = 0; i < nFields; i++) {
-      auto declId = f.fieldDeclId(i);
-      auto declAst = parsing::idToAst(context, declId);
-      CHPL_ASSERT(declAst);
-      const Decl* fieldDecl = declAst->toDecl();
-      CHPL_ASSERT(fieldDecl);
-      QualifiedType fieldType = f.fieldType(i);
-      QualifiedType formalType;
-      if (shouldIncludeFieldInTypeConstructor(context, declId, fieldType,
-                                              &formalType)) {
-
-        auto defaultKind = f.fieldHasDefaultValue(i) ?
-                           UntypedFnSignature::DK_DEFAULT :
-                           UntypedFnSignature::DK_NO_DEFAULT;
-        auto d = UntypedFnSignature::FormalDetail(f.fieldName(i),
-                                                  defaultKind,
-                                                  fieldDecl,
-                                                  fieldDecl->isVarArgFormal());
-        formals.push_back(d);
-        // formalType should have been set above
-        CHPL_ASSERT(formalType.kind() != QualifiedType::UNKNOWN);
-        formalTypes.push_back(formalType);
-      }
-    }
+    accumTypeCtorArgs(context, ct, formalTypes, args);
 
     if (t->isBasicClassType() || t->isClassType()) {
       idTag = uast::asttags::Class;
@@ -1304,8 +1323,42 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     CHPL_ASSERT(false && "case not handled");
   }
 
+  std::string snippet = "proc " + name.str() + "(";
+  {
+    bool first = true;
+    for (auto str : args) {
+      if (!first) { snippet += ", "; }
+      else { first = false; }
+
+      snippet += str;
+    }
+  }
+  snippet += ") { }";
+
+  auto parentMod = parsing::idToParentModule(context, id);
+  auto modName = "_internal_" + parentMod.symbolName(context).str();
+  UniqueString tempPath = UniqueString::get(context, modName);
+  parsing::setFileText(context, tempPath, snippet);
+
+  // TODO: the module's text is only ever being set to A's type constructor
+  // because it comes up first.....
+  auto& bld = parsing::parseFileToBuilderResult(context, tempPath, parentMod.symbolPath());
+
+  const Module* genMod = bld.topLevelExpression(0)->toModule();
+  const Function* genFn = genMod->child(genMod->numChildren()-1)->toFunction();
+
+  for (auto decl : genFn->formals()) {
+    auto formal = decl->toFormal();
+    bool hasDefault = formal->initExpression() != nullptr;
+    auto defaultKind = hasDefault ? UntypedFnSignature::DK_DEFAULT
+                                  : UntypedFnSignature::DK_NO_DEFAULT;
+
+    auto d = UntypedFnSignature::FormalDetail(formal->name(), defaultKind, decl, decl->isVarArgFormal());
+    formals.push_back(d);
+  }
+
   auto untyped = UntypedFnSignature::get(context,
-                                         id, name,
+                                         genFn->id(), name,
                                          /* isMethod */ false,
                                          /* isTypeConstructor */ true,
                                          /* isCompilerGenerated */ true,
@@ -1313,7 +1366,8 @@ typeConstructorInitialQuery(Context* context, const Type* t)
                                          idTag,
                                          Function::PROC,
                                          std::move(formals),
-                                         /* whereClause */ nullptr);
+                                         /* whereClause */ nullptr,
+                                         id);
 
   result = TypedFnSignature::get(context,
                                  untyped,

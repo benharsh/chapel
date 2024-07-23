@@ -53,6 +53,9 @@ static bool isNameOfCompilerGeneratedMethod(UniqueString name) {
     return true;
   }
 
+  if (name == "compGenMethod") return true;
+  if (name == "fancyGenMethod") return true;
+
   return false;
 }
 
@@ -835,6 +838,77 @@ generateCPtrMethod(Context* context, QualifiedType receiverType,
   return result;
 }
 
+static const TypedFnSignature*
+generateDummyMethod(Context* context, QualifiedType receiverType) {
+  auto compType = receiverType.type()->toCompositeType();
+
+  auto parentMod = parsing::idToParentModule(context, compType->id());
+
+  auto program = "proc " + compType->name().str() + R"""(.compGenMethod() { return 5; })""";
+
+  UniqueString tempPath = UniqueString::get(context, "dumb-test.chpl");
+  parsing::setFileText(context, tempPath, program);
+
+  auto& bld = parsing::parseFileToBuilderResult(context, tempPath, parentMod.symbolPath());
+
+  const Function* genFn = bld.topLevelExpression(0)->toModule()->child(0)->toFunction();
+  // build the untyped signature
+  auto ufs = UntypedFnSignature::get(context, genFn);
+
+  std::vector<QualifiedType> formalTypes;
+  formalTypes.push_back(QualifiedType(QualifiedType::CONST_REF, compType));
+
+  // now build the other pieces of the typed signature
+  auto ret = TypedFnSignature::get(context,
+                                   ufs,
+                                   std::move(formalTypes),
+                                   TypedFnSignature::WHERE_NONE,
+                                   /*needsInstantiation*/ false,
+                                   /* instantiatedFrom */ nullptr,
+                                   /* parentFn */ nullptr,
+                                   /* formalsInstantiated */ Bitmap());
+
+  return ret;
+  return nullptr;
+}
+
+static const TypedFnSignature*
+generateFancyMethod(Context* context, QualifiedType receiverType) {
+  auto compType = receiverType.type()->toCompositeType();
+
+  auto parentMod = parsing::idToParentModule(context, compType->id());
+
+  // TODO: Need to figure out how to copy field uASTs!
+  // TODO: Also, want to figure out how to parse without a file...?
+  auto program = "proc " + compType->name().str() + R"""(.fancyGenMethod() { return 5; })""";
+
+  auto modName = "_internal_" + parentMod.symbolName(context).str();
+  UniqueString tempPath = UniqueString::get(context, modName);
+  parsing::setFileText(context, tempPath, program);
+
+  auto& bld = parsing::parseFileToBuilderResult(context, tempPath, parentMod.symbolPath());
+
+  const Function* genFn = bld.topLevelExpression(0)->toModule()->child(0)->toFunction();
+  // build the untyped signature
+  auto ufs = UntypedFnSignature::get(context, genFn);
+
+  std::vector<QualifiedType> formalTypes;
+  formalTypes.push_back(QualifiedType(QualifiedType::CONST_REF, compType));
+
+  // now build the other pieces of the typed signature
+  auto ret = TypedFnSignature::get(context,
+                                   ufs,
+                                   std::move(formalTypes),
+                                   TypedFnSignature::WHERE_NONE,
+                                   /*needsInstantiation*/ false,
+                                   /* instantiatedFrom */ nullptr,
+                                   /* parentFn */ nullptr,
+                                   /* formalsInstantiated */ Bitmap());
+
+  return ret;
+  return nullptr;
+}
+
 static const TypedFnSignature* const&
 getCompilerGeneratedMethodQuery(Context* context, QualifiedType receiverType,
                                 UniqueString name, bool parenless) {
@@ -864,6 +938,10 @@ getCompilerGeneratedMethodQuery(Context* context, QualifiedType receiverType,
       result = generateArrayMethod(context, arrayType, name);
     } else if (auto tupleType = type->toTupleType()) {
       result = generateTupleMethod(context, tupleType, name);
+    } else if (name == "compGenMethod" && parenless==false) {
+      result = generateDummyMethod(context, receiverType);
+    } else if (name == "fancyGenMethod" && parenless == false) {
+      result = generateFancyMethod(context, receiverType);
     } else if (auto recordType = type->toRecordType()) {
       if (name == USTR("==")) {
         result = generateRecordComparison(context, recordType);

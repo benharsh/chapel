@@ -606,6 +606,32 @@ void ReturnTypeInferrer::exit(const AstNode* ast, RV& rv) {
   exitScope(ast);
 }
 
+static ID findFieldIDByName(Context* context,
+                            const AggregateDecl* ad,
+                            const CompositeType* ct,
+                            UniqueString name) {
+  ID ret;
+
+  for (auto decl : ad->children()) {
+    if (auto named = decl->toNamedDecl()) {
+      if (named->name() == name) {
+        ret = named->id();
+        break;
+      }
+    }
+  }
+
+  if (ret.isEmpty()) {
+    if (auto bct = ct->toBasicClassType()) {
+      if (auto parent = bct->parentClassType()) {
+        auto parentAD = parsing::idToAst(context, parent->id())->toAggregateDecl();
+        ret = findFieldIDByName(context, parentAD, parent, name);
+      }
+    }
+  }
+
+  return ret;
+}
 
 // For a class type construction, returns a BasicClassType
 static const Type* const&
@@ -621,7 +647,7 @@ returnTypeForTypeCtorQuery(Context* context,
   // handle type construction
   const AggregateDecl* ad = nullptr;
   if (!untyped->id().isEmpty())
-    if (auto ast = parsing::idToAst(context, untyped->id()))
+    if (auto ast = parsing::idToAst(context, untyped->compGenOrigID()))
       ad = ast->toAggregateDecl();
 
   if (ad) {
@@ -679,7 +705,8 @@ returnTypeForTypeCtorQuery(Context* context,
         } else {
           auto useQt =
               QualifiedType(useKind, formalType.type(), formalType.param());
-          subs.insert({formalDecl->id(), useQt});
+          ID fieldID = findFieldIDByName(context, ad, instantiatedFrom, untyped->formalName(i));
+          subs.insert({fieldID, useQt});
         }
       }
     }
