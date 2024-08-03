@@ -59,7 +59,7 @@ struct DisambiguationCandidate {
   }
 
   MostSpecificCandidate toMostSpecificCandidate(Context* context) const {
-    return MostSpecificCandidate::fromTypedFnSignature(context, fn, formalActualMap);
+    return MostSpecificCandidate::fromTypedFnSignature(context, fn, formalActualMap,forwardingTo);
   }
 };
 
@@ -379,8 +379,13 @@ findMostSpecificCandidates(Context* context,
 
   if (lst.size() == 1) {
     // If there is just one candidate, return it
+    QualifiedType forwardingTo;
+    if (lst.hasForwardingInfo()) {
+      forwardingTo = lst.getForwardingInfo(0);
+    }
     auto msc =
-        MostSpecificCandidate::fromTypedFnSignature(context, lst.get(0), call);
+        MostSpecificCandidate::fromTypedFnSignature(context, lst.get(0), call,
+                                                    forwardingTo);
     return MostSpecificCandidates::getOnly(msc);
   }
 

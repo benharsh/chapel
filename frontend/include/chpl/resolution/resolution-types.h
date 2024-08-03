@@ -1564,14 +1564,17 @@ class MostSpecificCandidate {
   owned<FormalActualMap> faMap_;
   int constRefCoercionFormal_;
   int constRefCoercionActual_;
+  types::QualifiedType forwardingTo_;
 
   MostSpecificCandidate(const TypedFnSignature* fn,
                         FormalActualMap faMap,
                         int constRefCoercionFormal,
-                        int constRefCoercionActual)
+                        int constRefCoercionActual,
+                        types::QualifiedType forwardingTo)
     : fn_(fn), faMap_(new FormalActualMap(std::move(faMap))),
       constRefCoercionFormal_(constRefCoercionFormal),
-      constRefCoercionActual_(constRefCoercionActual) {}
+      constRefCoercionActual_(constRefCoercionActual),
+      forwardingTo_(forwardingTo) {}
 
  public:
   MostSpecificCandidate()
@@ -1587,6 +1590,7 @@ class MostSpecificCandidate {
     }
     constRefCoercionFormal_ = other.constRefCoercionFormal_;
     constRefCoercionActual_ = other.constRefCoercionActual_;
+    forwardingTo_ = other.forwardingTo_;
     return *this;
   }
 
@@ -1595,11 +1599,13 @@ class MostSpecificCandidate {
 
   static MostSpecificCandidate fromTypedFnSignature(Context* context,
                                         const TypedFnSignature* fn,
-                                        const FormalActualMap& faMap);
+                                        const FormalActualMap& faMap,
+                                        types::QualifiedType forwardingTo);
 
   static MostSpecificCandidate fromTypedFnSignature(Context* context,
                                         const TypedFnSignature* fn,
-                                        const CallInfo& info);
+                                        const CallInfo& info,
+                                        types::QualifiedType forwardingTo);
 
   const TypedFnSignature* fn() const { return fn_; }
 
@@ -1610,6 +1616,8 @@ class MostSpecificCandidate {
   int constRefCoercionActual() const { return constRefCoercionActual_; }
 
   bool hasConstRefCoercion() const { return constRefCoercionFormal_ != -1; }
+
+  types::QualifiedType forwardingTo() const { return forwardingTo_; }
 
   operator bool() const {
     CHPL_ASSERT(fn_ || (constRefCoercionFormal_ == -1 && constRefCoercionActual_ == -1));
@@ -1628,7 +1636,8 @@ class MostSpecificCandidate {
     return fn_ == other.fn_ &&
            faMapsEqual &&
            constRefCoercionFormal_ == other.constRefCoercionFormal_ &&
-           constRefCoercionActual_ == other.constRefCoercionActual_;
+           constRefCoercionActual_ == other.constRefCoercionActual_ &&
+           forwardingTo_ == other.forwardingTo_;
   }
 
   bool operator!=(const MostSpecificCandidate& other) const {
@@ -1640,10 +1649,12 @@ class MostSpecificCandidate {
     if (faMap_) faMap_->mark(context);
     (void) constRefCoercionFormal_; // nothing to mark
     (void) constRefCoercionActual_; // nothing to mark
+    (void) forwardingTo_; // nothing to mark
   }
 
   size_t hash() const {
-    return chpl::hash(fn_, faMap_, constRefCoercionFormal_, constRefCoercionActual_);
+    return chpl::hash(fn_, faMap_, constRefCoercionFormal_, constRefCoercionActual_,
+                      forwardingTo_);
   }
 
   static bool update(MostSpecificCandidate& keep,
@@ -1656,6 +1667,7 @@ class MostSpecificCandidate {
     std::swap(faMap_, other.faMap_);
     std::swap(constRefCoercionFormal_, other.constRefCoercionFormal_);
     std::swap(constRefCoercionActual_, other.constRefCoercionActual_);
+    std::swap(forwardingTo_, other.forwardingTo_);
   }
 
   void stringify(std::ostream& ss, chpl::StringifyKind stringKind) const;

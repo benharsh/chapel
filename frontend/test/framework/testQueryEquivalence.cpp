@@ -82,7 +82,7 @@ static MostSpecificCandidate const& mscQuery(Context* context) {
 
   assert(faMap.isValid());
 
-  auto msc = MostSpecificCandidate::fromTypedFnSignature(context, typed, std::move(faMap));
+  auto msc = MostSpecificCandidate::fromTypedFnSignature(context, typed, std::move(faMap), QualifiedType());
 
   return QUERY_END(msc);
 }
