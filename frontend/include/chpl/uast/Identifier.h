@@ -71,6 +71,14 @@ class Identifier final : public AstNode {
 
   void dumpFieldsInner(const DumpSettings& s) const override;
 
+  //owned<AstNode> copy() const override {
+  //  auto ret = toOwned(new Identifier(name_));
+  //  for (auto& child : ret->children_) {
+  //    child = child->copy();
+  //  }
+  //  return ret;
+  //}
+
  public:
   ~Identifier() override = default;
   static owned<Identifier> build(Builder* builder, Location loc, UniqueString name);

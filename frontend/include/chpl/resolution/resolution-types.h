@@ -2189,8 +2189,8 @@ class ResolutionResultByPostorderID {
   /* ID query functions */
   bool hasId(const ID& id) const {
     auto postorder = id.postOrderId();
-    if (id.symbolPath() == symbolId.symbolPath() &&
-        0 <= postorder && (map.count(postorder) > 0))
+    if ((id.symbolPath() == symbolId.symbolPath()) &&
+        /*0 <= postorder &&*/ (map.count(postorder) > 0))
       return true;
 
     return false;

@@ -110,6 +110,12 @@ introspectParsedFiles(Context* context);
 const uast::BuilderResult*
 parseFileContainingIdToBuilderResult(Context* context, ID id);
 
+const uast::BuilderResult&
+getCompilerGeneratedBuilder(Context* context, UniqueString symbolPath);
+
+void setCompilerGeneratedBuilder(Context* context, UniqueString symbolPath,
+                                 uast::BuilderResult result);
+
 /**
   A function for counting the tokens when parsing
 */

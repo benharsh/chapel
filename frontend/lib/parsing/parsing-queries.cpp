@@ -192,9 +192,33 @@ introspectParsedFiles(Context* context) {
   return toReturn;
 }
 
+static const BuilderResult&
+compilerGeneratedBuilderQuery(Context* context, UniqueString symbolPath) {
+  QUERY_BEGIN(compilerGeneratedBuilderQuery, context, symbolPath);
+
+  BuilderResult ret;
+
+  return QUERY_END(ret);
+}
+
 // parses whatever file exists that contains the passed ID and returns it
 const BuilderResult*
 parseFileContainingIdToBuilderResult(Context* context, ID id) {
+  {
+    UniqueString symbolPath = id.symbolPath();
+    if (symbolPath.str() == "bar._internal_bar.B") gdbShouldBreakHere();
+
+    while (!symbolPath.isEmpty()) {
+      auto tupleOfArgs = std::make_tuple(symbolPath);
+      auto got = context->hasCurrentResultForQuery(compilerGeneratedBuilderQuery, tupleOfArgs);
+      if (got) {
+        const BuilderResult& p = getCompilerGeneratedBuilder(context, symbolPath);
+        return &p;
+      }
+      symbolPath = ID::parentSymbolPath(context, symbolPath);
+    }
+  }
+
   UniqueString path;
   UniqueString parentSymbolPath;
   bool found = context->filePathForId(id, path, parentSymbolPath);
@@ -202,9 +226,20 @@ parseFileContainingIdToBuilderResult(Context* context, ID id) {
     const BuilderResult& p = parseFileToBuilderResult(context, path,
                                                       parentSymbolPath);
     return &p;
+  } else {
   }
 
   return nullptr;
+}
+
+const BuilderResult&
+getCompilerGeneratedBuilder(Context* context, UniqueString symbolPath) {
+  return compilerGeneratedBuilderQuery(context, symbolPath);
+}
+
+void setCompilerGeneratedBuilder(Context* context, UniqueString symbolPath,
+                                 BuilderResult result) {
+  QUERY_STORE_RESULT(compilerGeneratedBuilderQuery, context, result, symbolPath);
 }
 
 void countTokens(Context* context, UniqueString path, ParserStats* parseStats) {
@@ -1374,6 +1409,7 @@ bool idIsField(Context* context, ID id) {
 
 const ID& idToParentId(Context* context, ID id) {
   QUERY_BEGIN(idToParentId, context, id);
+  //if (id.postOrderId() < -1) gdbShouldBreakHere();
 
   // Performance: Would it be better to have the parse query
   // set this query as an alternative to computing maps

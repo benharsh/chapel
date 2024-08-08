@@ -2995,6 +2995,8 @@ void Resolver::tryResolveParenlessCall(const ParenlessOverloadInfo& info,
 
 void Resolver::resolveIdentifier(const Identifier* ident,
                                  llvm::ArrayRef<const Scope*> receiverScopes) {
+  //if (ident && ident->name().str() == "G" &&
+  //    ident->id().postOrderId() < 0) gdbShouldBreakHere();
   ResolvedExpression& result = byPostorder.byAst(ident);
 
   // for 'proc f(arg:?)' need to set 'arg' to have type AnyType
@@ -3274,7 +3276,7 @@ static bool shouldUseGenericTypeForTypeExpr(const NamedDecl* decl) {
 
 bool Resolver::enter(const NamedDecl* decl) {
 
-  if (decl->id().postOrderId() < 0) {
+  if (decl->id().postOrderId() == -1) {
     // It's a symbol with a different path, e.g. a Function.
     // Don't try to resolve it now in this
     // traversal. Instead, resolve it e.g. when the function is called.

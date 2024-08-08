@@ -1245,7 +1245,7 @@ bool shouldIncludeFieldInTypeConstructor(Context* context,
 
 static void accumTypeCtorArgs(Context* context, const CompositeType* ct,
                               std::vector<QualifiedType>& formalTypes,
-                              std::vector<std::string>& args) {
+                              std::vector<owned<AstNode>>& args) {
 
   if (auto bct = ct->toBasicClassType()) {
     if (auto parent = bct->parentClassType()) {
@@ -1284,9 +1284,7 @@ static void accumTypeCtorArgs(Context* context, const CompositeType* ct,
       CHPL_ASSERT(formalType.kind() != QualifiedType::UNKNOWN);
       formalTypes.push_back(formalType);
 
-      std::stringstream str;
-      declAst->stringify(str, chpl::StringifyKind::CHPL_SYNTAX);
-      args.push_back(str.str());
+      args.push_back(declAst->copy());
     }
   }
 }
@@ -1304,7 +1302,7 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   std::vector<types::QualifiedType> formalTypes;
   auto idTag = uast::asttags::AST_TAG_UNKNOWN;
 
-  std::vector<std::string> args;
+  std::vector<owned<AstNode>> args;
 
   if (auto ct = t->getCompositeType()) {
     id = ct->id();
@@ -1323,31 +1321,67 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     CHPL_ASSERT(false && "case not handled");
   }
 
-  std::string snippet = "proc " + name.str() + "(";
-  {
-    bool first = true;
-    for (auto str : args) {
-      if (!first) { snippet += ", "; }
-      else { first = false; }
-
-      snippet += str;
-    }
-  }
-  snippet += ") { }";
-
   auto parentMod = parsing::idToParentModule(context, id);
-  auto modName = "_internal_" + parentMod.symbolName(context).str();
-  UniqueString tempPath = UniqueString::get(context, modName);
-  parsing::setFileText(context, tempPath, snippet);
+  auto modName = "_internal_" + parentMod.symbolName(context).str() + name.str();
+  auto builder = Builder::createForGeneratedCode(context, modName.c_str(), parentMod.symbolPath());
 
-  // TODO: the module's text is only ever being set to A's type constructor
-  // because it comes up first.....
-  auto& bld = parsing::parseFileToBuilderResult(context, tempPath, parentMod.symbolPath());
+  {
+    auto loc = Location(UniqueString::get(context, "dummy"));
+    auto ident = Identifier::build(builder.get(), loc, parsing::idToAst(context, parentMod)->toModule()->name());
+    //auto dot = Dot::build(builder.get(), loc, std::move(ident), name);
+    auto vis = VisibilityClause::build(builder.get(), loc, std::move(ident));
+    std::vector<owned<AstNode>> alist;
+    alist.push_back(std::move(vis));
+    auto imp = Use::build(builder.get(), loc, Decl::DEFAULT_VISIBILITY, std::move(alist));
+    builder->addToplevelExpression(std::move(imp));
+  }
 
-  const Module* genMod = bld.topLevelExpression(0)->toModule();
-  const Function* genFn = genMod->child(genMod->numChildren()-1)->toFunction();
+  std::vector<owned<AstNode>> formalAst;
+  for(auto& arg : args) {
+    auto var = arg->toVariable();
+    owned<AttributeGroup> attr;
+    if (var->attributeGroup()) {
+      auto attrCopy = var->attributeGroup()->copy();
+      AttributeGroup* asdf = attrCopy.release()->toAttributeGroup();
+      attr = std::make_unique<AttributeGroup>(*asdf);
+    }
+    auto typeExpr = var->typeExpression();
+    auto initExpr = var->initExpression();
+    owned<AstNode> formal = Formal::build(builder.get(), Location(UniqueString::get(context, "dummy")),
+                                std::move(attr),
+                                var->name(),
+                                (Formal::Intent)var->kind(),
+                                typeExpr ? typeExpr->copy() : nullptr,
+                                initExpr ? initExpr->copy() : nullptr);
+    formalAst.push_back(std::move(formal));
+  }
+  auto genFn = Function::build(builder.get(), Location(UniqueString::get(context, "dummy")), {},
+                               Decl::Visibility::PUBLIC,
+                               Decl::Linkage::DEFAULT_LINKAGE,
+                               {},
+                               name,
+                               false, false, Function::Kind::PROC,
+                               {},
+                               Function::ReturnIntent::DEFAULT_RETURN_INTENT,
+                               false, false, false,
+                               std::move(formalAst), {}, {}, {}, {});
 
-  for (auto decl : genFn->formals()) {
+  builder->noteChildrenLocations(genFn.get(), parsing::locateId(context, id));
+  builder->addToplevelExpression(std::move(genFn));
+  auto res = builder->result();
+  res.setGeneratedParent(parentMod);
+
+  //UniqueString tempPath = UniqueString::get(context, modName);
+  //parsing::setFileText(context, tempPath, snippet);
+
+  //// TODO: the module's text is only ever being set to A's type constructor
+  //// because it comes up first.....
+  //auto& bld = parsing::parseFileToBuilderResult(context, tempPath, parentMod.symbolPath());
+
+  const Module* genMod = res.topLevelExpression(0)->toModule();
+  const Function* typeCtor = genMod->child(genMod->numChildren()-1)->toFunction();
+
+  for (auto decl : typeCtor->formals()) {
     auto formal = decl->toFormal();
     bool hasDefault = formal->initExpression() != nullptr;
     auto defaultKind = hasDefault ? UntypedFnSignature::DK_DEFAULT
@@ -1357,8 +1391,10 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     formals.push_back(d);
   }
 
+  parsing::setCompilerGeneratedBuilder(context, genMod->id().symbolPath(), std::move(res));
+
   auto untyped = UntypedFnSignature::get(context,
-                                         genFn->id(), name,
+                                         typeCtor->id(), name,
                                          /* isMethod */ false,
                                          /* isTypeConstructor */ true,
                                          /* isCompilerGenerated */ true,
@@ -1794,6 +1830,7 @@ static QualifiedType getProperFormalType(const ResolutionResultByPostorderID& r,
                                          const FormalActual& entry,
                                          const AggregateDecl* ad,
                                          const AstNode* typeFor) {
+  if (typeFor->id().str() == "bar._internal_bar.B@-2") gdbShouldBreakHere();
   auto type = r.byAst(typeFor).type();
   if (ad != nullptr) {
     // generic var fields from a type are type fields in its type constructor.
@@ -2039,6 +2076,7 @@ ApplicabilityResult instantiateSignature(Context* context,
     } else if (formal) {
       // Substitutions have been updated; re-run resolution to get better
       // intents, vararg info, and to extract type query info.
+      if (formal->id().str() == "bar._internal_bar.B@-2") gdbShouldBreakHere();
       formal->traverse(visitor);
       formalType = getProperFormalType(r, entry, ad, formal);
     }
