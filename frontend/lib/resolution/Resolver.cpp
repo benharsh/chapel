@@ -2304,7 +2304,8 @@ QualifiedType Resolver::typeForId(const ID& id, bool localGenericToUnknown) {
   }
 
   bool useLocalResult = (id.symbolPath() == symbol->id().symbolPath() &&
-                         id.postOrderId() >= 0);
+                         //id.postOrderId() >= 0);
+                         id.postOrderId() != -1); // FIXME
   bool error = false;
   if (useLocalResult && curStmt != nullptr) {
     if (curStmt->id().contains(id)) {
@@ -2995,6 +2996,7 @@ void Resolver::tryResolveParenlessCall(const ParenlessOverloadInfo& info,
 
 void Resolver::resolveIdentifier(const Identifier* ident,
                                  llvm::ArrayRef<const Scope*> receiverScopes) {
+  if (ident && ident->id().str() == "baz._internal_bazR.R@-4") gdbShouldBreakHere();
   //if (ident && ident->name().str() == "G" &&
   //    ident->id().postOrderId() < 0) gdbShouldBreakHere();
   ResolvedExpression& result = byPostorder.byAst(ident);

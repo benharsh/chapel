@@ -332,13 +332,6 @@ ID BuilderResult::idToParentId(ID id) const {
   return ID();
 }
 
-void BuilderResult::setGeneratedParent(ID id) {
-  auto mod = singleModule();
-  assert(mod);
-
-  idToParentId_[mod->id()] = id;
-}
-
 
 // Add getters for additional locations that go from AST or ID to location.
 #define LOCATION_MAP(ast__, location__) \

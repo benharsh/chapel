@@ -213,8 +213,6 @@ class BuilderResult final {
       Returns the empty ID if none is found */
   ID idToParentId(ID id) const;
 
-  void setGeneratedParent(ID id);
-
   /** Find an additional location given ID input. Returns an empty location
       pointing to 'path' if none was found. */
   #define LOCATION_MAP(ast__, location__) \

@@ -1369,7 +1369,7 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   builder->noteChildrenLocations(genFn.get(), parsing::locateId(context, id));
   builder->addToplevelExpression(std::move(genFn));
   auto res = builder->result();
-  res.setGeneratedParent(parentMod);
+  // do we need this???
 
   //UniqueString tempPath = UniqueString::get(context, modName);
   //parsing::setFileText(context, tempPath, snippet);
@@ -1391,10 +1391,12 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     formals.push_back(d);
   }
 
+  auto ctorId = typeCtor->id();
   parsing::setCompilerGeneratedBuilder(context, genMod->id().symbolPath(), std::move(res));
+  assert(!ctorId.isEmpty());
 
   auto untyped = UntypedFnSignature::get(context,
-                                         typeCtor->id(), name,
+                                         ctorId, name,
                                          /* isMethod */ false,
                                          /* isTypeConstructor */ true,
                                          /* isCompilerGenerated */ true,
@@ -4359,6 +4361,7 @@ CallResolutionResult resolveFnCall(Context* context,
                                    const CallInfo& ci,
                                    const CallScopeInfo& inScopes,
                                    std::vector<ApplicabilityResult>* rejected) {
+  if (call && call->id().str() == "baz._internal_bazR.R@-5") gdbShouldBreakHere();
   PoiInfo poiInfo;
   MostSpecificCandidates mostSpecific;
 
