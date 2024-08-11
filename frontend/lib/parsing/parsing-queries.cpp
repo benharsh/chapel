@@ -206,7 +206,7 @@ const BuilderResult*
 parseFileContainingIdToBuilderResult(Context* context, ID id) {
   {
     UniqueString symbolPath = id.symbolPath();
-    if (symbolPath.str() == "bar._internal_bar.B") gdbShouldBreakHere();
+    //if (symbolPath.str() == "bar._internal_bar.B") gdbShouldBreakHere();
 
     while (!symbolPath.isEmpty()) {
       auto tupleOfArgs = std::make_tuple(symbolPath);
@@ -1229,6 +1229,7 @@ const AstNode* idToAst(Context* context, ID id) {
     return nullptr;
   }
 
+  if (id.str() == "testFile._internal_testFilerec.rec") gdbShouldBreakHere();
   return astForIdQuery(context, id);
 }
 

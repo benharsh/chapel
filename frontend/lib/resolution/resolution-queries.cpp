@@ -1321,6 +1321,9 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     CHPL_ASSERT(false && "case not handled");
   }
 
+  // If we're actually running the body of this current query, then the
+  // BuilderResult from any past revision needs to be overwritten.
+
   auto parentMod = parsing::idToParentModule(context, id);
   auto modName = "_internal_" + parentMod.symbolName(context).str() + name.str();
   auto builder = Builder::createForGeneratedCode(context, modName.c_str(), parentMod.symbolPath());
@@ -1347,10 +1350,11 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     }
     auto typeExpr = var->typeExpression();
     auto initExpr = var->initExpression();
+    auto kind = var->kind() == Variable::PARAM ? Variable::PARAM : Variable::TYPE;
     owned<AstNode> formal = Formal::build(builder.get(), Location(UniqueString::get(context, "dummy")),
                                 std::move(attr),
                                 var->name(),
-                                (Formal::Intent)var->kind(),
+                                (Formal::Intent)kind,
                                 typeExpr ? typeExpr->copy() : nullptr,
                                 initExpr ? initExpr->copy() : nullptr);
     formalAst.push_back(std::move(formal));
@@ -1377,8 +1381,20 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   //// TODO: the module's text is only ever being set to A's type constructor
   //// because it comes up first.....
   //auto& bld = parsing::parseFileToBuilderResult(context, tempPath, parentMod.symbolPath());
+  //parsing::setCompilerGeneratedBuilder(context, genMod->id().symbolPath(), std::move(res));
+  //
+  // We need this because in the case of multiple revisions, we might encounter
+  // a situation where we have a BuilderResult from a previous iteration that
+  // is equivalent to the BuilderResult we just made. In this situation the old
+  // BuilderResult will not be changed from the query system's point of view.
+  // This means that the BuilderResult we just created will be destroyed,
+  // along with all its uAST. To work around this (for now), we simply run the
+  // corresponding 'getter' query and use that BuilderResult.
+  auto modPath = res.topLevelExpression(0)->id().symbolPath();
+  parsing::setCompilerGeneratedBuilder(context, modPath, std::move(res));
+  auto& br = parsing::getCompilerGeneratedBuilder(context, modPath);
 
-  const Module* genMod = res.topLevelExpression(0)->toModule();
+  const Module* genMod = br.topLevelExpression(0)->toModule();
   const Function* typeCtor = genMod->child(genMod->numChildren()-1)->toFunction();
 
   for (auto decl : typeCtor->formals()) {
@@ -1392,7 +1408,14 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   }
 
   auto ctorId = typeCtor->id();
-  parsing::setCompilerGeneratedBuilder(context, genMod->id().symbolPath(), std::move(res));
+  // for some reason we still have a valid BuilderResult in there for old
+  // revisions...???
+  //
+  // is there a way we can make this query-setter dependent on the current
+  // query?
+  //
+  // Can't set it to 'BuilderResult()' because you can't set something twice
+  // in the same revision...
   assert(!ctorId.isEmpty());
 
   auto untyped = UntypedFnSignature::get(context,
