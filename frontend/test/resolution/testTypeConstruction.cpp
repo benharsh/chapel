@@ -1283,6 +1283,40 @@ static void test42() {
   assert(fields->fieldType(0).param() == IntParam::get(context, 1));
 }
 
+static void test43() {
+  printf("test43\n");
+  Context ctx;
+  Context* context = &ctx;
+  auto p = parseTypeAndFieldsOfX(context,
+                        R""""(
+                        class A {
+                          type TX;
+                          var x : TX;
+                        }
+
+                        class B : A {
+                          type TY;
+                          var y : TY;
+                        }
+
+                        var x : unmanaged B(int, real)?;
+                        )"""");
+
+  auto rt = p.first->toClassType();
+  assert(rt);
+  assert(rt->decorator().isUnmanaged());
+
+  auto fields = p.second;
+  assert(fields);
+  assert(fields->numFields() == 2);
+  assert(fields->fieldType(0).type()->isRealType());
+
+  auto parent = rt->basicClassType()->parentClassType();
+  auto pf = parent->substitutions();
+  assert(pf.size() == 1);
+  assert(pf.begin()->second.type()->isIntType());
+}
+
 
 int main() {
   test1();
@@ -1330,6 +1364,7 @@ int main() {
   test40();
   test41();
   test42();
+  test43();
 
   return 0;
 }

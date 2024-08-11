@@ -606,22 +606,22 @@ void ReturnTypeInferrer::exit(const AstNode* ast, RV& rv) {
   exitScope(ast);
 }
 
-static ID findFieldIDByName(Context* context,
-                            const AggregateDecl* ad,
-                            const CompositeType* ct,
-                            UniqueString name) {
-  ID ret;
+static const Decl* findFieldIDByName(Context* context,
+                                     const AggregateDecl* ad,
+                                     const CompositeType* ct,
+                                     UniqueString name) {
+  const Decl* ret = nullptr;
 
   for (auto decl : ad->children()) {
     if (auto named = decl->toNamedDecl()) {
       if (named->name() == name) {
-        ret = named->id();
+        ret = named;
         break;
       }
     }
   }
 
-  if (ret.isEmpty()) {
+  if (ret == nullptr) {
     if (auto bct = ct->toBasicClassType()) {
       if (auto parent = bct->parentClassType()) {
         auto parentAD = parsing::idToAst(context, parent->id())->toAggregateDecl();
@@ -673,13 +673,13 @@ returnTypeForTypeCtorQuery(Context* context,
     if (instantiatedFrom != nullptr) {
       int nFormals = sig->numFormals();
       for (int i = 0; i < nFormals; i++) {
-        const Decl* formalDecl = untyped->formalDecl(i);
+        auto field = findFieldIDByName(context, ad, instantiatedFrom, untyped->formalName(i));
         const QualifiedType& formalType = sig->formalType(i);
         // Note that the formalDecl should already be a fieldDecl
         // based on typeConstructorInitialQuery.
         auto useKind = formalType.kind();
         bool hasInitExpression = false;
-        if (auto vd = formalDecl->toVarLikeDecl()) {
+        if (auto vd = field->toVarLikeDecl()) {
           // Substitute with the kind of the underlying field corresponding to
           // the formal. For example, if we substitute in a type for a generic
           // VAR decl, the type we construct will need to be inited with a VAR
@@ -705,8 +705,7 @@ returnTypeForTypeCtorQuery(Context* context,
         } else {
           auto useQt =
               QualifiedType(useKind, formalType.type(), formalType.param());
-          ID fieldID = findFieldIDByName(context, ad, instantiatedFrom, untyped->formalName(i));
-          subs.insert({fieldID, useQt});
+          subs.insert({field->id(), useQt});
         }
       }
     }
