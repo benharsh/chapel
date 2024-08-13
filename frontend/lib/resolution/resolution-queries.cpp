@@ -4384,7 +4384,15 @@ CallResolutionResult resolveFnCall(Context* context,
                                    const CallInfo& ci,
                                    const CallScopeInfo& inScopes,
                                    std::vector<ApplicabilityResult>* rejected) {
-  if (call && call->id().str() == "baz._internal_bazR.R@-5") gdbShouldBreakHere();
+  if (ci.name() == "chpl_by_help") gdbShouldBreakHere();
+  if (ci.name() == "init") {
+    gdbShouldBreakHere();
+    if (auto t = ci.calledType().type()) {
+    if (auto ct = t->toCompositeType()) {
+      if (ct->name() == "_range") gdbShouldBreakHere();
+    }
+    }
+  }
   PoiInfo poiInfo;
   MostSpecificCandidates mostSpecific;
 
@@ -5089,6 +5097,49 @@ reportInvalidMultipleInheritance(Context* context,
   std::ignore = reportInvalidMultipleInheritanceImpl(context, node,
                                                      firstParent, secondParent);
 }
+const Decl* findFieldIDByName(Context* context,
+                              const AggregateDecl* ad,
+                              const CompositeType* ct,
+                              UniqueString name) {
+  const Decl* ret = nullptr;
+
+  for (auto decl : ad->children()) {
+    if (auto named = decl->toNamedDecl()) {
+      if (named->name() == name) {
+        ret = named;
+        break;
+      }
+    } else if (auto named = decl->toMultiDecl()) {
+      for (auto md : named->children()) {
+        auto nmd = md->toNamedDecl();
+        if (nmd->name() == name) {
+          ret = nmd;
+          break;
+        }
+      }
+    } else if (auto fwd = decl->toForwardingDecl()) {
+      if (auto var = fwd->expr()) {
+        auto n = var->toNamedDecl();
+        if (n->name() == name) {
+          ret = n;
+          break;
+        }
+      }
+    }
+  }
+
+  if (ret == nullptr) {
+    if (auto bct = ct->toBasicClassType()) {
+      if (auto parent = bct->parentClassType()) {
+        auto parentAD = parsing::idToAst(context, parent->id())->toAggregateDecl();
+        ret = findFieldIDByName(context, parentAD, parent, name);
+      }
+    }
+  }
+
+  return ret;
+}
+
 
 
 } // end namespace resolution

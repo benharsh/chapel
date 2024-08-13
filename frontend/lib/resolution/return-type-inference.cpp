@@ -606,33 +606,6 @@ void ReturnTypeInferrer::exit(const AstNode* ast, RV& rv) {
   exitScope(ast);
 }
 
-static const Decl* findFieldIDByName(Context* context,
-                                     const AggregateDecl* ad,
-                                     const CompositeType* ct,
-                                     UniqueString name) {
-  const Decl* ret = nullptr;
-
-  for (auto decl : ad->children()) {
-    if (auto named = decl->toNamedDecl()) {
-      if (named->name() == name) {
-        ret = named;
-        break;
-      }
-    }
-  }
-
-  if (ret == nullptr) {
-    if (auto bct = ct->toBasicClassType()) {
-      if (auto parent = bct->parentClassType()) {
-        auto parentAD = parsing::idToAst(context, parent->id())->toAggregateDecl();
-        ret = findFieldIDByName(context, parentAD, parent, name);
-      }
-    }
-  }
-
-  return ret;
-}
-
 // For a class type construction, returns a BasicClassType
 static const Type* const&
 returnTypeForTypeCtorQuery(Context* context,

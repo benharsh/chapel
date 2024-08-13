@@ -1016,8 +1016,10 @@ void Resolver::resolveTypeQueries(const AstNode* formalTypeExpr,
 
         // get the substitution for that field from the CompositeType
         // and recurse with the result to set types for nested TypeQuery nodes
-        const uast::Decl* field = fa->formal();
+        auto formal = fa->formal()->toNamedDecl();
         const SubstitutionsMap& subs = actualCt->substitutions();
+        auto ad = parsing::idToAst(context, actualCt->id())->toAggregateDecl();
+        auto field = findFieldIDByName(context, ad, actualCt, formal->name());
         auto search = subs.find(field->id());
         if (search != subs.end()) {
           QualifiedType fieldType = search->second;
@@ -3602,6 +3604,7 @@ types::QualifiedType Resolver::typeForBooleanOp(const uast::OpCall* op) {
 }
 
 bool Resolver::enter(const Call* call) {
+  if (call && call->id().str() == "ChapelRange.init#6@56") gdbShouldBreakHere();
   callNodeStack.push_back(call);
   auto op = call->toOpCall();
 
@@ -3914,7 +3917,8 @@ void Resolver::exit(const Dot* dot) {
     // Try to resolve a it as a field/parenless proc so we can resolve 'this' on
     // it later if needed.
     if (!receiver.type().isUnknown() && receiver.type().type() &&
-        receiver.type().type()->isCompositeType()) {
+        receiver.type().type()->isCompositeType() &&
+        dot->field() != "init") {
       std::vector<CallInfoActual> actuals;
       actuals.push_back(CallInfoActual(receiver.type(), USTR("this")));
       auto ci = CallInfo(/* name */ dot->field(),
