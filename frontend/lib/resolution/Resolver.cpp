@@ -2998,9 +2998,6 @@ void Resolver::tryResolveParenlessCall(const ParenlessOverloadInfo& info,
 
 void Resolver::resolveIdentifier(const Identifier* ident,
                                  llvm::ArrayRef<const Scope*> receiverScopes) {
-  if (ident && ident->id().str() == "baz._internal_bazR.R@-4") gdbShouldBreakHere();
-  //if (ident && ident->name().str() == "G" &&
-  //    ident->id().postOrderId() < 0) gdbShouldBreakHere();
   ResolvedExpression& result = byPostorder.byAst(ident);
 
   // for 'proc f(arg:?)' need to set 'arg' to have type AnyType
@@ -3604,7 +3601,6 @@ types::QualifiedType Resolver::typeForBooleanOp(const uast::OpCall* op) {
 }
 
 bool Resolver::enter(const Call* call) {
-  if (call && call->id().str() == "ChapelRange.init#6@56") gdbShouldBreakHere();
   callNodeStack.push_back(call);
   auto op = call->toOpCall();
 

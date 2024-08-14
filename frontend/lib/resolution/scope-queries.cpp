@@ -455,7 +455,6 @@ static const owned<Scope>& constructScopeQuery(Context* context, ID id) {
 
 static const Scope* const& scopeForIdQuery(Context* context, ID idIn) {
   QUERY_BEGIN(scopeForIdQuery, context, idIn);
-  //if (idIn.postOrderId() < -1) gdbShouldBreakHere();
 
   const Scope* result = nullptr;
 

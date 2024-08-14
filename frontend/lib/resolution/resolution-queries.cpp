@@ -1855,7 +1855,6 @@ static QualifiedType getProperFormalType(const ResolutionResultByPostorderID& r,
                                          const FormalActual& entry,
                                          const AggregateDecl* ad,
                                          const AstNode* typeFor) {
-  if (typeFor->id().str() == "bar._internal_bar.B@-2") gdbShouldBreakHere();
   auto type = r.byAst(typeFor).type();
   if (ad != nullptr) {
     // generic var fields from a type are type fields in its type constructor.
@@ -2101,7 +2100,6 @@ ApplicabilityResult instantiateSignature(Context* context,
     } else if (formal) {
       // Substitutions have been updated; re-run resolution to get better
       // intents, vararg info, and to extract type query info.
-      if (formal->id().str() == "bar._internal_bar.B@-2") gdbShouldBreakHere();
       formal->traverse(visitor);
       formalType = getProperFormalType(r, entry, ad, formal);
     }
@@ -4384,15 +4382,6 @@ CallResolutionResult resolveFnCall(Context* context,
                                    const CallInfo& ci,
                                    const CallScopeInfo& inScopes,
                                    std::vector<ApplicabilityResult>* rejected) {
-  if (ci.name() == "chpl_by_help") gdbShouldBreakHere();
-  if (ci.name() == "init") {
-    gdbShouldBreakHere();
-    if (auto t = ci.calledType().type()) {
-    if (auto ct = t->toCompositeType()) {
-      if (ct->name() == "_range") gdbShouldBreakHere();
-    }
-    }
-  }
   PoiInfo poiInfo;
   MostSpecificCandidates mostSpecific;
 

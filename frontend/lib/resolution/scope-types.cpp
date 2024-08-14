@@ -257,7 +257,6 @@ Scope::Scope(Context* context,
   parentScope_ = parentScope;
   tag_ = ast->tag();
   id_ = ast->id();
-  if (id_.postOrderId() < -1) gdbShouldBreakHere();
   if (auto decl = ast->toNamedDecl()) {
     name_ = decl->name();
   }
