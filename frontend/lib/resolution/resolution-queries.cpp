@@ -5077,6 +5077,7 @@ reportInvalidMultipleInheritance(Context* context,
   std::ignore = reportInvalidMultipleInheritanceImpl(context, node,
                                                      firstParent, secondParent);
 }
+
 const Decl* findFieldIDByName(Context* context,
                               const AggregateDecl* ad,
                               const CompositeType* ct,
@@ -5108,7 +5109,7 @@ const Decl* findFieldIDByName(Context* context,
     }
   }
 
-  if (ret == nullptr) {
+  if (ret == nullptr && ct != nullptr) {
     if (auto bct = ct->toBasicClassType()) {
       if (auto parent = bct->parentClassType()) {
         auto parentAD = parsing::idToAst(context, parent->id())->toAggregateDecl();
