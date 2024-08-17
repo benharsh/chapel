@@ -1243,16 +1243,18 @@ bool shouldIncludeFieldInTypeConstructor(Context* context,
   return false;
 }
 
-static void accumTypeCtorArgs(Context* context, const CompositeType* ct,
+static void buildTypeCtorArgs(Context* context, const CompositeType* ct,
                               std::vector<QualifiedType>& formalTypes,
-                              std::vector<owned<AstNode>>& args) {
+                              std::vector<const AstNode*>& args) {
 
+  // Build up parent class args first
   if (auto bct = ct->toBasicClassType()) {
     if (auto parent = bct->parentClassType()) {
-      accumTypeCtorArgs(context, parent->getCompositeType(),
+      buildTypeCtorArgs(context, parent->getCompositeType(),
                         formalTypes, args);
     }
   }
+
   // attempt to resolve the fields
   DefaultsPolicy defaultsPolicy = DefaultsPolicy::IGNORE_DEFAULTS;
   const ResolvedFields& f = fieldsForTypeDecl(context, ct,
@@ -1272,19 +1274,10 @@ static void accumTypeCtorArgs(Context* context, const CompositeType* ct,
     if (shouldIncludeFieldInTypeConstructor(context, declId, fieldType,
                                             &formalType)) {
 
-      //auto defaultKind = f.fieldHasDefaultValue(i) ?
-      //                   UntypedFnSignature::DK_DEFAULT :
-      //                   UntypedFnSignature::DK_NO_DEFAULT;
-      //auto d = UntypedFnSignature::FormalDetail(f.fieldName(i),
-      //                                          defaultKind,
-      //                                          fieldDecl,
-      //                                          fieldDecl->isVarArgFormal());
-      //formals.push_back(d);
-      // formalType should have been set above
       CHPL_ASSERT(formalType.kind() != QualifiedType::UNKNOWN);
       formalTypes.push_back(formalType);
 
-      args.push_back(declAst->copy());
+      args.push_back(declAst);
     }
   }
 }
@@ -1302,13 +1295,13 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   std::vector<types::QualifiedType> formalTypes;
   auto idTag = uast::asttags::AST_TAG_UNKNOWN;
 
-  std::vector<owned<AstNode>> args;
+  std::vector<const AstNode*> fieldAsts;
 
   if (auto ct = t->getCompositeType()) {
     id = ct->id();
     name = ct->name();
 
-    accumTypeCtorArgs(context, ct, formalTypes, args);
+    buildTypeCtorArgs(context, ct, formalTypes, fieldAsts);
 
     if (t->isBasicClassType() || t->isClassType()) {
       idTag = uast::asttags::Class;
@@ -1325,22 +1318,27 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   // BuilderResult from any past revision needs to be overwritten.
 
   auto parentMod = parsing::idToParentModule(context, id);
-  auto modName = "_internal_" + parentMod.symbolName(context).str() + name.str();
+  auto modName = "chpl__internal_" + parentMod.symbolName(context).str() + "_" + name.str();
   auto builder = Builder::createForGeneratedCode(context, modName.c_str(), parentMod.symbolPath());
+  auto dummyLoc = parsing::locateId(context, id);
 
+  // Add a top-level 'use' of the module containing the type being constructed.
+  // This exists to support fields that reference other types in that module.
   {
-    auto loc = Location(UniqueString::get(context, "dummy"));
-    auto ident = Identifier::build(builder.get(), loc, parsing::idToAst(context, parentMod)->toModule()->name());
-    //auto dot = Dot::build(builder.get(), loc, std::move(ident), name);
-    auto vis = VisibilityClause::build(builder.get(), loc, std::move(ident));
-    std::vector<owned<AstNode>> alist;
+    auto useName = parentMod.symbolName(context);
+    auto ident = Identifier::build(builder.get(), dummyLoc, useName);
+    auto vis = VisibilityClause::build(builder.get(), dummyLoc, std::move(ident));
+
+    AstList alist;
     alist.push_back(std::move(vis));
-    auto imp = Use::build(builder.get(), loc, Decl::DEFAULT_VISIBILITY, std::move(alist));
-    builder->addToplevelExpression(std::move(imp));
+    auto useStmt = Use::build(builder.get(), dummyLoc,
+                              Decl::DEFAULT_VISIBILITY, std::move(alist));
+    builder->addToplevelExpression(std::move(useStmt));
   }
 
-  std::vector<owned<AstNode>> formalAst;
-  for(auto& arg : args) {
+  // Build formals of type constructor
+  AstList formalAst;
+  for(auto& arg : fieldAsts) {
     auto var = arg->toVariable();
     owned<AttributeGroup> attr;
     if (var->attributeGroup()) {
@@ -1351,7 +1349,7 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     auto typeExpr = var->typeExpression();
     auto initExpr = var->initExpression();
     auto kind = var->kind() == Variable::PARAM ? Variable::PARAM : Variable::TYPE;
-    owned<AstNode> formal = Formal::build(builder.get(), Location(UniqueString::get(context, "dummy")),
+    owned<AstNode> formal = Formal::build(builder.get(), dummyLoc,
                                 std::move(attr),
                                 var->name(),
                                 (Formal::Intent)kind,
@@ -1359,7 +1357,8 @@ typeConstructorInitialQuery(Context* context, const Type* t)
                                 initExpr ? initExpr->copy() : nullptr);
     formalAst.push_back(std::move(formal));
   }
-  auto genFn = Function::build(builder.get(), Location(UniqueString::get(context, "dummy")), {},
+
+  auto genFn = Function::build(builder.get(), dummyLoc, {},
                                Decl::Visibility::PUBLIC,
                                Decl::Linkage::DEFAULT_LINKAGE,
                                {},
@@ -1370,18 +1369,19 @@ typeConstructorInitialQuery(Context* context, const Type* t)
                                false, false, false,
                                std::move(formalAst), {}, {}, {}, {});
 
-  builder->noteChildrenLocations(genFn.get(), parsing::locateId(context, id));
+  builder->noteChildrenLocations(genFn.get(), dummyLoc);
   builder->addToplevelExpression(std::move(genFn));
+
+  // Finalize the uAST and obtain the BuilderResult
   auto res = builder->result();
-  // do we need this???
 
-  //UniqueString tempPath = UniqueString::get(context, modName);
-  //parsing::setFileText(context, tempPath, snippet);
+  // Store the BuilderResult for later, using the module's path as the
+  // query key.
+  auto modPath = res.topLevelExpression(0)->id().symbolPath();
+  parsing::setCompilerGeneratedBuilder(context, modPath, std::move(res));
 
-  //// TODO: the module's text is only ever being set to A's type constructor
-  //// because it comes up first.....
-  //auto& bld = parsing::parseFileToBuilderResult(context, tempPath, parentMod.symbolPath());
-  //parsing::setCompilerGeneratedBuilder(context, genMod->id().symbolPath(), std::move(res));
+  //
+  // Re-acquire the BuilderResult
   //
   // We need this because in the case of multiple revisions, we might encounter
   // a situation where we have a BuilderResult from a previous iteration that
@@ -1390,13 +1390,15 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   // This means that the BuilderResult we just created will be destroyed,
   // along with all its uAST. To work around this (for now), we simply run the
   // corresponding 'getter' query and use that BuilderResult.
-  auto modPath = res.topLevelExpression(0)->id().symbolPath();
-  parsing::setCompilerGeneratedBuilder(context, modPath, std::move(res));
+  //
+  // TODO: Find a way to integrate all this into the query system more cleanly.
+  //
   auto& br = parsing::getCompilerGeneratedBuilder(context, modPath);
 
   const Module* genMod = br.topLevelExpression(0)->toModule();
-  const Function* typeCtor = genMod->child(genMod->numChildren()-1)->toFunction();
+  auto typeCtor = genMod->child(genMod->numChildren()-1)->toFunction();
 
+  // Build the UntypedFnSignature formals
   for (auto decl : typeCtor->formals()) {
     auto formal = decl->toFormal();
     bool hasDefault = formal->initExpression() != nullptr;
@@ -1407,19 +1409,8 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     formals.push_back(d);
   }
 
-  auto ctorId = typeCtor->id();
-  // for some reason we still have a valid BuilderResult in there for old
-  // revisions...???
-  //
-  // is there a way we can make this query-setter dependent on the current
-  // query?
-  //
-  // Can't set it to 'BuilderResult()' because you can't set something twice
-  // in the same revision...
-  assert(!ctorId.isEmpty());
-
   auto untyped = UntypedFnSignature::get(context,
-                                         ctorId, name,
+                                         typeCtor->id(), name,
                                          /* isMethod */ false,
                                          /* isTypeConstructor */ true,
                                          /* isCompilerGenerated */ true,

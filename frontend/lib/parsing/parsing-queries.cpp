@@ -225,7 +225,6 @@ parseFileContainingIdToBuilderResult(Context* context, ID id) {
     const BuilderResult& p = parseFileToBuilderResult(context, path,
                                                       parentSymbolPath);
     return &p;
-  } else {
   }
 
   return nullptr;

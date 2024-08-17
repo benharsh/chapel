@@ -162,7 +162,7 @@ class UntypedFnSignature {
   const uast::AstNode* whereClause_;
 
   // The ID that this compiler-generated function is based on
-  ID compGenOrigID_;
+  ID compilerGeneratedOrigin_;
 
   UntypedFnSignature(ID id,
                      UniqueString name,
@@ -174,7 +174,7 @@ class UntypedFnSignature {
                      uast::Function::Kind kind,
                      std::vector<FormalDetail> formals,
                      const uast::AstNode* whereClause,
-                     ID compGenOrigID = ID())
+                     ID compilerGeneratedOrigin = ID())
     : id_(id),
       name_(name),
       isMethod_(isMethod),
@@ -185,7 +185,7 @@ class UntypedFnSignature {
       kind_(kind),
       formals_(std::move(formals)),
       whereClause_(whereClause),
-      compGenOrigID_(compGenOrigID) {
+      compilerGeneratedOrigin_(compilerGeneratedOrigin) {
     CHPL_ASSERT(idTag == uast::asttags::Function ||
            idTag == uast::asttags::Class    ||
            idTag == uast::asttags::Record   ||
@@ -206,7 +206,7 @@ class UntypedFnSignature {
                         uast::Function::Kind kind,
                         std::vector<FormalDetail> formals,
                         const uast::AstNode* whereClause,
-                        ID compGenOrigID = ID());
+                        ID compilerGeneratedOrigin = ID());
 
  public:
   /** Get the unique UntypedFnSignature containing these components */
@@ -220,7 +220,7 @@ class UntypedFnSignature {
                                        uast::Function::Kind kind,
                                        std::vector<FormalDetail> formals,
                                        const uast::AstNode* whereClause,
-                                       ID compGenOrigID = ID());
+                                       ID compilerGeneratedOrigin = ID());
 
   /** Get the unique UntypedFnSignature representing a Function's
       signature from a Function uAST pointer. */
@@ -242,7 +242,7 @@ class UntypedFnSignature {
            kind_ == other.kind_ &&
            formals_ == other.formals_ &&
            whereClause_ == other.whereClause_ &&
-           compGenOrigID_ == other.compGenOrigID_;
+           compilerGeneratedOrigin_ == other.compilerGeneratedOrigin_;
   }
   bool operator!=(const UntypedFnSignature& other) const {
     return !(*this == other);
@@ -259,7 +259,7 @@ class UntypedFnSignature {
       context->markPointer(elt.decl);
     }
     context->markPointer(whereClause_);
-    compGenOrigID_.mark(context);
+    compilerGeneratedOrigin_.mark(context);
   }
 
 
@@ -284,8 +284,8 @@ class UntypedFnSignature {
     return isCompilerGenerated_;
   }
 
-  ID compGenOrigID() const {
-    return compGenOrigID_;
+  ID compilerGeneratedOrigin() const {
+    return compilerGeneratedOrigin_;
   }
 
   /** Returns true if id() refers to a Function */
@@ -2190,7 +2190,7 @@ class ResolutionResultByPostorderID {
   bool hasId(const ID& id) const {
     auto postorder = id.postOrderId();
     if ((id.symbolPath() == symbolId.symbolPath()) &&
-        /*0 <= postorder &&*/ (map.count(postorder) > 0))
+       0 <= postorder && (map.count(postorder) > 0))
       return true;
 
     return false;

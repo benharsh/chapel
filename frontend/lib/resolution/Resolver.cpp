@@ -2306,8 +2306,7 @@ QualifiedType Resolver::typeForId(const ID& id, bool localGenericToUnknown) {
   }
 
   bool useLocalResult = (id.symbolPath() == symbol->id().symbolPath() &&
-                         //id.postOrderId() >= 0);
-                         id.postOrderId() != -1); // FIXME
+                         id.postOrderId() >= 0);
   bool error = false;
   if (useLocalResult && curStmt != nullptr) {
     if (curStmt->id().contains(id)) {
@@ -3277,7 +3276,7 @@ static bool shouldUseGenericTypeForTypeExpr(const NamedDecl* decl) {
 
 bool Resolver::enter(const NamedDecl* decl) {
 
-  if (decl->id().postOrderId() == -1) {
+  if (decl->id().postOrderId() < 0) {
     // It's a symbol with a different path, e.g. a Function.
     // Don't try to resolve it now in this
     // traversal. Instead, resolve it e.g. when the function is called.

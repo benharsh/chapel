@@ -620,7 +620,7 @@ returnTypeForTypeCtorQuery(Context* context,
   // handle type construction
   const AggregateDecl* ad = nullptr;
   if (!untyped->id().isEmpty())
-    if (auto ast = parsing::idToAst(context, untyped->compGenOrigID()))
+    if (auto ast = parsing::idToAst(context, untyped->compilerGeneratedOrigin()))
       ad = ast->toAggregateDecl();
 
   if (ad) {

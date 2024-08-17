@@ -82,17 +82,17 @@ UntypedFnSignature::getUntypedFnSignature(Context* context, ID id,
                                           uast::Function::Kind kind,
                                           std::vector<FormalDetail> formals,
                                           const AstNode* whereClause,
-                                          ID compGenOrigID) {
+                                          ID compilerGeneratedOrigin) {
   QUERY_BEGIN(getUntypedFnSignature, context,
               id, name, isMethod, isTypeConstructor, isCompilerGenerated,
-               throws, idTag, kind, formals, whereClause, compGenOrigID);
+               throws, idTag, kind, formals, whereClause, compilerGeneratedOrigin);
 
   owned<UntypedFnSignature> result =
     toOwned(new UntypedFnSignature(id, name,
                                    isMethod, isTypeConstructor,
                                    isCompilerGenerated, throws, idTag, kind,
                                    std::move(formals), whereClause,
-                                   compGenOrigID));
+                                   compilerGeneratedOrigin));
 
   return QUERY_END(result);
 }
@@ -108,12 +108,12 @@ UntypedFnSignature::get(Context* context, ID id,
                         uast::Function::Kind kind,
                         std::vector<FormalDetail> formals,
                         const uast::AstNode* whereClause,
-                        ID compGenOrigID) {
+                        ID compilerGeneratedOrigin) {
   return getUntypedFnSignature(context, id, name,
                                isMethod, isTypeConstructor,
                                isCompilerGenerated, throws, idTag, kind,
                                std::move(formals), whereClause,
-                               compGenOrigID).get();
+                               compilerGeneratedOrigin).get();
 }
 
 static const UntypedFnSignature*
