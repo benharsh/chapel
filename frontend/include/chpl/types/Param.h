@@ -80,6 +80,7 @@ class Param {
 
  private:
   ParamTag tag_;
+  UniqueString str_;
 
  protected:
   /**
@@ -104,28 +105,8 @@ class Param {
   // do nothing for non-UniqueString values
   template<typename T> static void markValue(Context* context, T v) { }
 
-  // helper function to convert a value to a string
-  static std::string valueToString(UniqueString v) {
-    return std::string("\"") + v.str() + std::string("\"");
-  }
-  static std::string valueToString(ComplexDouble v) {
-    return std::to_string(v.re) + "+" + std::to_string(v.im) + "i";
-  }
-  static std::string valueToString(NoneValue v) {
-    return "none";
-  }
-  static std::string valueToString(ID id) {
-    return id.str();
-  }
-  static std::string valueToString(bool v) {
-    return v ? "true" : "false";
-  }
-  template<typename T> static std::string valueToString(T v) {
-    return std::to_string(v);
-  }
-
-  Param(ParamTag tag)
-    : tag_(tag) {
+  Param(ParamTag tag, UniqueString str)
+    : tag_(tag), str_(str) {
   }
 
  public:
@@ -224,7 +205,7 @@ class Param {
     using ValueType = VALTYPE; \
    private: \
     VALTYPE value_; \
-    explicit NAME(VALTYPE value) : Param(paramtags::NAME), value_(value) { } \
+    explicit NAME(VALTYPE value, UniqueString str) : Param(paramtags::NAME, str), value_(value) { } \
     static const owned<NAME>& get##NAME(Context* context, VALTYPE value); \
     bool contentsMatchInner(const Param* other) const override { \
       const NAME* lhs = this; \

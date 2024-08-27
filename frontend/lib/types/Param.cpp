@@ -623,14 +623,37 @@ QualifiedType Param::fold(Context* context,
 }
 
 void Param::stringify(std::ostream& ss, chpl::StringifyKind stringKind) const {
+  ss << str_;
+}
 
+// helper function to convert a value to a string
+static std::string valueToString(Context* context, UniqueString v) {
+  return std::string("\"") + v.str() + std::string("\"");
+}
+static std::string valueToString(Context* context, Param::ComplexDouble v) {
+  return std::to_string(v.re) + "+" + std::to_string(v.im) + "i";
+}
+static std::string valueToString(Context* context, Param::NoneValue v) {
+  return "none";
+}
+static std::string valueToString(Context* context, ID id) {
+  return parsing::idToAst(context, id)->toEnumElement()->name().str();
+}
+static std::string valueToString(Context* context, bool v) {
+  return v ? "true" : "false";
+}
+template<typename T> static std::string valueToString(Context* context, T v) {
+  return std::to_string(v);
+}
 
-  switch (tag_) {
+template<typename T>
+static UniqueString precomputeStringify(Context* context, T value, ParamTag tag) {
+  std::string ret;
+
+  switch (tag) {
 #define PARAM_NODE(NAME, VALTYPE) \
     case paramtags::NAME: { \
-      const NAME* casted = (const NAME*) this; \
-      auto value = casted->value(); \
-      ss << Param::valueToString(value); \
+      ret = valueToString(context, value); \
       break; \
     }
 // Apply the above macros to param-classes-list.h
@@ -639,6 +662,7 @@ void Param::stringify(std::ostream& ss, chpl::StringifyKind stringKind) const {
 #undef PARAM_NODE
   }
 
+  return UniqueString::get(context, ret);
 }
 
 void Param::serialize(Serializer& ser) const {
@@ -936,7 +960,7 @@ IMPLEMENT_DUMP(Param);
 #define PARAM_NODE(NAME, VALTYPE) \
   const owned<NAME>& NAME::get##NAME(Context* context, VALTYPE value) { \
     QUERY_BEGIN(get##NAME, context, value); \
-    auto result = toOwned(new NAME(value)); \
+    auto result = toOwned(new NAME(value, precomputeStringify(context, value, paramtags::NAME))); \
     return QUERY_END(result); \
   }
 
