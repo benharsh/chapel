@@ -493,6 +493,9 @@ bool InitResolver::isMentionOfNodeInLhsOfAssign(const AstNode* node) {
   const AstNode* prior = node;
 
   for (; parent != nullptr; parent = parentOf(parent)) {
+    // Stop searching upwards once we hit the initializer symbol
+    if (parent->id().isSymbolDefiningScope()) break;
+
     if (auto opCall = parent->toOpCall())
       if (opCall->op() == USTR("="))
         if (prior && opCall->actual(0) == prior)
@@ -511,31 +514,67 @@ ID InitResolver::fieldIdFromName(UniqueString name) {
   return ret;
 }
 
-ID InitResolver::fieldIdFromPossibleMentionOfField(const AstNode* node) {
-  UniqueString name;
+std::pair<ID,bool> InitResolver::fieldIdFromPossibleMentionOfField(const AstNode* node) {
+  //UniqueString name;
 
-  // TODO: Just remove this and check the set ID in all cases?
-  if (auto ident = node->toIdentifier()) {
-    name = ident->name();
-  } else if (auto dot = node->toDot()) {
-    if (auto lhs = dot->receiver()->toIdentifier()) {
-      if (lhs->name() == USTR("this")) name = dot->field();
+  //// TODO: Just remove this and check the set ID in all cases?
+  //if (auto ident = node->toIdentifier()) {
+  //  name = ident->name();
+  //} else if (auto dot = node->toDot()) {
+  //  if (auto lhs = dot->receiver()->toIdentifier()) {
+  //    if (lhs->name() == USTR("this")) name = dot->field();
+  //  }
+  //}
+
+  //if (name.isEmpty()) return ID();
+
+  //auto ret = ID();
+  //auto fieldId = fieldIdFromName(name);
+
+  //if (fieldId.isEmpty()) return ret;
+
+  std::function<std::pair<bool,const CompositeType*>(ID, const CompositeType*)> isFieldInType;
+  isFieldInType = [this, &isFieldInType] (ID fieldId, const CompositeType* ct) -> std::pair<bool,const CompositeType*> {
+    auto ad = parsing::idToAst(ctx_, ct->id());
+
+    if (ad->id().contains(fieldId)) {
+      return {true, ct};
+    }
+
+    if (auto bct = ct->toBasicClassType()) {
+      if (auto super = bct->parentClassType()) {
+        if (super->isObjectType() == false) {
+          return isFieldInType(fieldId, super);
+        }
+      }
+    }
+
+    return {false, ct};
+  };
+
+  auto& re = initResolver_.byPostorder.byAst(node);
+  ID fieldID = re.toId();
+
+  // now letting Resolver resolve the compiler-generated accessor
+  if (fieldID.isEmpty() && re.mostSpecific().numBest() == 1) {
+    auto untyped = re.mostSpecific().only().fn()->untyped();
+    auto fnId = untyped->id();
+    if (untyped->isCompilerGenerated() && parsing::idIsField(ctx_, fnId)) {
+      fieldID = fnId;
     }
   }
 
-  if (name.isEmpty()) return ID();
+  auto ct = currentRecvType_->getCompositeType();
+  if (!fieldID.isEmpty() &&
+      parsing::idIsField(ctx_, fieldID)) {
+    auto [found, inType] = isFieldInType(fieldID, ct);
+    if (found) {
+      return {fieldID, inType != ct};
+    }
+  }
 
-  auto ret = ID();
-  auto fieldId = fieldIdFromName(name);
-  auto& re = initResolver_.byPostorder.byAst(node);
 
-  if (fieldId.isEmpty()) return ret;
-
-  // TODO: Handle case where "this.foo" resolve to a paren-less method
-  auto id = re.toId();
-  if (!id.isEmpty() && parsing::idIsField(ctx_, id)) return id;
-
-  return ret;
+  return {ID(), false};
 }
 
 bool InitResolver::isFieldInitialized(ID fieldId) {
@@ -578,6 +617,13 @@ bool InitResolver::handleCallToSuperInit(const FnCall* node,
   if (auto dot = node->calledExpression()->toDot()) {
     if (auto ident = dot->receiver()->toIdentifier()) {
       if (ident->name() == "super" && dot->field() == "init") {
+        if (useOfSuperFields_.size() > 0) {
+          for (auto [fieldID, useID] : useOfSuperFields_) {
+            auto fieldNode = parsing::idToAst(ctx_, fieldID)->toNamedDecl();
+            ctx_->error(useID, "Cannot access parent field \"%s\" before super.init() or this.init()", fieldNode->name().c_str());
+          }
+        }
+
         auto& msc = c->mostSpecific().only();
         auto superThis = msc.formalActualMap().byFormalIdx(0).formalType();
 
@@ -703,8 +749,15 @@ bool InitResolver::handleAssignmentToField(const OpCall* node) {
   auto rhs = node->actual(1);
 
   // TODO: Is 'field' or 'this.field' too strict of a pattern?
-  auto fieldId = fieldIdFromPossibleMentionOfField(lhs);
+  auto [fieldId, isSuperField] = fieldIdFromPossibleMentionOfField(lhs);
   if (fieldId.isEmpty()) return false;
+  if (isSuperField && phase_ == PHASE_NEED_SUPER_INIT) {
+    auto nd = parsing::idToAst(ctx_, fieldId)->toNamedDecl();
+    ctx_->error(node, "Cannot set value of field \"%s\" from parent type "
+                      "before calling this.init() or super.init()",
+                      nd->name().c_str());
+    return false;
+  }
 
   auto state = fieldStateFromId(fieldId);
   CHPL_ASSERT(state);
@@ -796,10 +849,18 @@ bool InitResolver::handleInitStatement(const uast::Init* node) {
 }
 
 bool InitResolver::handleUseOfField(const AstNode* node) {
-  auto id = fieldIdFromPossibleMentionOfField(node);
+  auto [id, isSuperField] = fieldIdFromPossibleMentionOfField(node);
   if (id.isEmpty()) return false;
 
-  if (isFieldInitialized(id)) return false;
+  // TODO: need to figure keep track of mentioned parent fields, and if we
+  // see an super.init later, need to:
+  // - issue an error
+  // - recompute parent type
+  // - recompute current type
+  //
+  // How do we deal with this stuff and the notion of 'state'?
+
+  if (!isSuperField && isFieldInitialized(id)) return false;
 
   auto state = fieldStateFromId(id);
   bool isValidPreInitMention = false;
@@ -808,10 +869,19 @@ bool InitResolver::handleUseOfField(const AstNode* node) {
     if (isMentionOfNodeInLhsOfAssign(node))
       isValidPreInitMention = true;
 
+  if (isSuperField && phase_ != PHASE_NEED_SUPER_INIT) {
+    isValidPreInitMention = true;
+  }
+
   if (!isValidPreInitMention) {
-    ctx_->error(node, "'%s' is used before it is initialized",
-                      state->name.c_str());
-    return true;
+    if (isSuperField) {
+      useOfSuperFields_.push_back({id, node->id()});
+      return true;
+    } else {
+      ctx_->error(node, "'%s' is used before it is initialized",
+                        state->name.c_str());
+      return true;
+    }
   }
 
   return false;
@@ -831,6 +901,7 @@ ID InitResolver::solveNameConflictByIgnoringField(const NameVec& vec) {
 }
 
 bool InitResolver::handleResolvingFieldAccess(const Identifier* node) {
+  return false;
   auto parenlessInfo = Resolver::ParenlessOverloadInfo();
   auto scope = initResolver_.methodReceiverScopes();
   auto vec = initResolver_.lookupIdentifier(node, scope, parenlessInfo);
@@ -864,6 +935,7 @@ bool InitResolver::handleResolvingFieldAccess(const Identifier* node) {
 }
 
 bool InitResolver::handleResolvingFieldAccess(const Dot* node) {
+  return false;
   if (auto ident = node->receiver()->toIdentifier()) {
 
     // TODO: Check parent for more context, and 'this.this'.

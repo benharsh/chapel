@@ -3210,6 +3210,9 @@ bool Resolver::enter(const Identifier* ident) {
     return false;
   } else {
     resolveIdentifier(ident, methodReceiverScopes());
+    if (initResolver) {
+      std::ignore = initResolver->handleUseOfField(ident);
+    }
     return false;
   }
 }
@@ -3927,7 +3930,7 @@ QualifiedType Resolver::typeForEnumElement(const EnumType* enumType,
 }
 
 void Resolver::exit(const Dot* dot) {
-  if (initResolver && initResolver->handleUseOfField(dot)) return;
+  //if (initResolver && initResolver->handleUseOfField(dot)) return;
 
   ResolvedExpression& receiver = byPostorder.byAst(dot->receiver());
 
@@ -4094,6 +4097,10 @@ void Resolver::exit(const Dot* dot) {
   // save the most specific candidates in the resolution result for the id
   ResolvedExpression& r = byPostorder.byAst(dot);
   handleResolvedCall(r, dot, ci, c);
+
+  if (initResolver) {
+    initResolver->handleUseOfField(dot);
+  }
 }
 
 bool Resolver::enter(const New* node) {

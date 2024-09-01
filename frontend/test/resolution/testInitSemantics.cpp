@@ -1295,6 +1295,79 @@ static void testInheritance() {
     std::ignore = resolveModule(context, m->id());
   }
 
+  // Allow parent field access with implicit super.init
+  {
+    Context ctx;
+    Context* context = &ctx;
+    ErrorGuard guard(context);
+
+    std::string program = R"""(
+      class Parent { var x : int; }
+      class Child : Parent { var y : real; }
+
+      operator *(const lhs: int, rhs: real) : real { 
+        return __primitive("*", lhs, rhs);
+      }
+      operator =(ref lhs: real, const rhs: real) : void {
+        __primitive("=", lhs, rhs);
+      }
+
+      proc Child.init() {
+        this.y = x * 42.0;
+      }
+      var a = new Child();
+    )""";
+
+    auto m = parseModule(context, std::move(program));
+    std::ignore = resolveModule(context, m->id());
+  }
+
+  // Error for accessing parent field before super.init
+  {
+    Context ctx;
+    Context* context = &ctx;
+    ErrorGuard guard(context);
+
+    std::string program = R"""(
+      class Parent { var x : int; }
+      class Child : Parent { var y : real; }
+
+      operator *(const lhs: int, rhs: real) : real { 
+        return __primitive("*", lhs, rhs);
+      }
+      operator =(ref lhs: real, const rhs: real) : void {
+        __primitive("=", lhs, rhs);
+      }
+
+      proc Child.init() {
+        var dummy = this.x * 0.0;
+        var other = x * 0.0;
+        super.init(0);
+        this.y = x * 42.0;
+      }
+      var a = new Child();
+    )""";
+
+    auto m = parseModule(context, std::move(program));
+    std::ignore = resolveModule(context, m->id());
+
+    assert(guard.numErrors() == 2);
+    auto msg = R"""(Cannot access parent field "x" before super.init() or this.init())""";
+
+    {
+      auto& err = guard.error(0);
+      assert(err->message() == msg);
+      assert(err->toErrorMessage(context).id().str() == "input.init@3");
+    }
+    {
+      auto& err = guard.error(1);
+      assert(err->message() == msg);
+      assert(err->toErrorMessage(context).id().str() == "input.init@7");
+    }
+
+    guard.realizeErrors();
+  }
+
   // Basic generic case
   {
     Context ctx;
