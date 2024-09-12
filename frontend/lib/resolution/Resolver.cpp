@@ -3130,6 +3130,16 @@ void Resolver::resolveIdentifier(const Identifier* ident,
       return;
     }
 
+    validateAndSetToId(result, ident, id);
+
+    // Before computing the type, field use inside an initializer.
+    //
+    // NB: this is important for parent fields, which may result in an
+    //   implicit 'super.init()' call, which may instantiate a generic field.
+    if (initResolver) {
+      std::ignore = initResolver->handleUseOfField(ident);
+    }
+
     // use the type established at declaration/initialization,
     // but for things with generic type, use unknown.
     type = typeForId(id, /*localGenericToUnknown*/ true);
@@ -3186,7 +3196,7 @@ void Resolver::resolveIdentifier(const Identifier* ident,
       // have `this` inserted, as well as whether or not to turn this
       // into a parenless call.
 
-      // Fall through to validateAndSetToId
+      // Fall through
     } else if (scopeResolveOnly &&
                type.kind() == QualifiedType::FUNCTION) {
       // Possibly a "compatibility hack" with production: we haven't checked
@@ -3194,10 +3204,9 @@ void Resolver::resolveIdentifier(const Identifier* ident,
       // care and assumes `ident` points to this function. Setting
       // the toId also helps determine if this is a method call
 
-      // Fall through to validateAndSetToId
+      // Fall through
     }
 
-    validateAndSetToId(result, ident, id);
     result.setType(type);
     // if there are multiple ids we should have gotten
     // a multiple definition error at the declarations.
@@ -3210,9 +3219,6 @@ bool Resolver::enter(const Identifier* ident) {
     return false;
   } else {
     resolveIdentifier(ident, methodReceiverScopes());
-    if (initResolver) {
-      std::ignore = initResolver->handleUseOfField(ident);
-    }
     return false;
   }
 }
@@ -3672,9 +3678,18 @@ void Resolver::prepareCallInfoActuals(const Call* call,
 
 static const Type* getGenericType(Context* context, const Type* recv) {
   const Type* gen = nullptr;
-  if (auto cur = recv->toCompositeType()) {
+  if (auto cur = recv->toRecordType()) {
     gen = cur->instantiatedFromCompositeType();
     if (gen == nullptr) gen = cur;
+  } else if (auto bct = recv->toBasicClassType()) {
+    gdbShouldBreakHere();
+    if (bct->parentClassType()->instantiatedFromCompositeType()) {
+      auto pt = getGenericType(context, bct->parentClassType())->toBasicClassType();
+      bct = BasicClassType::get(context, bct->id(), bct->name(), pt, bct->instantiatedFrom(), bct->substitutions());
+    }
+
+    gen = bct->instantiatedFromCompositeType();
+    if (gen == nullptr) gen = bct;
   } else if (auto cur = recv->toClassType()) {
     auto m = getGenericType(context, cur->manageableType());
     gen = ClassType::get(context, m->toManageableType(),
@@ -3811,9 +3826,15 @@ void Resolver::handleCallExpr(const uast::Call* call) {
     // any fields. This matches the behavior when calling ``this.init(...)``,
     // where ``this`` is treated as fully-generic.
     if (initResolver &&
-        ci.name() == USTR("init") && ci.isMethodCall() == false) {
+        ci.name() == USTR("init") /*&& ci.isMethodCall() == false*/) {
       auto gen = getGenericType(context, receiverType.type());
       receiverType = QualifiedType(QualifiedType::INIT_RECEIVER, gen);
+      ci = CallInfo::createWithReceiver(ci, receiverType);
+      // OK, idk what to do here. it's really awkward to try and reset the
+      // 'this' formal of 'ci'.
+      //
+      // Also feels wrong to change the receiver type of the typedSignature
+      // here...
     }
 
     CallResolutionResult c
@@ -3849,8 +3870,13 @@ void Resolver::exit(const Call* call) {
 }
 
 bool Resolver::enter(const Dot* dot) {
-  if (initResolver && initResolver->handleResolvingFieldAccess(dot))
-    return false;
+  // Need to handle fields before the compiler-generated accessor, in case
+  // an implicit super.init() instantiates a generic field.
+  if (initResolver) {
+    initResolver->handleUseOfField(dot);
+  }
+  //if (initResolver && initResolver->handleResolvingFieldAccess(dot))
+  //  return false;
   return true;
 }
 
@@ -4082,6 +4108,8 @@ void Resolver::exit(const Dot* dot) {
   if (scopeResolveOnly || deferToFunctionResolution)
     return;
 
+  // TODO: Unique error for user-defined field accessor
+
   // resolve a.x where a is a record/class and x is a field or parenless method
   std::vector<CallInfoActual> actuals;
   actuals.push_back(CallInfoActual(receiver.type(), USTR("this")));
@@ -4094,13 +4122,8 @@ void Resolver::exit(const Dot* dot) {
   auto inScope = scopeStack.back();
   auto inScopes = CallScopeInfo::forNormalCall(inScope, poiScope);
   auto c = resolveGeneratedCall(context, dot, ci, inScopes);
-  // save the most specific candidates in the resolution result for the id
   ResolvedExpression& r = byPostorder.byAst(dot);
   handleResolvedCall(r, dot, ci, c);
-
-  if (initResolver) {
-    initResolver->handleUseOfField(dot);
-  }
 }
 
 bool Resolver::enter(const New* node) {

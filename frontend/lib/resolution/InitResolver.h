@@ -112,7 +112,11 @@ class InitResolver {
   // handle a call to this.complete() or init this.
   void handleInitMarker(const uast::AstNode* node);
   bool handleCallToThisComplete(const uast::FnCall* node);
+  bool setupThisInit(const uast::FnCall* node);
+
   bool handleCallToSuperInit(const uast::FnCall* node, const CallResolutionResult* c);
+  void resolveImplicitSuperInit();
+
   bool handleCallToInit(const uast::FnCall* node, const CallResolutionResult* c);
   bool handleAssignmentToField(const uast::OpCall* node);
   ID solveNameConflictByIgnoringField(const NameVec& vec);

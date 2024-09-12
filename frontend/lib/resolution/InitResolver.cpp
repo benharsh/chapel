@@ -112,12 +112,37 @@ bool InitResolver::setupFromType(const Type* type) {
   return anyAffectsResultingType;
 }
 
+void InitResolver::resolveImplicitSuperInit() {
+  // TODO: handle case where arg-less super.init() does not exist
+  //     -- e.g. class Parent { type T; var x : T; }
+  // Resolve 'super.init()' ahead of time to support implicit parent
+  // initialization when a parent field is first accessed.
+  if (phase_ == PHASE_NEED_SUPER_INIT &&
+      superType_->isObjectType() == false) {
+    std::vector<CallInfoActual> actuals;
+    auto superCT = ClassType::get(ctx_, superType_, nullptr,
+                                  ClassTypeDecorator(ClassTypeDecorator::BORROWED_NONNIL));
+    auto superQT = QualifiedType(QualifiedType::INIT_RECEIVER, superCT);
+    actuals.push_back(CallInfoActual(superQT, USTR("this")));
+    auto ci = CallInfo(USTR("init"), superQT, true, false, false, actuals);
+    auto inScopes = CallScopeInfo::forNormalCall(initResolver_.scopeStack.back(), initResolver_.poiScope);
+    auto c = resolveGeneratedCall(ctx_, fn_->body()->child(0), ci, inScopes);
+    auto superFn = c.mostSpecific().only().fn();
+    auto superT = superFn->formalType(0).type()->getCompositeType();
+    this->superType_ = superT->toBasicClassType();
+    // Only update the current receiver if the parent was generic.
+    if (superT->instantiatedFromCompositeType() != nullptr) {
+      updateResolverVisibleReceiverType();
+    }
+  }
+}
+
 void InitResolver::doSetupInitialState(void) {
   // Determine the initial phase.
   phase_ = isCallToSuperInitRequired() ? PHASE_NEED_SUPER_INIT
                                        : PHASE_NEED_COMPLETE;
 
-  std::ignore = setupFromType(initialRecvType_);
+  std::ignore = setupFromType(currentRecvType_);
 }
 
 void InitResolver::markComplete() {
@@ -446,6 +471,7 @@ void InitResolver::updateResolverVisibleReceiverType(void) {
   if (updated != currentRecvType_) {
     auto tfs = computeTypedSignature(updated);
     initResolver_.typedSignature = tfs;
+    initResolver_.byPostorder.byAst(fn_->thisFormal()).setType(tfs->formalType(0));
     currentRecvType_ = updated;
   }
 }
@@ -533,6 +559,26 @@ std::pair<ID,bool> InitResolver::fieldIdFromPossibleMentionOfField(const AstNode
 
   //if (fieldId.isEmpty()) return ret;
 
+  if (node->isDot()) {
+    auto dot = node->toDot();
+    if (auto ident = dot->receiver()->toIdentifier()) {
+      if (dot->field() != "init" &&
+          (ident->name() == "this" || ident->name() == "super")) {
+        auto ct = currentRecvType_->getCompositeType();
+
+        auto ad = parsing::idToAst(ctx_, ct->id())->toAggregateDecl();
+        if (auto decl = findFieldByName(ctx_, ad, ct, dot->field())) {
+          return {decl->id(), !ad->id().contains(decl->id())};
+        }
+      }
+    }
+    //auto untyped = re.mostSpecific().only().fn()->untyped();
+    //auto fnId = untyped->id();
+    //if (untyped->isCompilerGenerated() && parsing::idIsField(ctx_, fnId)) {
+    //  fieldID = fnId;
+    //}
+  }
+
   std::function<std::pair<bool,const CompositeType*>(ID, const CompositeType*)> isFieldInType;
   isFieldInType = [this, &isFieldInType] (ID fieldId, const CompositeType* ct) -> std::pair<bool,const CompositeType*> {
     auto ad = parsing::idToAst(ctx_, ct->id());
@@ -554,15 +600,6 @@ std::pair<ID,bool> InitResolver::fieldIdFromPossibleMentionOfField(const AstNode
 
   auto& re = initResolver_.byPostorder.byAst(node);
   ID fieldID = re.toId();
-
-  // now letting Resolver resolve the compiler-generated accessor
-  if (fieldID.isEmpty() && re.mostSpecific().numBest() == 1) {
-    auto untyped = re.mostSpecific().only().fn()->untyped();
-    auto fnId = untyped->id();
-    if (untyped->isCompilerGenerated() && parsing::idIsField(ctx_, fnId)) {
-      fieldID = fnId;
-    }
-  }
 
   auto ct = currentRecvType_->getCompositeType();
   if (!fieldID.isEmpty() &&
@@ -812,11 +849,20 @@ bool InitResolver::handleAssignmentToField(const OpCall* node) {
   return true;
 }
 
+bool InitResolver::setupThisInit(const FnCall* node) {
+
+  // Always return false because we want the Resolver to handle everything else
+  // for us. InitResolver will adjust anything necessary after the call is
+  // resolved in 'handleCallToInit'.
+  return false;
+}
+
 bool InitResolver::handleResolvingCall(const Call* node) {
   auto ret = false;
 
   if (auto fnCall = node->toFnCall()) {
     ret |= handleCallToThisComplete(fnCall);
+    ret |= setupThisInit(fnCall);
   }
 
   if (auto opCall = node->toOpCall()) {
@@ -852,20 +898,12 @@ bool InitResolver::handleUseOfField(const AstNode* node) {
   auto [id, isSuperField] = fieldIdFromPossibleMentionOfField(node);
   if (id.isEmpty()) return false;
 
-  // TODO: need to figure keep track of mentioned parent fields, and if we
-  // see an super.init later, need to:
-  // - issue an error
-  // - recompute parent type
-  // - recompute current type
-  //
-  // How do we deal with this stuff and the notion of 'state'?
-
   if (!isSuperField && isFieldInitialized(id)) return false;
 
   auto state = fieldStateFromId(id);
   bool isValidPreInitMention = false;
 
-  if (isDescendingIntoAssignment_)
+  if (isDescendingIntoAssignment_ && isSuperField == false)
     if (isMentionOfNodeInLhsOfAssign(node))
       isValidPreInitMention = true;
 
@@ -875,6 +913,12 @@ bool InitResolver::handleUseOfField(const AstNode* node) {
 
   if (!isValidPreInitMention) {
     if (isSuperField) {
+      // Upon first use of parent field, need to insert a super.init() call
+      // TODO: store this as an associated action
+      if (useOfSuperFields_.empty()) {
+        this->resolveImplicitSuperInit();
+      }
+
       useOfSuperFields_.push_back({id, node->id()});
       return true;
     } else {
