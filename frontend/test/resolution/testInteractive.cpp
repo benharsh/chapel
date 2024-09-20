@@ -157,7 +157,9 @@ computeAndPrintStuff(ResolutionContext* rc,
     for (auto a : r->associatedActions()) {
       auto sig = a.fn();
       if (sig != nullptr) {
-        if (sig->untyped()->idIsFunction()) {
+        if (sig->untyped()->idIsFunction() &&
+            sig->isCompilerGenerated() == false) {
+          // TODO: let this run for compiler-generated stuff...
           auto fn = resolveFunction(rc, sig, r->poiScope());
           calledFns.insert(fn);
         }
