@@ -394,6 +394,8 @@ static bool getInitFormals(Context* context, owned<Builder>& builder,
       defaultKind = UntypedFnSignature::DK_NO_DEFAULT;
     }
 
+    // TODO: we need to put the Formal into some other uAST before we can
+    // reference it here...
     auto fd = UntypedFnSignature::FormalDetail(formalName, defaultKind,
                                                formal.get()->toFormal());
     ufsFormals.push_back(std::move(fd));
@@ -423,96 +425,109 @@ generateInitSignature(Context* context, const CompositeType* inCompType) {
   generateInitParts(context, inCompType, compType,
                     ufsFormals, formalTypes, /*useGeneric*/ true);
 
+  ID untypedID;
+  AstTag untypedTag;
+  bool needsInstantiation;
 
-  // consult the fields to build up the remaining untyped formals
-  const DefaultsPolicy defaultsPolicy = DefaultsPolicy::IGNORE_DEFAULTS;
-  auto& rf = fieldsForTypeDecl(context, compType, defaultsPolicy);
+  // Old-style default function placeholder for certain types when the standard
+  // library isn't available.
+  if (compType->isStringType() ||
+      compType->id().str() == "Errors.Error") {
+    // consult the fields to build up the remaining untyped formals
+    const DefaultsPolicy defaultsPolicy = DefaultsPolicy::IGNORE_DEFAULTS;
+    auto& rf = fieldsForTypeDecl(context, compType, defaultsPolicy);
 
-  // --------------------------------------------------------------------------
-  // TODO:
-  // - why does 'generateInitParts' set 'compType'?
-
-  // Add field-based arguments to initializer, including those of parent class
-  // if present.
-  if (false) {
+    // Add field-based arguments to initializer, including those of parent class
+    // if present.
     buildInitArgs(context, compType, rf, ufsFormals, formalTypes);
-  }
 
-  auto parentMod = parsing::idToParentModule(context, inCompType->id());
-  auto modName = "chpl__generated_" + parentMod.symbolName(context).str() + inCompType->name().str() + "_init";
-  auto builder = Builder::createForGeneratedCode(context, modName.c_str(), parentMod, parentMod.symbolPath());
-  auto dummyLoc = parsing::locateId(context, compType->id());
+    untypedID = inCompType->id();
+    untypedTag = parsing::idToTag(context, compType->id());
+    needsInstantiation = rf.isGeneric();
+  } else {
+    auto parentMod = parsing::idToParentModule(context, inCompType->id());
+    auto modName = "chpl__generated_" + parentMod.symbolName(context).str() + "_" + inCompType->name().str() + "_init";
+    auto builder = Builder::createForGeneratedCode(context, modName.c_str(), parentMod, parentMod.symbolPath());
+    auto dummyLoc = parsing::locateId(context, compType->id());
 
-  auto thisType = Identifier::build(builder.get(), dummyLoc, compType->name());
-  auto thisFormal = Formal::build(builder.get(), dummyLoc, nullptr,
-                                  USTR("this"), Formal::DEFAULT_INTENT,
-                                  std::move(thisType), nullptr);
-  ufsFormals.clear();
-  // start by adding a formal for the receiver
-  auto ufsReceiver =
-    UntypedFnSignature::FormalDetail(USTR("this"),
-                                     UntypedFnSignature::DK_NO_DEFAULT,
-                                     thisFormal.get());
-  ufsFormals.push_back(std::move(ufsReceiver));
+    auto thisType = Identifier::build(builder.get(), dummyLoc, compType->name());
+    auto thisFormal = Formal::build(builder.get(), dummyLoc, nullptr,
+                                    USTR("this"), Formal::DEFAULT_INTENT,
+                                    std::move(thisType), nullptr);
 
-  AstList stmts;
-  AstList superInitArgs;
-  bool needsInstantiation = getInitFormals(context, builder, compType,
-                                           formalTypes, ufsFormals, formals,
-                                           superInitArgs,
-                                           stmts);
+    // TODO: should we be calling 'generateInitParts' at all???
+    ufsFormals.clear();
 
-  {
-    if (generateSuperInit) {
-        owned<AstNode> dot = Dot::build(builder.get(), dummyLoc, Identifier::build(builder.get(), dummyLoc, USTR("super")), USTR("init"));
-        owned<AstNode> call = FnCall::build(builder.get(), dummyLoc, std::move(dot), std::move(superInitArgs), false);
-        stmts.insert(stmts.begin(), std::move(call));
+    AstList stmts;
+    AstList superInitArgs;
+    needsInstantiation = getInitFormals(context, builder, compType,
+                                        formalTypes, ufsFormals, formals,
+                                        superInitArgs,
+                                        stmts);
+
+    {
+      if (generateSuperInit) {
+          owned<AstNode> dot = Dot::build(builder.get(), dummyLoc, Identifier::build(builder.get(), dummyLoc, USTR("super")), USTR("init"));
+          owned<AstNode> call = FnCall::build(builder.get(), dummyLoc, std::move(dot), std::move(superInitArgs), false);
+          stmts.insert(stmts.begin(), std::move(call));
+      }
+
+      auto body = Block::build(builder.get(), dummyLoc, std::move(stmts));
+      auto genFn = Function::build(builder.get(),
+                                   dummyLoc, {},
+                                   Decl::Visibility::PUBLIC,
+                                   Decl::Linkage::DEFAULT_LINKAGE,
+                                   /*linkageName=*/{},
+                                   USTR("init"),
+                                   /*inline=*/false, /*override=*/false,
+                                   Function::Kind::PROC,
+                                   /*receiver=*/std::move(thisFormal),
+                                   Function::ReturnIntent::DEFAULT_RETURN_INTENT,
+                                   // throws, primaryMethod, parenless
+                                   false, false, false,
+                                   std::move(formals),
+                                   // returnType, where, lifetime, body
+                                   {}, {}, {}, std::move(body));
+
+      builder->noteChildrenLocations(genFn.get(), dummyLoc);
+      builder->addToplevelExpression(std::move(genFn));
+
+      // TODO: Add 'use' of type's module...
     }
 
-    auto body = Block::build(builder.get(), dummyLoc, std::move(stmts));
-    auto genFn = Function::build(builder.get(),
-                                 dummyLoc, {},
-                                 Decl::Visibility::PUBLIC,
-                                 Decl::Linkage::DEFAULT_LINKAGE,
-                                 /*linkageName=*/{},
-                                 USTR("init"),
-                                 /*inline=*/false, /*override=*/false,
-                                 Function::Kind::PROC,
-                                 /*receiver=*/std::move(thisFormal),
-                                 Function::ReturnIntent::DEFAULT_RETURN_INTENT,
-                                 // throws, primaryMethod, parenless
-                                 false, false, false,
-                                 std::move(formals),
-                                 // returnType, where, lifetime, body
-                                 {}, {}, {}, std::move(body));
+    auto res = builder->result();
 
-    builder->noteChildrenLocations(genFn.get(), dummyLoc);
-    builder->addToplevelExpression(std::move(genFn));
+    auto modPath = res.topLevelExpression(0)->id().symbolPath();
+    parsing::setCompilerGeneratedBuilder(context, modPath, std::move(res));
+
+    auto& br = parsing::getCompilerGeneratedBuilder(context, modPath);
+
+    if (br.numTopLevelExpressions() == 0) {
+      return nullptr;
+    }
+
+    const Module* genMod = br.topLevelExpression(0)->toModule();
+    auto initFn = genMod->child(genMod->numChildren()-1)->toFunction();
+
+    auto ufsReceiver =
+      UntypedFnSignature::FormalDetail(USTR("this"),
+                                       UntypedFnSignature::DK_NO_DEFAULT,
+                                       initFn->thisFormal());
+    ufsFormals.insert(ufsFormals.begin(), std::move(ufsReceiver));
+
+    untypedID = initFn->id();
+    untypedTag = asttags::Function;
   }
-
-  auto res = builder->result();
-
-  auto modPath = res.topLevelExpression(0)->id().symbolPath();
-  parsing::setCompilerGeneratedBuilder(context, modPath, std::move(res));
-
-  auto& br = parsing::getCompilerGeneratedBuilder(context, modPath);
-
-  if (br.numTopLevelExpressions() == 0) {
-    return nullptr;
-  }
-
-  const Module* genMod = br.topLevelExpression(0)->toModule();
-  auto initFn = genMod->child(genMod->numChildren()-1)->toFunction();
 
   // build the untyped signature
   auto ufs = UntypedFnSignature::get(context,
-                        /*id*/ initFn->id(),
+                        /*id*/ untypedID,
                         /*name*/ USTR("init"),
                         /*isMethod*/ true,
                         /*isTypeConstructor*/ false,
                         /*isCompilerGenerated*/ true,
                         /*throws*/ false,
-                        /*idTag*/ asttags::Function,
+                        /*idTag*/ untypedTag,
                         /*kind*/ uast::Function::Kind::PROC,
                         /*formals*/ std::move(ufsFormals),
                         /*whereClause*/ nullptr,
