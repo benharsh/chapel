@@ -1946,6 +1946,7 @@ class AssociatedAction {
     ASSIGN,       // same type or different type assign
     COPY_INIT,    // init= from same type
     INIT_OTHER,   // init= from other type
+    INIT_FIELD,   // represents field initialization inside initializer
     DEFAULT_INIT,
     DEINIT,
     ITERATE,      // aka "these"

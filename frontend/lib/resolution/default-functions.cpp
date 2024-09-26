@@ -491,8 +491,6 @@ generateInitSignature(Context* context, const CompositeType* inCompType) {
 
       builder->noteChildrenLocations(genFn.get(), dummyLoc);
       builder->addToplevelExpression(std::move(genFn));
-
-      // TODO: Add 'use' of type's module...
     }
 
     auto res = builder->result();

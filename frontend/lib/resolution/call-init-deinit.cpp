@@ -900,6 +900,15 @@ void CallInitDeinit::handleAssign(const OpCall* ast, RV& rv) {
   // check for use of deinited variables
   processMentions(ast, rv);
 
+  if (ast->isOpCall()) {
+    auto& opRes = rv.byAst(ast);
+    if (opRes.associatedActions().size() > 0) {
+      if (opRes.associatedActions().front().action() == AssociatedAction::INIT_FIELD) {
+        return;
+      }
+    }
+  }
+
   if (lhsType.isType() || lhsType.isParam()) {
     // these are basically 'move' initialization
     resolveMoveInit(ast, rhsAst, lhsType, rhsType, rv);

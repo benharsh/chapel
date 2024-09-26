@@ -1144,6 +1144,8 @@ const char* AssociatedAction::kindToString(Action a) {
       return "default-init";
     case INIT_OTHER:
       return "init-from-other";
+    case INIT_FIELD:
+      return "init-field";
     case DEINIT:
       return "deinit";
     case ITERATE:
