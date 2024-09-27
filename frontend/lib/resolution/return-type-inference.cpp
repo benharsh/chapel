@@ -1065,11 +1065,6 @@ static bool helpComputeReturnType(Context* context,
     const Function* fn = ast->toFunction();
     CHPL_ASSERT(fn);
 
-    if (untyped->isCompilerGenerated()) {
-      return helpComputeCompilerGeneratedReturnType(context, sig, poiScope,
-                                                    result, untyped);
-    }
-
     if (const AstNode* retType = fn->returnType()) {
       // Cannot return the correct "return type" for something value-less like
       // "param : int".
