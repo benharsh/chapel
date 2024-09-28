@@ -303,7 +303,6 @@ static bool getInitFormals(Context* context, owned<Builder>& builder,
                            bool isChild = true) {
   bool ret = false;
 
-  // TODO: super fields and invoking super
   if (auto basic = ct->toBasicClassType()) {
     if (auto parent = basic->parentClassType()) {
       if (!parent->isObjectType()) {
@@ -332,49 +331,45 @@ static bool getInitFormals(Context* context, owned<Builder>& builder,
   ret |= rf.isGeneric();
 
   auto dummyLoc = parsing::locateId(context, ct->id());
-  // push all fields -> formals in order
+
   for (int i = 0; i < rf.numFields(); i++) {
     auto fieldQt = rf.fieldType(i);
     auto formalName = rf.fieldName(i);
     bool formalHasDefault = rf.fieldHasDefaultValue(i);
+    auto field = parsing::idToAst(context, rf.fieldDeclId(i))->toVariable();
 
-    const uast::Decl* formalAst =
-      parsing::idToAst(context, rf.fieldDeclId(i))->toDecl();
-
+    Formal::Intent kind;
     // for types & param, use the field kind, for values use 'in' intent
     if (fieldQt.isType() || fieldQt.isParam()) {
       formalTypes.push_back(fieldQt);
+      kind = (Formal::Intent)field->kind();
     } else {
       auto qt = QualifiedType(QualifiedType::IN, fieldQt.type());
       formalTypes.push_back(qt);
-    }
-
-    auto var = formalAst->toVariable();
-    auto typeExpr = var->typeExpression();
-    auto initExpr = var->initExpression();
-    Formal::Intent kind;
-    if (var->kind() == Variable::TYPE || var->kind() == Variable::PARAM) {
-      kind = (Formal::Intent)var->kind();
-    } else {
       kind = Formal::Intent::IN;
     }
 
+    auto typeExpr = field->typeExpression();
+    auto initExpr = field->initExpression();
+
     owned<AstNode> formal = Formal::build(builder.get(), dummyLoc,
                                           /*attributeGroup=*/nullptr,
-                                          var->name(), kind,
+                                          field->name(), kind,
                                           typeExpr ? typeExpr->copy() : nullptr,
                                           initExpr ? initExpr->copy() : nullptr);
 
     if (isChild) {
+      // Create 'this.field = arg;' statement
       owned<AstNode> lhs = Dot::build(builder.get(), dummyLoc,
                                       Identifier::build(builder.get(), dummyLoc, USTR("this")),
-                                      var->name());
-      owned<AstNode> rhs = Identifier::build(builder.get(), dummyLoc, var->name());
+                                      field->name());
+      owned<AstNode> rhs = Identifier::build(builder.get(), dummyLoc, field->name());
       owned<AstNode> assign = OpCall::build(builder.get(), dummyLoc, USTR("="),
                                             std::move(lhs), std::move(rhs));
       stmts.push_back(std::move(assign));
     } else {
-      owned<AstNode> arg = Identifier::build(builder.get(), dummyLoc, var->name());
+      // collect arguments for super.init(...)
+      owned<AstNode> arg = Identifier::build(builder.get(), dummyLoc, field->name());
       superInitArgs.push_back(std::move(arg));
     }
 
@@ -394,8 +389,6 @@ static bool getInitFormals(Context* context, owned<Builder>& builder,
       defaultKind = UntypedFnSignature::DK_NO_DEFAULT;
     }
 
-    // TODO: we need to put the Formal into some other uAST before we can
-    // reference it here...
     auto fd = UntypedFnSignature::FormalDetail(formalName, defaultKind,
                                                formal.get()->toFormal());
     ufsFormals.push_back(std::move(fd));
@@ -454,8 +447,6 @@ generateInitSignature(Context* context, const CompositeType* inCompType) {
     auto thisFormal = Formal::build(builder.get(), dummyLoc, nullptr,
                                     USTR("this"), Formal::DEFAULT_INTENT,
                                     std::move(thisType), nullptr);
-
-    // TODO: should we be calling 'generateInitParts' at all???
     ufsFormals.clear();
 
     AstList stmts;
