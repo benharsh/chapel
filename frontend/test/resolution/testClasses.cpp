@@ -165,6 +165,7 @@ static void test4() {
   ErrorGuard guard(context);
 
   std::string program = R"""(
+    operator =(ref lhs: 2*int, const rhs : 2*int) {}
     class Bar {
       param rank : int;
       var myTup : rank*int;

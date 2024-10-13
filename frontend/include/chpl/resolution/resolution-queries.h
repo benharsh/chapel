@@ -493,6 +493,14 @@ const uast::Decl* findFieldByName(Context* context,
                                   const types::CompositeType* ct,
                                   UniqueString name);
 
+/**
+  Given a type's symbol path and the name of a default function, return a
+  BuilderResult storing the generated default function uAST.
+*/
+const uast::BuilderResult*
+buildDefaultFunction(Context* context,
+                     UniqueString typePath,
+                     UniqueString name);
 
 
 } // end namespace resolution

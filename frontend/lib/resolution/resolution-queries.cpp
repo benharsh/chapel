@@ -1549,41 +1549,80 @@ static void buildTypeCtorArgs(Context* context, const CompositeType* ct,
 }
 
 static const BuilderResult&
-buildTypeConstructor(Context* context, const CompositeType* t,
-                     ID id, UniqueString name,
-                     std::vector<const Variable*>& fieldAsts) {
-  auto parentMod = parsing::idToParentModule(context, id);
-  auto modName = "chpl__generated_" + parentMod.symbolName(context).str() + "_" + name.str();
-  auto builder = Builder::createForGeneratedCode(context, modName.c_str(), parentMod, parentMod.symbolPath());
-  auto dummyLoc = parsing::locateId(context, id);
+buildTypeConstructor(Context* context, ID typeID) {
+  QUERY_BEGIN(buildTypeConstructor, context, typeID);
 
-  // Build formals of type constructor
-  AstList formalAst;
-  for(auto& var : fieldAsts) {
-    auto typeExpr = var->typeExpression();
-    auto initExpr = var->initExpression();
-    auto kind = var->kind() == Variable::PARAM ? Variable::PARAM : Variable::TYPE;
-    owned<AstNode> formal = Formal::build(builder.get(), dummyLoc,
-                                /*attributeGroup=*/nullptr,
-                                var->name(),
-                                (Formal::Intent)kind,
-                                typeExpr ? typeExpr->copy() : nullptr,
-                                initExpr ? initExpr->copy() : nullptr);
-    formalAst.push_back(std::move(formal));
+  //const CompositeType* t,
+  //                   ID id, UniqueString name,
+  //                   std::vector<const Variable*>& fieldAsts) {
+
+  auto typeDecl = parsing::idToAst(context, typeID)->toAggregateDecl();
+
+  auto parentMod = parsing::idToParentModule(context, typeID);
+  auto modName = "chpl__generated_" + parentMod.symbolName(context).str() + "_" + typeDecl->name().str();
+  // TODO: are modName and parentMod symbol path needed???
+  auto bld = Builder::createForGeneratedCode(context, modName.c_str(), typeID, parentMod.symbolPath());
+  auto builder = bld.get();
+  auto dummyLoc = parsing::locateId(context, typeID);
+
+  AstList formals;
+  auto ct = initialTypeForTypeDecl(context, typeID)->getCompositeType();
+
+  if (auto bct = ct->toBasicClassType()) {
+    auto parent = bct->parentClassType();
+    if (parent && !parent->isObjectType()) {
+      auto& br = buildTypeConstructor(context, parent->id());
+      auto fn = br.topLevelExpression(0)->toFunction();
+
+      for (auto formal : fn->formals()) {
+        formals.push_back(formal->copy());
+      }
+    }
   }
 
-  auto genFn = Function::build(builder.get(), dummyLoc, {},
+  // attempt to resolve the fields
+  DefaultsPolicy defaultsPolicy = DefaultsPolicy::IGNORE_DEFAULTS;
+  const ResolvedFields& f = fieldsForTypeDecl(context, ct,
+                                              defaultsPolicy,
+                                              /* syntaxOnly */ true);
+
+  // find the generic fields from the type and add
+  // these as type constructor arguments.
+  int nFields = f.numFields();
+  for (int i = 0; i < nFields; i++) {
+    auto declId = f.fieldDeclId(i);
+    auto declAst = parsing::idToAst(context, declId);
+    CHPL_ASSERT(declAst);
+    auto fieldDecl = declAst->toVariable();
+    CHPL_ASSERT(fieldDecl);
+    QualifiedType formalType;
+    if (isFieldSyntacticallyGeneric(context, declId, nullptr)) {
+
+      auto typeExpr = fieldDecl->typeExpression();
+      auto initExpr = fieldDecl->initExpression();
+      auto kind = fieldDecl->kind() == Variable::PARAM ? Variable::PARAM : Variable::TYPE;
+      owned<AstNode> formal = Formal::build(builder, dummyLoc,
+                                            /*attributeGroup=*/nullptr,
+                                            fieldDecl->name(),
+                                            (Formal::Intent)kind,
+                                            typeExpr ? typeExpr->copy() : nullptr,
+                                            initExpr ? initExpr->copy() : nullptr);
+      formals.push_back(std::move(formal));
+    }
+  }
+
+  auto genFn = Function::build(builder, dummyLoc, {},
                                Decl::Visibility::PUBLIC,
                                Decl::Linkage::DEFAULT_LINKAGE,
                                /*linkageName=*/{},
-                               name,
+                               ct->name(),
                                /*inline=*/false, /*override=*/false,
                                Function::Kind::PROC,
                                /*receiver=*/{},
                                Function::ReturnIntent::DEFAULT_RETURN_INTENT,
                                // throws, primaryMethod, parenless
                                false, false, false,
-                               std::move(formalAst),
+                               std::move(formals),
                                // returnType, where, lifetime, body
                                {}, {}, {}, {});
 
@@ -1593,25 +1632,27 @@ buildTypeConstructor(Context* context, const CompositeType* t,
   // Finalize the uAST and obtain the BuilderResult
   auto res = builder->result();
 
-  // Store the BuilderResult for later, using the module's path as the
-  // query key.
-  auto modPath = res.topLevelExpression(0)->id().symbolPath();
-  parsing::setCompilerGeneratedBuilder(context, modPath, std::move(res));
+  return QUERY_END(res);
 
-  //
-  // Re-acquire the BuilderResult
-  //
-  // We need this because in the case of multiple revisions, we might encounter
-  // a situation where we have a BuilderResult from a previous iteration that
-  // is equivalent to the BuilderResult we just made. In this situation the old
-  // BuilderResult will not be changed from the query system's point of view.
-  // This means that the BuilderResult we just created will be destroyed,
-  // along with all its uAST. To work around this (for now), we simply run the
-  // corresponding 'getter' query and use that BuilderResult.
-  //
-  // TODO: Find a way to integrate all this into the query system more cleanly.
-  //
-  return parsing::getCompilerGeneratedBuilder(context, modPath);
+  //// Store the BuilderResult for later, using the module's path as the
+  //// query key.
+  //auto modPath = res.topLevelExpression(0)->id().symbolPath();
+  //parsing::setCompilerGeneratedBuilder(context, modPath, std::move(res));
+
+  ////
+  //// Re-acquire the BuilderResult
+  ////
+  //// We need this because in the case of multiple revisions, we might encounter
+  //// a situation where we have a BuilderResult from a previous iteration that
+  //// is equivalent to the BuilderResult we just made. In this situation the old
+  //// BuilderResult will not be changed from the query system's point of view.
+  //// This means that the BuilderResult we just created will be destroyed,
+  //// along with all its uAST. To work around this (for now), we simply run the
+  //// corresponding 'getter' query and use that BuilderResult.
+  ////
+  //// TODO: Find a way to integrate all this into the query system more cleanly.
+  ////
+  //return parsing::getCompilerGeneratedBuilder(context, modPath);
 }
 
 static const TypedFnSignature* const&
@@ -1628,6 +1669,7 @@ typeConstructorInitialQuery(Context* context, const Type* t)
   auto idTag = uast::asttags::AST_TAG_UNKNOWN;
   std::vector<const Variable*> fieldAsts;
 
+  // TODO: seems like we shouldn't need this idTag stuff right?
   auto ct = t->getCompositeType();
   if (ct != nullptr) {
     id = ct->id();
@@ -1648,11 +1690,13 @@ typeConstructorInitialQuery(Context* context, const Type* t)
     CHPL_ASSERT(false && "case not handled");
   }
 
-  auto& br = buildTypeConstructor(context, ct, id, name, fieldAsts);
+  auto& br = buildTypeConstructor(context, id);
 
   if (br.numTopLevelExpressions() != 0) {
-    const Module* genMod = br.topLevelExpression(0)->toModule();
-    auto typeCtor = genMod->child(genMod->numChildren()-1)->toFunction();
+    //const Module* genMod = br.topLevelExpression(0)->toModule();
+    //auto typeCtor = genMod->child(genMod->numChildren()-1)->toFunction();
+    auto typeCtor = br.topLevelExpression(0)->toFunction();
+    typeCtor->dump();
 
     // Build the UntypedFnSignature formals
     for (auto decl : typeCtor->formals()) {
@@ -1677,15 +1721,17 @@ typeConstructorInitialQuery(Context* context, const Type* t)
                                            /* whereClause */ nullptr,
                                            id);
 
-    result = TypedFnSignature::get(context,
-                                   untyped,
-                                   std::move(formalTypes),
-                                   TypedFnSignature::WHERE_NONE,
-                                   /* needsInstantiation */ true,
-                                   /* instantiatedFrom */ nullptr,
-                                   /* parentFn */ nullptr,
-                                   /* formalsInstantiated */ Bitmap(),
-                                   /* outerVariables */ {});
+    ResolutionContext rcval(context);
+    result = typedSignatureInitial(&rcval, untyped);
+    //result = TypedFnSignature::get(context,
+    //                               untyped,
+    //                               std::move(formalTypes),
+    //                               TypedFnSignature::WHERE_NONE,
+    //                               /* needsInstantiation */ true,
+    //                               /* instantiatedFrom */ nullptr,
+    //                               /* parentFn */ nullptr,
+    //                               /* formalsInstantiated */ Bitmap(),
+    //                               /* outerVariables */ {});
   }
 
   return QUERY_END(result);
@@ -5597,6 +5643,22 @@ const Decl* findFieldByName(Context* context,
   return ret;
 }
 
+const BuilderResult*
+buildDefaultFunction(Context* context,
+                     UniqueString typePath,
+                     UniqueString name) {
+  auto typeID = ID(typePath);
+
+  if (name == USTR("init")) {
+    return &buildInitializer(context, typeID);
+  } else if (name == USTR("=")) {
+    return &buildAssignmentOperator(context, typeID);
+  } else if (typeID.symbolName(context) == name) {
+    return &buildTypeConstructor(context, typeID);
+  }
+
+  return nullptr;
+}
 
 
 } // end namespace resolution

@@ -1291,6 +1291,7 @@ static void testRecursiveTypeConstructor() {
 
   auto p = parseTypeAndFieldsOfX(context,
       R"""(
+      operator =(ref lhs: unmanaged class?, const in rhs: unmanaged class?) {}
       class Node {
         type eltType = int;
         var data: eltType;
@@ -1330,6 +1331,7 @@ static void testRecursiveTypeConstructorAlias() {
 
   auto p = parseTypeAndFieldsOfX(context,
       R"""(
+      operator =(ref lhs: unmanaged class?, const in rhs: unmanaged class?) {}
       class Node {
           type eltType = int;
           var data: eltType;
@@ -1370,6 +1372,7 @@ static void testRecursiveTypeConstructorGeneric() {
 
   std::ignore = resolveTypeOfXInit(context,
       R"""(
+      operator =(ref lhs: unmanaged class?, const in rhs: unmanaged class?) {}
       class Node {
           type eltType = int;
           var data: eltType;
@@ -1397,6 +1400,7 @@ static void testRecursiveTypeConstructorMutual() {
 
   auto p = parseTypeAndFieldsOfX(context,
       R"""(
+      operator =(ref lhs: owned class?, const in rhs: owned class?) {}
       class MutA {
         type eltType;
         var data: eltType;

@@ -26,6 +26,7 @@
 #include "chpl/libraries/LibraryFile.h"
 #include "chpl/parsing/Parser.h"
 #include "chpl/resolution/scope-queries.h" // for moduleInitializationOrder
+#include "chpl/resolution/resolution-queries.h"
 #include "chpl/types/RecordType.h"
 #include "chpl/uast/AggregateDecl.h"
 #include "chpl/uast/AstNode.h"
@@ -208,22 +209,28 @@ parseFileContainingIdToBuilderResult(Context* context,
                                      UniqueString* setParentSymbolPath) {
   if (id.isFabricatedId() &&
       id.fabricatedIdKind() == ID::FabricatedIdKind::Generated) {
-    // Find the generated module's symbol path
-    UniqueString symbolPath;
-    if (id.symbolName(context).startsWith("chpl__generated")) {
-      symbolPath = id.symbolPath();
-    } else {
-      symbolPath = ID::parentSymbolPath(context, id.symbolPath());
-      if (symbolPath.isEmpty()) return nullptr;
+    // Symbol path for the type from which this ID was generated
+    auto symbolPath = ID::parentSymbolPath(context, id.symbolPath());
+    auto symbolName = id.symbolName(context);
 
-      // Assumption: The generated module goes only one symbol deep.
-      CHPL_ASSERT(ID::innermostSymbolName(context, symbolPath).startsWith("chpl__generated"));
-    }
+    //// Find the generated module's symbol path
+    //UniqueString symbolPath;
+    //if (id.symbolName(context).startsWith("chpl__generated")) {
+    //  symbolPath = id.symbolPath();
+    //} else {
+    //  symbolPath = ID::parentSymbolPath(context, id.symbolPath());
+    //  if (symbolPath.isEmpty()) return nullptr;
 
-    const BuilderResult& br = getCompilerGeneratedBuilder(context, symbolPath);
-    assert(br.numTopLevelExpressions() != 0);
+    //  // Assumption: The generated module goes only one symbol deep.
+    //  CHPL_ASSERT(ID::innermostSymbolName(context, symbolPath).startsWith("chpl__generated"));
+    //}
+
+    //const BuilderResult& br = getCompilerGeneratedBuilder(context, symbolPath);
+    const BuilderResult* br = resolution::buildDefaultFunction(context, symbolPath, symbolName);
+    assert(br->numTopLevelExpressions() != 0);
+    // TODO: is this necessary?
     if (setParentSymbolPath) *setParentSymbolPath = UniqueString();
-    return &br;
+    return br;
   } else  {
     UniqueString path;
     UniqueString parentSymbolPath;

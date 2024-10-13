@@ -377,11 +377,13 @@ static void initHelper(Context* context,
   }
 }
 
-static const BuilderResult& buildInitializer(Context* context, ID typeID) {
+const BuilderResult& buildInitializer(Context* context, ID typeID) {
+  QUERY_BEGIN(buildInitializer, context, typeID);
+
   auto typeDecl = parsing::idToAst(context, typeID)->toAggregateDecl();
   auto parentMod = parsing::idToParentModule(context, typeID);
   auto modName = "chpl__generated_" + parentMod.symbolName(context).str() + "_" + typeDecl->name().str() + "_init";
-  auto bld = Builder::createForGeneratedCode(context, modName.c_str(), parentMod, parentMod.symbolPath());
+  auto bld = Builder::createForGeneratedCode(context, modName.c_str(), typeID, parentMod.symbolPath());
   auto builder = bld.get();
   auto dummyLoc = parsing::locateId(context, typeID);
 
@@ -424,13 +426,14 @@ static const BuilderResult& buildInitializer(Context* context, ID typeID) {
   builder->addToplevelExpression(std::move(genFn));
 
   auto result = builder->result();
+  return QUERY_END(result);
 
-  auto modPath = result.topLevelExpression(0)->id().symbolPath();
-  parsing::setCompilerGeneratedBuilder(context, modPath, std::move(result));
+  //auto modPath = result.topLevelExpression(0)->id().symbolPath();
+  //parsing::setCompilerGeneratedBuilder(context, modPath, std::move(result));
 
-  auto& br = parsing::getCompilerGeneratedBuilder(context, modPath);
+  //auto& br = parsing::getCompilerGeneratedBuilder(context, modPath);
 
-  return br;
+  //return br;
 }
 
 static const TypedFnSignature*
@@ -490,8 +493,9 @@ generateInitSignature(Context* context, const CompositeType* inCompType) {
   } else {
     auto& br = buildInitializer(context, inCompType->id());
 
-    const Module* genMod = br.topLevelExpression(0)->toModule();
-    auto initFn = genMod->child(genMod->numChildren()-1)->toFunction();
+    auto initFn = br.topLevelExpression(0)->toFunction();
+    //const Module* genMod = br.topLevelExpression(0)->toModule();
+    //auto initFn = genMod->child(genMod->numChildren()-1)->toFunction();
 
     // compute the FormalDetails manually so that we can set the default-kind
     // appropriately.
@@ -1331,25 +1335,22 @@ getCompilerGeneratedFunction(Context* context,
   return nullptr;
 }
 
-static const BuilderResult&
-buildAssignmentOperators(Context* context,
-                         QualifiedType lhs, QualifiedType rhs) {
-  std::stringstream ss;
-  lhs.type()->stringify(ss, chpl::StringifyKind::CHPL_SYNTAX);
-  auto typeName = ss.str();
+const BuilderResult&
+buildAssignmentOperator(Context* context, ID typeID) {
+  QUERY_BEGIN(buildAssignmentOperator, context, typeID);
+  auto path = UniqueString::get(context, typeID.symbolPath().str() + ".=");
 
-  auto modName = "chpl__generated_" + typeName + "_=";
-  auto baseName = UniqueString::get(context, "ChapelBase");
-  auto bld = Builder::createForGeneratedCode(context, modName.c_str(), ID(baseName, ID_GEN_START, 0), UniqueString::get(context, "ChapelBase"));
+  auto bld = Builder::createForGeneratedCode(context, path.c_str(), typeID, UniqueString::get(context, "ChapelBase"));
   auto builder = bld.get();
-  auto dummyLoc = Location(UniqueString::get(context, "ChapelBase.="));
+  auto dummyLoc = Location(typeID.symbolPath());
 
+  auto type = Identifier::build(builder, dummyLoc, typeID.symbolName(context));
   auto lhsFormal = Formal::build(builder, dummyLoc, nullptr,
                                  UniqueString::get(context, "lhs"),
-                                 Formal::REF, nullptr, nullptr);
+                                 Formal::REF, type->copy(), nullptr);
   auto rhsFormal = Formal::build(builder, dummyLoc, nullptr,
                                  UniqueString::get(context, "rhs"),
-                                 Formal::CONST, nullptr, nullptr);
+                                 Formal::CONST, std::move(type), nullptr);
   AstList formals;
   formals.push_back(std::move(lhsFormal));
   formals.push_back(std::move(rhsFormal));
@@ -1376,13 +1377,7 @@ buildAssignmentOperators(Context* context,
   builder->addToplevelExpression(std::move(genFn));
 
   auto result = builder->result();
-
-  auto modPath = result.topLevelExpression(0)->id().symbolPath();
-  parsing::setCompilerGeneratedBuilder(context, modPath, std::move(result));
-
-  auto& br = parsing::getCompilerGeneratedBuilder(context, modPath);
-
-  return br;
+  return QUERY_END(result);
 }
 
 static const TypedFnSignature* const&
@@ -1401,12 +1396,20 @@ getCompilerGeneratedBinaryOpQuery(Context* context,
     }
   } else if (name == USTR("=") &&
              lhs.type() == rhs.type() &&
-             (lhs.type()->isPrimitiveType() ||
-              lhs.type()->isTupleType() ||
-              lhs.type()->isClassType())) {
+             lhs.type()->isPrimitiveType()) {
 
-    auto& br = buildAssignmentOperators(context, lhs, rhs);
-    auto assignFn = br.topLevelExpression(0)->child(0)->toFunction();
+    std::string typeName;
+    if (lhs.type()->isIntType()) typeName = "int";
+    if (lhs.type()->isUintType()) typeName = "uint";
+    if (lhs.type()->isRealType()) typeName = "real";
+    if (lhs.type()->isImagType()) typeName = "imag";
+    if (lhs.type()->isComplexType()) typeName = "complex";
+
+    // TODO: we need to parameterize this binary-op query by typeID as well...
+    auto typeID = ID(UniqueString::get(context, "ChapelBase." + typeName), ID_GEN_START, 0);
+
+    auto& br = buildAssignmentOperator(context, typeID);
+    auto assignFn = br.topLevelExpression(0)->toFunction();
 
     auto lhsType = QualifiedType(QualifiedType::REF, lhs.type());
     auto rhsType = QualifiedType(QualifiedType::CONST_IN, rhs.type());
@@ -1430,7 +1433,8 @@ getCompilerGeneratedBinaryOpQuery(Context* context,
                           /*idTag*/ asttags::Function,
                           /*kind*/ uast::Function::Kind::OPERATOR,
                           /*formals*/ std::move(ufsFormals),
-                          /*whereClause*/ nullptr);
+                          /*whereClause*/ nullptr,
+                          typeID);
 
     result = TypedFnSignature::get(context,
                                    ufs,

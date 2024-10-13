@@ -219,7 +219,9 @@ void Builder::noteSymbolTableSymbols(SymbolTableVec vec) {
 }
 
 BuilderResult Builder::result() {
-  this->createImplicitModuleIfNeeded();
+  if (isGenerated() == false) {
+    this->createImplicitModuleIfNeeded();
+  }
   this->assignIDs();
 
   // if we have a symbolTableVec, use it to compute
@@ -333,14 +335,17 @@ void Builder::assignIDs() {
   int i = 0;
   int commentIndex = 0;
 
-  if (!startingSymbolPath_.isEmpty()) {
+  if (!generatedFrom_.isEmpty()) {
+    pathVec = ID::expandSymbolPath(context_, generatedFrom_.symbolPath());
+  } else if (!startingSymbolPath_.isEmpty()) {
     // start from the starting symbol path if it exists
     pathVec = ID::expandSymbolPath(context_, startingSymbolPath_);
   }
 
   for (auto const& ownedExpression: br.topLevelExpressions_) {
     AstNode* ast = ownedExpression.get();
-    if (ast->isModule() || ast->isComment()) {
+    bool isModuleOrComment = ast->isModule() || ast->isComment();
+    if (isGenerated() || isModuleOrComment) {
       UniqueString emptyString;
       doAssignIDs(ast, emptyString, i, commentIndex, pathVec, duplicates);
     } else {
@@ -489,7 +494,7 @@ void Builder::doAssignIDs(AstNode* ast, UniqueString symbolPath, int& i,
     }
 
     int numContainedIds = freshId;
-    int postOrderId = this->isGenerated() ? -3 : -1;
+    int postOrderId = this->isGenerated() ? ID_GEN_START : -1;
     ast->setID(ID(newSymbolPath, postOrderId, numContainedIds));
 
     // Note: when creating a new symbol (e.g. fn), we're not incrementing i.
@@ -511,7 +516,7 @@ void Builder::doAssignIDs(AstNode* ast, UniqueString symbolPath, int& i,
     }
 
     int afterChildID = i;
-    int myID = this->isGenerated() ? -4 - afterChildID : afterChildID;
+    int myID = this->isGenerated() ? ID_GEN_START - 1 - afterChildID : afterChildID;
     i++; // count the ID for the node we are currently visiting
     int numContainedIDs = afterChildID - firstChildID;
     ast->setID(ID(symbolPath, myID, numContainedIDs));
