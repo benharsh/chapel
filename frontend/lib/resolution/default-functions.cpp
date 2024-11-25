@@ -135,6 +135,8 @@ needCompilerGeneratedMethod(Context* context, const Type* type,
                             UniqueString name, bool parenless) {
   if (type == nullptr) return false;
 
+  if (type->isNothingType()) return false;
+
   if (isNameOfCompilerGeneratedMethod(name) ||
       (type->isRecordType() && !isBuiltinTypeOperator(name))) {
     if (!areOverloadsPresentInDefiningScope(context, type, QualifiedType::INIT_RECEIVER, name)) {
