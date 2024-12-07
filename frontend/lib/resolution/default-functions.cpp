@@ -901,12 +901,127 @@ generateRecordBinaryOperator(Context* context, UniqueString op,
   return ret;
 }
 
+const BuilderResult& buildRecordAssignment(Context* context, ID typeID) {
+  QUERY_BEGIN(buildRecordAssignment, context, typeID);
+
+  auto typeDecl = parsing::idToAst(context, typeID)->toAggregateDecl();
+  auto bld = Builder::createForGeneratedCode(context, typeID);
+  auto builder = bld.get();
+  auto dummyLoc = parsing::locateId(context, typeID);
+
+  auto thisType = Identifier::build(builder, dummyLoc, typeDecl->name());
+  auto thisFormal = Formal::build(builder, dummyLoc, nullptr,
+                                  USTR("this"), Formal::DEFAULT_INTENT,
+                                  std::move(thisType), nullptr);
+
+  owned<AstNode> typeConstraint;
+  auto ct = initialTypeForTypeDecl(context, typeID)->getCompositeType();
+  auto rf = fieldsForTypeDecl(context, ct, DefaultsPolicy::IGNORE_DEFAULTS, false);
+  if (rf.isGeneric() || rf.isGenericWithDefaults()) {
+    AstList args;
+    args.push_back(Identifier::build(builder, dummyLoc, USTR("?")));
+    typeConstraint = FnCall::build(builder, dummyLoc,
+                                   thisFormal->typeExpression()->copy(),
+                                   std::move(args),
+                                   /*callUsedSquareBrackets*/false);
+  }
+
+  AstList formals;
+
+  auto lhsName = UniqueString::get(context, "lhs");
+  auto lhsFormal = Formal::build(builder, dummyLoc, nullptr,
+                                   lhsName, Formal::REF,
+                                   std::move(typeConstraint), nullptr);
+
+  auto rhsName = UniqueString::get(context, "rhs");
+  owned<AstNode> rhsType = lhsFormal->typeExpression() ? lhsFormal->typeExpression()->copy() : nullptr;
+  auto rhsFormal = Formal::build(builder, dummyLoc, nullptr,
+                                   rhsName, Formal::CONST_REF,
+                                   std::move(rhsType), nullptr);
+  formals.push_back(std::move(lhsFormal));
+  formals.push_back(std::move(rhsFormal));
+
+  AstList stmts;
+
+#define BUILD_ID(ustr) Identifier::build(builder, dummyLoc, ustr)
+#define BUILD_DOT(base, member) Dot::build(builder, dummyLoc, base, member)
+
+  for (int i = 0; i < rf.numFields(); i++) {
+    auto type = rf.fieldType(i);
+    if (!(type.isType() || type.isParam())) {
+      auto lhs = BUILD_DOT(BUILD_ID(lhsName), rf.fieldName(i));
+      auto rhs = BUILD_DOT(BUILD_ID(rhsName), rf.fieldName(i));
+      owned<AstNode> assign = OpCall::build(builder, dummyLoc, USTR("="),
+                                            std::move(lhs), std::move(rhs));
+      stmts.push_back(std::move(assign));
+    }
+  }
+
+  auto whereLHS = BUILD_DOT(BUILD_ID(lhsName), USTR("type"));
+  auto whereRHS = BUILD_DOT(BUILD_ID(rhsName), USTR("type"));
+  auto where = OpCall::build(builder, dummyLoc, USTR("=="),
+                             std::move(whereLHS), std::move(whereRHS));
+
+  auto body = Block::build(builder, dummyLoc, std::move(stmts));
+  auto genFn = Function::build(builder,
+                               dummyLoc, {},
+                               Decl::Visibility::PUBLIC,
+                               Decl::Linkage::DEFAULT_LINKAGE,
+                               /*linkageName=*/{},
+                               USTR("="),
+                               /*inline=*/false, /*override=*/false,
+                               Function::Kind::PROC,
+                               /*receiver=*/std::move(thisFormal),
+                               Function::ReturnIntent::DEFAULT_RETURN_INTENT,
+                               // throws, primaryMethod, parenless
+                               false, false, false,
+                               std::move(formals),
+                               // returnType, where, lifetime, body
+                               {}, std::move(where), {}, std::move(body));
+
+  builder->noteChildrenLocations(genFn.get(), dummyLoc);
+  builder->addToplevelExpression(std::move(genFn));
+
+  auto result = builder->result();
+  return QUERY_END(result);
+}
+
 static const TypedFnSignature*
-generateRecordAssignment(Context* context, const CompositeType* lhsType) {
-  return generateRecordBinaryOperator(context, USTR("="), lhsType,
-                                      /*this*/ QualifiedType::CONST_REF,
-                                      /*lhs*/  QualifiedType::CONST_REF,
-                                      /*rhs*/  QualifiedType::CONST_REF);
+generateRecordAssignment(Context* context, const CompositeType* compType) {
+  std::vector<UntypedFnSignature::FormalDetail> ufsFormals;
+  std::vector<QualifiedType> formalTypes;
+
+  auto& br = buildRecordAssignment(context, compType->id());
+  auto genFn = br.topLevelExpression(0)->toFunction();
+
+  ufsFormals.push_back(
+      UntypedFnSignature::FormalDetail(USTR("this"),
+                                       UntypedFnSignature::DK_NO_DEFAULT,
+                                       genFn->thisFormal()));
+  ufsFormals.push_back(
+      UntypedFnSignature::FormalDetail(UniqueString::get(context, "lhs"),
+                                       UntypedFnSignature::DK_NO_DEFAULT,
+                                       genFn->formal(1)));
+  ufsFormals.push_back(
+      UntypedFnSignature::FormalDetail(UniqueString::get(context, "rhs"),
+                                       UntypedFnSignature::DK_NO_DEFAULT,
+                                       genFn->formal(2)));
+
+  // build the untyped signature
+  auto ufs = UntypedFnSignature::get(context,
+                        /*id*/ genFn->id(),
+                        /*name*/ USTR("="),
+                        /*isMethod*/ true,
+                        /*isTypeConstructor*/ false,
+                        /*isCompilerGenerated*/ true,
+                        /*throws*/ true,
+                        /*idTag*/ asttags::Function,
+                        /*kind*/ uast::Function::Kind::PROC,
+                        /*formals*/ std::move(ufsFormals),
+                        /*whereClause*/ nullptr);
+
+  ResolutionContext rcval(context);
+  return typedSignatureInitial(&rcval, ufs);
 }
 
 static const TypedFnSignature*
@@ -1404,6 +1519,8 @@ builderResultForDefaultFunction(Context* context,
     return &buildDeSerialize(context, typeID, true);
   } else if (name == USTR("deserialize")) {
     return &buildDeSerialize(context, typeID, false);
+  } else if (name == USTR("=")) {
+    return &buildRecordAssignment(context, typeID);
   } else if (typeID.symbolName(context) == name) {
     return &buildTypeConstructor(context, typeID);
   }
