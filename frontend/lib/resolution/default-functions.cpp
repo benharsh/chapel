@@ -38,6 +38,10 @@ namespace resolution {
 using namespace uast;
 using namespace types;
 
+// Helper macros to help reduce the 'clutter' of so many arguments
+#define BUILD_ID(ustr) Identifier::build(builder, dummyLoc, ustr)
+#define BUILD_DOT(base, member) Dot::build(builder, dummyLoc, base, member)
+
 
 /**
   Return true if 'name' is the name of a compiler generated method.
@@ -778,130 +782,7 @@ const TypedFnSignature* fieldAccessor(Context* context,
   return fieldAccessorQuery(context, compType, fieldName);
 }
 
-// generate formal detail and formal type
-static void
-generateOperatorFormalDetail(const UniqueString name,
-                             const CompositeType*& compType,
-                             std::vector<UntypedFnSignature::FormalDetail>& ufsFormals,
-                             std::vector<QualifiedType>& formalTypes,
-                             QualifiedType::Kind qtKind,
-                             bool hasDefault = false,
-                             const uast::Decl* decl = nullptr) {
-  auto defaultKind = hasDefault ? UntypedFnSignature::DK_DEFAULT
-                                : UntypedFnSignature::DK_NO_DEFAULT;
-
-  auto fd = UntypedFnSignature::FormalDetail(name, defaultKind, decl);
-  ufsFormals.push_back(std::move(fd));
-
-  auto qtFd = QualifiedType(qtKind, compType);
-  formalTypes.push_back(std::move(qtFd));
-}
-
-
-// builds the formal entries for the operator methods, including the 'this'
-// method receiver and the lhs argument. Specify the
-// QualifiedType::Kind for each of these.
-static void
-generateUnaryOperatorMethodParts(Context* context,
-                                  const CompositeType* inCompType,
-                                  const CompositeType*& compType,
-                                  std::vector<UntypedFnSignature::FormalDetail>& ufsFormals,
-                                  std::vector<QualifiedType>& formalTypes,
-                                  QualifiedType::Kind thisKind,
-                                  QualifiedType::Kind lhsKind) {
-  // adjust to refer to fully generic signature if needed
-  auto genericCompType = inCompType->instantiatedFromCompositeType();
-  compType = genericCompType ? genericCompType : inCompType;
-
-  // make sure the receiver is a record type
-  CHPL_ASSERT(compType->isRecordType() && "Only RecordType supported for now");
-
-  // start by adding a formal for the receiver, 'this'
-  generateOperatorFormalDetail(USTR("this"), compType, ufsFormals, formalTypes,
-                               thisKind);
-
-  // add a formal for the 'lhs' argument
-  generateOperatorFormalDetail(UniqueString::get(context,"lhs"),
-                               compType, ufsFormals, formalTypes,
-                               lhsKind);
-  CHPL_ASSERT(formalTypes.size() == 2);
-  CHPL_ASSERT(ufsFormals.size() == 2);
-}
-
-// builds the formal entries for the operator methods, including the 'this'
-// method receiver and the lhs and rhs arguments. Specify the
-// QualifiedType::Kind for each of these.
-static void
-generateBinaryOperatorMethodParts(Context* context,
-                                  const CompositeType* inCompType,
-                                  const CompositeType*& compType,
-                                  std::vector<UntypedFnSignature::FormalDetail>& ufsFormals,
-                                  std::vector<QualifiedType>& formalTypes,
-                                  QualifiedType::Kind thisKind,
-                                  QualifiedType::Kind lhsKind,
-                                  QualifiedType::Kind rhsKind) {
-  // add formals for the 'this' receiver and 'lhs' argument
-  generateUnaryOperatorMethodParts(context, inCompType, compType, ufsFormals,
-                                   formalTypes, thisKind, lhsKind);
-
-  // add a formal for the 'rhs' argument
-  generateOperatorFormalDetail(UniqueString::get(context,"rhs"),
-                               compType, ufsFormals, formalTypes,
-                               rhsKind);
-
-  CHPL_ASSERT(formalTypes.size() == 3);
-  CHPL_ASSERT(ufsFormals.size() == 3);
-}
-
-/*
-generate a TypedFnSignature and UntypedFnSignature with formal details for a
-record operator method. The operator is specified by the UniqueString op.
-*/
-static const TypedFnSignature*
-generateRecordBinaryOperator(Context* context, UniqueString op,
-                             const CompositeType* lhsType,
-                             QualifiedType::Kind thisKind,
-                             QualifiedType::Kind lhsKind,
-                             QualifiedType::Kind rhsKind) {
-  const CompositeType* compType = nullptr;
-  std::vector<UntypedFnSignature::FormalDetail> ufsFormals;
-  std::vector<QualifiedType> formalTypes;
-
-  // build the formal details
-  generateBinaryOperatorMethodParts(context, lhsType, compType, ufsFormals,
-                                  formalTypes, thisKind, lhsKind, rhsKind);
-  // build the untyped signature
-  auto ufs = UntypedFnSignature::get(context,
-                        /*id*/ compType->id(),
-                        /*name*/ op,
-                        /*isMethod*/ true,
-                        /*isTypeConstructor*/ false,
-                        /*isCompilerGenerated*/ true,
-                        /*throws*/ false,
-                        /*idTag*/ parsing::idToTag(context, compType->id()),
-                        /*kind*/ uast::Function::Kind::OPERATOR,
-                        /*formals*/ std::move(ufsFormals),
-                        /*whereClause*/ nullptr);
-
-  // now build the other pieces of the typed signature
-  auto g = getTypeGenericity(context, lhsType);
-  bool needsInstantiation = (g == Type::GENERIC ||
-                             g == Type::GENERIC_WITH_DEFAULTS);
-
-  auto ret = TypedFnSignature::get(context,
-                                   ufs,
-                                   std::move(formalTypes),
-                                   TypedFnSignature::WHERE_NONE,
-                                   needsInstantiation,
-                                   /* instantiatedFrom */ nullptr,
-                                   /* parentFn */ nullptr,
-                                   /* formalsInstantiated */ Bitmap(),
-                                   /* outerVariables */ {});
-
-  return ret;
-}
-
-const BuilderResult& buildRecordAssignment(Context* context, ID typeID) {
+static const BuilderResult& buildRecordAssignment(Context* context, ID typeID) {
   QUERY_BEGIN(buildRecordAssignment, context, typeID);
 
   auto typeDecl = parsing::idToAst(context, typeID)->toAggregateDecl();
@@ -942,9 +823,6 @@ const BuilderResult& buildRecordAssignment(Context* context, ID typeID) {
   formals.push_back(std::move(rhsFormal));
 
   AstList stmts;
-
-#define BUILD_ID(ustr) Identifier::build(builder, dummyLoc, ustr)
-#define BUILD_DOT(base, member) Dot::build(builder, dummyLoc, base, member)
 
   for (int i = 0; i < rf.numFields(); i++) {
     auto type = rf.fieldType(i);
@@ -987,12 +865,10 @@ const BuilderResult& buildRecordAssignment(Context* context, ID typeID) {
 }
 
 static const TypedFnSignature*
-generateRecordAssignment(Context* context, const CompositeType* compType) {
+generateRecordSignature(Context* context, const CompositeType* compType,
+                         UniqueString name, const Function* genFn) {
   std::vector<UntypedFnSignature::FormalDetail> ufsFormals;
   std::vector<QualifiedType> formalTypes;
-
-  auto& br = buildRecordAssignment(context, compType->id());
-  auto genFn = br.topLevelExpression(0)->toFunction();
 
   ufsFormals.push_back(
       UntypedFnSignature::FormalDetail(USTR("this"),
@@ -1010,7 +886,7 @@ generateRecordAssignment(Context* context, const CompositeType* compType) {
   // build the untyped signature
   auto ufs = UntypedFnSignature::get(context,
                         /*id*/ genFn->id(),
-                        /*name*/ USTR("="),
+                        /*name*/ name,
                         /*isMethod*/ true,
                         /*isTypeConstructor*/ false,
                         /*isCompilerGenerated*/ true,
@@ -1024,12 +900,102 @@ generateRecordAssignment(Context* context, const CompositeType* compType) {
   return typedSignatureInitial(&rcval, ufs);
 }
 
-static const TypedFnSignature*
-generateRecordComparison(Context* context, const CompositeType* lhsType) {
-  return generateRecordBinaryOperator(context, USTR("=="), lhsType,
-                                      /*this*/ QualifiedType::REF,
-                                      /*lhs*/  QualifiedType::REF,
-                                      /*rhs*/  QualifiedType::CONST_REF);
+static const BuilderResult& buildRecordComparison(Context* context, ID typeID, UniqueString name) {
+  QUERY_BEGIN(buildRecordComparison, context, typeID, name);
+
+  auto typeDecl = parsing::idToAst(context, typeID)->toAggregateDecl();
+  auto bld = Builder::createForGeneratedCode(context, typeID);
+  auto builder = bld.get();
+  auto dummyLoc = parsing::locateId(context, typeID);
+
+  auto thisType = Identifier::build(builder, dummyLoc, typeDecl->name());
+  auto thisFormal = Formal::build(builder, dummyLoc, nullptr,
+                                  USTR("this"), Formal::DEFAULT_INTENT,
+                                  std::move(thisType), nullptr);
+
+  owned<AstNode> typeConstraint;
+  auto ct = initialTypeForTypeDecl(context, typeID)->getCompositeType();
+  auto rf = fieldsForTypeDecl(context, ct, DefaultsPolicy::IGNORE_DEFAULTS, false);
+  if (rf.isGeneric() || rf.isGenericWithDefaults()) {
+    AstList args;
+    args.push_back(Identifier::build(builder, dummyLoc, USTR("?")));
+    typeConstraint = FnCall::build(builder, dummyLoc,
+                                   thisFormal->typeExpression()->copy(),
+                                   std::move(args),
+                                   /*callUsedSquareBrackets*/false);
+  }
+
+  AstList formals;
+
+  auto lhsName = UniqueString::get(context, "lhs");
+  auto lhsFormal = Formal::build(builder, dummyLoc, nullptr,
+                                   lhsName, Formal::REF,
+                                   std::move(typeConstraint), nullptr);
+
+  auto rhsName = UniqueString::get(context, "rhs");
+  owned<AstNode> rhsType = lhsFormal->typeExpression() ? lhsFormal->typeExpression()->copy() : nullptr;
+  auto rhsFormal = Formal::build(builder, dummyLoc, nullptr,
+                                   rhsName, Formal::CONST_REF,
+                                   std::move(rhsType), nullptr);
+  formals.push_back(std::move(lhsFormal));
+  formals.push_back(std::move(rhsFormal));
+
+  AstList stmts;
+
+  // If any field is not equal, return 'false' early
+  for (int i = 0; i < rf.numFields(); i++) {
+    auto type = rf.fieldType(i);
+    if (!(type.isType() || type.isParam())) {
+      auto fn = BUILD_ID(UniqueString::get(context, "chpl_field_neq"));
+      AstList args;
+      args.push_back(BUILD_DOT(BUILD_ID(lhsName), rf.fieldName(i)));
+      args.push_back(BUILD_DOT(BUILD_ID(rhsName), rf.fieldName(i)));
+      owned<AstNode> neq = FnCall::build(builder, dummyLoc, std::move(fn),
+                                         std::move(args), false);
+
+      owned<AstNode> ret = Return::build(builder, dummyLoc,
+                             BoolLiteral::build(builder, dummyLoc, false));
+      AstList blockStmt;
+      blockStmt.push_back(std::move(ret));
+      owned<Block> block = Block::build(builder, dummyLoc, std::move(blockStmt));
+      owned<AstNode> cond = Conditional::build(builder, dummyLoc,
+                            std::move(neq), BlockStyle::EXPLICIT,
+                            std::move(block), false);
+      stmts.push_back(std::move(cond));
+    }
+  }
+
+  // Otherwise, return true
+  stmts.push_back(Return::build(builder, dummyLoc,
+                                BoolLiteral::build(builder, dummyLoc, true)));
+
+  auto whereLHS = BUILD_DOT(BUILD_ID(lhsName), USTR("type"));
+  auto whereRHS = BUILD_DOT(BUILD_ID(rhsName), USTR("type"));
+  auto where = OpCall::build(builder, dummyLoc, USTR("=="),
+                             std::move(whereLHS), std::move(whereRHS));
+
+  auto body = Block::build(builder, dummyLoc, std::move(stmts));
+  auto genFn = Function::build(builder,
+                               dummyLoc, {},
+                               Decl::Visibility::PUBLIC,
+                               Decl::Linkage::DEFAULT_LINKAGE,
+                               /*linkageName=*/{},
+                               USTR("=="),
+                               /*inline=*/false, /*override=*/false,
+                               Function::Kind::PROC,
+                               /*receiver=*/std::move(thisFormal),
+                               Function::ReturnIntent::DEFAULT_RETURN_INTENT,
+                               // throws, primaryMethod, parenless
+                               false, false, false,
+                               std::move(formals),
+                               // returnType, where, lifetime, body
+                               {}, std::move(where), {}, std::move(body));
+
+  builder->noteChildrenLocations(genFn.get(), dummyLoc);
+  builder->addToplevelExpression(std::move(genFn));
+
+  auto result = builder->result();
+  return QUERY_END(result);
 }
 
 static const TypedFnSignature*
@@ -1153,9 +1119,13 @@ getCompilerGeneratedMethodQuery(Context* context, QualifiedType receiverType,
       result = generateTupleMethod(context, tupleType, name);
     } else if (auto recordType = type->toRecordType()) {
       if (name == USTR("==")) {
-        result = generateRecordComparison(context, recordType);
+        auto& br = buildRecordComparison(context, compType->id(), name);
+        auto genFn = br.topLevelExpression(0)->toFunction();
+        result = generateRecordSignature(context, recordType, name, genFn);
       } else if (name == USTR("=")) {
-        result = generateRecordAssignment(context, recordType);
+        auto& br = buildRecordAssignment(context, compType->id());
+        auto genFn = br.topLevelExpression(0)->toFunction();
+        result = generateRecordSignature(context, recordType, name, genFn);
       } else {
         CHPL_UNIMPL("record method not implemented yet!");
       }
@@ -1521,6 +1491,8 @@ builderResultForDefaultFunction(Context* context,
     return &buildDeSerialize(context, typeID, false);
   } else if (name == USTR("=")) {
     return &buildRecordAssignment(context, typeID);
+  } else if (name == USTR("==")) {
+    return &buildRecordComparison(context, typeID, name);
   } else if (typeID.symbolName(context) == name) {
     return &buildTypeConstructor(context, typeID);
   }
