@@ -571,7 +571,7 @@ static void test11() {
 static void test12() {
   Test tpg {
     /* testName */ __FUNCTION__,
-    /* isChplHomeRequired */ false,    // TODO: True...
+    /* isChplHomeRequired */ true,
     /* prelude */ R"""(
             pragma "ignore noinit"
             record r1 {}
