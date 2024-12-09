@@ -1465,6 +1465,8 @@ gatherReceiverAndParentScopesForType(Context* context,
       }
     } else if (auto cptr = thisType->toCPtrType()) {
       scopes.push_back(scopeForId(context, cptr->id(context)));
+    } else if (auto ddata = thisType->toHeapBufferType()) {
+      scopes.push_back(scopeForId(context, ddata->id(context)));
     } else if (const ExternType* et = thisType->toExternType()) {
       scopes.push_back(scopeForId(context, et->id()));
     }

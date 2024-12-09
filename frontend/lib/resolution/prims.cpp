@@ -1706,7 +1706,7 @@ CallResolutionResult resolvePrimCall(ResolutionContext* rc,
           auto index = ci.actual(1).type();
           if (index.hasTypePtr() && index.type()->isIntegralType()) {
             auto act = ci.actual(0).type();
-            if (auto ptr = act.type()->toCPtrType()) {
+            if (auto ptr = act.type()->toPtrType()) {
               type = QualifiedType(QualifiedType::REF, ptr->eltType());
             }
           } else {

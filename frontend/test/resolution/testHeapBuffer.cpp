@@ -32,14 +32,9 @@
 
 #include <sstream>
 
-// Use a single context with revisions to get this test running faster.
-static Context* context;
-
 template <typename F>
 void testHeapBufferArg(const char* formalType, const char* actualType, F&& test) {
-  context->advanceToNextRevision(false);
-  if (!context->chplHome().empty())
-    setupModuleSearchPaths(context, false, false, {}, {});
+  auto context = buildStdContext();
   ErrorGuard guard(context);
 
   std::stringstream ss;
@@ -151,9 +146,7 @@ static void test7() {
 }
 
 static void test8() {
-  context->advanceToNextRevision(false);
-  if (!context->chplHome().empty())
-    setupModuleSearchPaths(context, false, false, {}, {});
+  auto context = buildStdContext();
   ErrorGuard guard(context);
 
   std::string program = R"""(
@@ -180,9 +173,7 @@ static void test8() {
 }
 
 static void test9() {
-  context->advanceToNextRevision(false);
-  if (!context->chplHome().empty())
-    setupModuleSearchPaths(context, false, false, {}, {});
+  auto context = buildStdContext();
   ErrorGuard guard(context);
 
   std::string program = R"""(
@@ -212,19 +203,7 @@ static void runAllTests() {
 }
 
 int main() {
-  // With stdlib
-  {
-    context = new Context(getConfigWithHome());
-    runAllTests();
-    delete context;
-  }
-
-  // Without stdlib
-  {
-    context = new Context();
-    runAllTests();
-    delete context;
-  }
+  runAllTests();
 
   return 0;
 }

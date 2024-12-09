@@ -3858,6 +3858,16 @@ static bool resolveFnCallSpecial(Context* context,
     }
   }
 
+  if (ci.name() == "eltType" && ci.isMethodCall() && ci.isParenless()) {
+    auto thisType = ci.actual(0).type();
+    if (thisType.hasTypePtr()) {
+      if (auto ptr = thisType.type()->toPtrType()) {
+        exprTypeOut = QualifiedType(QualifiedType::TYPE, ptr->eltType());
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 

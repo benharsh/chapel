@@ -152,12 +152,6 @@ needCompilerGeneratedMethod(Context* context, const Type* type,
     if (name == "domain" || name == "eltType") {
       return true;
     }
-  } else if (type->isPtrType()) {
-    if (name == "eltType") {
-      return true;
-    } else if (type->isHeapBufferType() && name == "this") {
-      return true;
-    }
   } else if (type->isEnumType()) {
     if (name == "size") {
       return true;
@@ -999,56 +993,6 @@ static const BuilderResult& buildRecordComparison(Context* context, ID typeID, U
 }
 
 static const TypedFnSignature*
-generatePtrMethod(Context* context, QualifiedType receiverType,
-                   UniqueString name) {
-  // Build a basic function signature for methods on a PtrType
-  // TODO: we should really have a way to just set the return type here
-  const PtrType* pt = receiverType.type()->toPtrType();
-  const TypedFnSignature* result = nullptr;
-  std::vector<UntypedFnSignature::FormalDetail> formals;
-  std::vector<QualifiedType> formalTypes;
-
-  formals.push_back(
-      UntypedFnSignature::FormalDetail(USTR("this"),
-                                       UntypedFnSignature::DK_NO_DEFAULT,
-                                       nullptr));
-  // Allow calling 'eltType' on either a type or value
-  auto qual = receiverType.isType() ? QualifiedType::TYPE : QualifiedType::CONST_REF;
-  formalTypes.push_back(QualifiedType(qual, pt));
-
-  if (name == "this") {
-    formals.push_back(UntypedFnSignature::FormalDetail(
-        UniqueString::get(context, "i"), UntypedFnSignature::DK_NO_DEFAULT,
-        nullptr));
-    formalTypes.push_back(
-        QualifiedType(QualifiedType::VAR, AnyIntegralType::get(context)));
-  }
-
-  auto ufs = UntypedFnSignature::get(context,
-                        /*id*/ pt->id(context),
-                        /*name*/ name,
-                        /*isMethod*/ true,
-                        /*isTypeConstructor*/ false,
-                        /*isCompilerGenerated*/ true,
-                        /*throws*/ false,
-                        /*idTag*/ asttags::Class,
-                        /*kind*/ uast::Function::Kind::PROC,
-                        /*formals*/ std::move(formals),
-                        /*whereClause*/ nullptr);
-
-  // now build the other pieces of the typed signature
-  result = TypedFnSignature::get(context, ufs, std::move(formalTypes),
-                                 TypedFnSignature::WHERE_NONE,
-                                 /* needsInstantiation */ false,
-                                 /* instantiatedFrom */ nullptr,
-                                 /* parentFn */ nullptr,
-                                 /* formalsInstantiated */ Bitmap(),
-                                 /* outerVariables */ {});
-
-  return result;
-}
-
-static const TypedFnSignature*
 generateEnumMethod(Context* context,
                    const EnumType* et,
                    UniqueString name) {
@@ -1101,7 +1045,7 @@ getCompilerGeneratedMethodQuery(Context* context, QualifiedType receiverType,
 
   if (needCompilerGeneratedMethod(context, type, name, parenless)) {
     auto compType = type->getCompositeType();
-    CHPL_ASSERT(compType || type->isPtrType() || type->isEnumType());
+    CHPL_ASSERT(compType || type->isEnumType());
 
     if (name == USTR("init")) {
       result = generateInitSignature(context, compType);
@@ -1129,8 +1073,6 @@ getCompilerGeneratedMethodQuery(Context* context, QualifiedType receiverType,
       } else {
         CHPL_UNIMPL("record method not implemented yet!");
       }
-    } else if (type->isPtrType()) {
-      result = generatePtrMethod(context, receiverType, name);
     } else if (auto enumType = type->toEnumType()) {
       result = generateEnumMethod(context, enumType, name);
     } else {
@@ -1240,14 +1182,8 @@ generateCastToEnum(Context* context,
 const TypedFnSignature*
 getCompilerGeneratedMethod(Context* context, const QualifiedType receiverType,
                            UniqueString name, bool parenless) {
-  // Normalize receiverType to allow TYPE methods on c_ptr and _ddata, and to
-  // otherwise use the VAR Kind. The Param* value is also stripped away to
-  // reduce queries.
-  auto qt = receiverType;
-  bool isPtr = qt.hasTypePtr() ? qt.type()->isPtrType() : false;
-  if (!(qt.isType() && isPtr)) {
-    qt = QualifiedType(QualifiedType::VAR, qt.type());
-  }
+  // The Param* value is also stripped away to reduce queries.
+  auto qt = QualifiedType(receiverType.kind(), receiverType.type());
   return getCompilerGeneratedMethodQuery(context, qt, name, parenless);
 }
 
