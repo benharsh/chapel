@@ -4729,27 +4729,6 @@ inline operator :(x: chpl_ioNewline, type t:string) {
   return "\n";
 }
 
-
-@chpldoc.nodoc
-record chpl_ioLiteral : writeSerializable {
-  /* The value of the literal */
-  var val: string;
-  /* Should read operations using this literal ignore and consume
-     whitespace before the literal?
-   */
-  var ignoreWhiteSpace: bool = true;
-  @chpldoc.nodoc
-  proc serialize(writer, ref serializer) throws {
-    // Normally this is handled explicitly in read/write.
-    writer.write(val);
-  }
-}
-
-@chpldoc.nodoc
-inline operator :(x: chpl_ioLiteral, type t:string) {
-  return x.val;
-}
-
 @chpldoc.nodoc
 record _internalIoBits {
   /* The bottom ``numBits`` of x will be read or written */
@@ -5986,7 +5965,7 @@ proc _isIoPrimitiveType(type t) param do return
 
 @chpldoc.nodoc
  proc _isIoPrimitiveTypeOrNewline(type t) param do return
-  _isIoPrimitiveType(t) || t == chpl_ioNewline || t == chpl_ioLiteral || t == _internalIoChar || t == _internalIoBits;
+  _isIoPrimitiveType(t) || t == chpl_ioNewline || t == _internalIoChar || t == _internalIoBits;
 
 // Read routines for all primitive types.
 private proc _read_text_internal(_channel_internal:qio_channel_ptr_t,
@@ -6294,7 +6273,6 @@ proc fileReader._constructIoErrorMsg(const x:?t): string {
 
   select t {
     when chpl_ioNewline do result += " " + "newline";
-    when chpl_ioLiteral do result += " " + "\"" + x:string + "\"";
   }
 
   return result;
@@ -6307,7 +6285,6 @@ proc fileWriter._constructIoErrorMsg(const x:?t): string {
 
   select t {
     when chpl_ioNewline do result += " " + "newline";
-    when chpl_ioLiteral do result += " " + "\"" + x:string + "\"";
   }
 
   return result;
@@ -6338,7 +6315,7 @@ proc fileReader._deserializeOne(ref x:?t, loc:locale) throws {
   reader._home = _home;
   reader._readWriteThisFromLocale = loc;
 
-  if t == chpl_ioLiteral || t == chpl_ioNewline || t == _internalIoBits || t == _internalIoChar {
+  if t == chpl_ioNewline || t == _internalIoBits || t == _internalIoChar {
     reader._readOne(_iokind.dynamic, x, reader.getLocaleOfIoRequest());
     return;
   }
@@ -6382,7 +6359,7 @@ proc fileWriter._serializeOne(const x:?t, loc:locale) throws {
   writer._home = _home;
   writer._readWriteThisFromLocale = loc;
 
-  if t == chpl_ioLiteral || t == chpl_ioNewline || t == _internalIoBits || t == _internalIoChar {
+  if t == chpl_ioNewline || t == _internalIoBits || t == _internalIoChar {
     writer._writeOne(_iokind.dynamic, x, writer.getLocaleOfIoRequest());
     return;
   }
@@ -6416,10 +6393,6 @@ private proc _read_io_type_internal(_channel_internal:qio_channel_ptr_t,
     return qio_channel_skip_past_newline(false, _channel_internal, x.skipWhitespaceOnly);
   } else if t == _internalIoChar {
     return qio_channel_read_char(false, _channel_internal, x.ch);
-  } else if t == chpl_ioLiteral {
-    return qio_channel_scan_literal(false, _channel_internal,
-                                    x.val.localize().c_str(),
-                                    x.val.numBytes: c_ssize_t, x.ignoreWhiteSpace);
   } else if t == _internalIoBits {
     return qio_channel_read_bits(false, _channel_internal, x.x, x.numBits);
   } else if kind == _iokind.dynamic {
@@ -6472,8 +6445,6 @@ private proc _write_one_internal(_channel_internal:qio_channel_ptr_t,
     return qio_channel_write_newline(false, _channel_internal);
   } else if t == _internalIoChar {
     return qio_channel_write_char(false, _channel_internal, x.ch);
-  } else if t == chpl_ioLiteral {
-    return qio_channel_print_literal(false, _channel_internal, x.val.localize().c_str(), x.val.numBytes:c_ssize_t);
   } else if t == _internalIoBits {
     return qio_channel_write_bits(false, _channel_internal, x.x, x.numBits);
   } else if kind == _iokind.dynamic {
@@ -6515,34 +6486,7 @@ private proc _read_one_internal(_channel_internal:qio_channel_ptr_t,
   // (it shouldn't release anything since it's a local copy).
   defer { reader._channel_internal = QIO_CHANNEL_PTR_NULL; }
 
-  if isNilableClassType(t) {
-    // future - write class IDs, have serialization format, handle binary
-    var st = reader.styleElement(QIO_STYLE_ELEMENT_AGGREGATE);
-    var iolit:chpl_ioLiteral;
-    if st == QIO_AGGREGATE_FORMAT_JSON {
-      iolit = new chpl_ioLiteral("null");
-    } else {
-      iolit = new chpl_ioLiteral("nil");
-    }
-    var e:errorCode = 0;
-    e = try _read_one_internal(_channel_internal, _iokind.dynamic, iolit, loc);
-    if !e {
-      x = nil;
-      return 0;
-    }
-  }
-
-  if isClassType(t) {
-    if x == nil then
-      throw new IllegalArgumentError("cannot read into a nil class");
-
-    var tmp = x!;
-    try tmp.readThis(reader);
-    // the read cannot change the class pointer
-    if tmp != x! then halt ("internal error - class pointer changed");
-  } else {
-    try x.readThis(reader);
-  }
+  try x.readThis(reader);
 
   return 0;
 }
@@ -6568,31 +6512,10 @@ private proc _write_one_internal(_channel_internal:qio_channel_ptr_t,
   // (it shouldn't release anything since it's a local copy).
   defer { writer._channel_internal = QIO_CHANNEL_PTR_NULL; }
 
+
+  try x.writeThis(writer);
+
   var err: errorCode = 0;
-
-  if isClassType(t) || chpl_isDdata(t) || isAnyCPtr(t) {
-    if x == nil {
-      // future - write class IDs, have serialization format, handle binary
-      var st = writer.styleElement(QIO_STYLE_ELEMENT_AGGREGATE);
-      var iolit:chpl_ioLiteral;
-      if st == QIO_AGGREGATE_FORMAT_JSON {
-        iolit = new chpl_ioLiteral("null");
-      } else {
-        iolit = new chpl_ioLiteral("nil");
-      }
-      err = try _write_one_internal(_channel_internal, _iokind.dynamic,
-                                    iolit, loc);
-    } else if isClassType(t) {
-      var notNilX = x!;
-      try notNilX.writeThis(writer);
-    } else {
-      // ddata / cptr
-      try x.writeThis(writer);
-    }
-  } else {
-    try x.writeThis(writer);
-  }
-
   return err;
 }
 
