@@ -17,8 +17,8 @@ echo "benharsh modified cronscript"
 export CHPL_NIGHTLY_LOGDIR=/tmp/test-chapel-nightly-debug/cronlog
 # test a small subset of all tests due to limited resources
 # ideally, we should run the whole suite
-export CHPL_NIGHTLY_TEST_DIRS="multilocale/deitz/needMultiLocales/"
-#export CHPL_START_TEST_ARGS="multilocale/deitz/needMultiLocales/raCommCheckLCG.chpl -numtrials 3"
+#export CHPL_NIGHTLY_TEST_DIRS="multilocale/deitz/needMultiLocales/"
+export CHPL_START_TEST_ARGS="multilocale/deitz/needMultiLocales/raCommCheckLCG.chpl -numtrials 3"
 
 
 $UTIL_CRON_DIR/nightly -cron ${nightly_args}
