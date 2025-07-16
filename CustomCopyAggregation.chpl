@@ -1,4 +1,4 @@
-module SparseArrayAggregator {
+module CustomCopyAggregation {
   use AggregationPrimitives;
   use ChplConfig;
   use CTypes;
