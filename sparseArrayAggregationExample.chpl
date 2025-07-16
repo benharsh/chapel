@@ -42,9 +42,12 @@ forall (si, i) in zip(sortedIdx, sortedIdx.domain) do
 var uniqueIdx = uniqueFromSorted(sortedIdx, needCounts=false);
 var rowIdx = blockDist.createArray(uniqueIdx.domain, int);
 var colIdx = blockDist.createArray(uniqueIdx.domain, int);
+
+// Add one to row and column values to account for 0-based index creation that
+// `recursiveMatrixGenerator` carries out
 forall (ui, r, c) in zip(uniqueIdx, rowIdx, colIdx) {
-  r = ui[0];
-  c = ui[1];
+  r = ui[0] + 1;
+  c = ui[1] + 1;
 }
 
 var vals = blockDist.createArray({1..rowIdx.size}, int);
@@ -61,22 +64,22 @@ timer.start();
 //       being run with `CHPL_RT_NUM_THREADS_PER_LOCALE=1` and should have been behaving like the
 //       "fixed" `for` loop version below.
 //
-// forall (i,j,v) in zip(rowIdx,colIdx,vals) with (ref SparseDomNoAgg, ref SparseArrNoAgg) {
-// 	SparseDomNoAgg.add((i,j));
-// 	SparseArrNoAgg[i,j] = v;
-// }
+forall (i,j) in zip(rowIdx,colIdx) with (var idxBuf = SparseDomNoAgg.createIndexBuffer(idxBufSize)) do
+	idxBuf.add((i,j));
+forall (i,j,v) in zip(rowIdx,colIdx,vals) with (ref SparseArrNoAgg) do
+	SparseArrNoAgg[i,j] = v;
 
-for loc in Locales do on loc {
-  var lo = rowIdx.domain.localSubdomain().low;
-  var hi = rowIdx.domain.localSubdomain().high;
-  ref localRowIdx = rowIdx[lo..hi];
-  ref localColIdx = colIdx[lo..hi];
-  ref localVals = vals[lo..hi];
-  var idxBuf = SparseDomNoAgg.createIndexBuffer(idxBufSize);
-  for (i,j,v) in zip(localRowIdx,localColIdx,localVals) do idxBuf.add((i,j));
-  idxBuf.commit();
-  for (i,j,v) in zip(localRowIdx,localColIdx,localVals) do SparseArrNoAgg[i,j] = v;
-}
+// for loc in Locales do on loc {
+//   var lo = rowIdx.domain.localSubdomain().low;
+//   var hi = rowIdx.domain.localSubdomain().high;
+//   ref localRowIdx = rowIdx[lo..hi];
+//   ref localColIdx = colIdx[lo..hi];
+//   ref localVals = vals[lo..hi];
+//   var idxBuf = SparseDomNoAgg.createIndexBuffer(idxBufSize);
+//   for (i,j,v) in zip(localRowIdx,localColIdx,localVals) do idxBuf.add((i,j));
+//   idxBuf.commit();
+//   for (i,j,v) in zip(localRowIdx,localColIdx,localVals) do SparseArrNoAgg[i,j] = v;
+// }
 writeln("SparseDomNoAgg time: %r".format(timer.elapsed()));
 writeln("SparseDomNoAgg size: %i".format(SparseDomNoAgg.size));
 writeln("SparseArrNoAgg size: %i".format(SparseArrNoAgg.size));
@@ -136,21 +139,21 @@ class SourceHandler {
 timer.restart();
 // "Parallel" version, will only work with CHPL_RT_NUM_THREADS_PER_LOCALE=1 since sparse domains do not support parallel
 // index additions. 
-// forall (i,j,v) in zip(rowIdx,colIdx,vals) with (var agg = new SparseArrayDstAggregator((int,int,int))) do 
-// 	agg.copy(DenseDom.distribution.dsiIndexToLocale((i,j)).id, (i,j,v));
+forall (i,j,v) in zip(rowIdx,colIdx,vals) with (var agg = new CustomDstAggregator(new shared SourceHandler(SparseDomAgg, SparseArrAgg))) do 
+	agg.copy((i,j,v));
 
 // Sequential buffered version to not have to run with CHPL_RT_NUM_THREADS_PER_LOCALE=1.
-for loc in Locales do on loc {
-  var lo = rowIdx.domain.localSubdomain().low;
-  var hi = rowIdx.domain.localSubdomain().high;
-  ref localRowIdx = rowIdx[lo..hi];
-  ref localColIdx = colIdx[lo..hi];
-  ref localVals = vals[lo..hi];
-  var agg = new CustomDstAggregator(new shared SourceHandler(SparseDomAgg, SparseArrAgg));
-  for (i,j,v) in zip(localRowIdx,localColIdx,localVals) do 
-    agg.copy((i,j,v));
-  agg.flush(true);
-}
+// for loc in Locales do on loc {
+//   var lo = rowIdx.domain.localSubdomain().low;
+//   var hi = rowIdx.domain.localSubdomain().high;
+//   ref localRowIdx = rowIdx[lo..hi];
+//   ref localColIdx = colIdx[lo..hi];
+//   ref localVals = vals[lo..hi];
+//   var agg = new CustomDstAggregator(new shared SourceHandler(SparseDomAgg, SparseArrAgg));
+//   for (i,j,v) in zip(localRowIdx,localColIdx,localVals) do 
+//     agg.copy((i,j,v));
+//   agg.flush(true);
+// }
 
 writeln("  SparseDomAgg time: %r".format(timer.elapsed()));
 writeln("  SparseDomAgg size: %i".format(SparseDomAgg.size));

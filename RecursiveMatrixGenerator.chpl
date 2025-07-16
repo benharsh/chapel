@@ -15,8 +15,8 @@ module RecursiveMatrixGenerator {
   }
 
   proc recursiveMatrixGenerator(a:real, b:real, c:real, d:real, SCALE:int, n:int, nnz:int) {
-    const nRange = 1..n,
-          nnzRange = 1..nnz;
+    const nRange = 0..<n,
+          nnzRange = 0..<nnz;
 
     var randGen = new randomStream(real);
     var unifRandom = blockDist.createArray({nnzRange}, real);
