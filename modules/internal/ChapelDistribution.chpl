@@ -773,6 +773,14 @@ module ChapelDistribution {
       this.isUnique = isUnique;
     }
 
+    proc init(size, param rank: int, obj, dataSorted, isUnique) {
+      this.rank = rank;
+      this.obj = obj;
+      bufDom = {0..#size};
+      this.dataSorted=dataSorted;
+      this.isUnique=isUnique;
+    }
+
     proc ref deinit() {
       commit();
     }

@@ -2274,6 +2274,11 @@ module ChapelDomain {
       return _value.dsiCreateIndexBuffer(size, dataSorted, isUnique);
     }
 
+    @unstable("createIndexBuffer() is subject to change in the future.")
+    inline proc createIndexBuffer(size: int, dataSorted:bool, isUnique:bool) {
+      return _value.dsiCreateIndexBuffer(size, dataSorted, isUnique);
+    }
+
     /*
        Adds indices in ``inds`` to this domain in bulk.
 

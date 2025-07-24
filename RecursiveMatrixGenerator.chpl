@@ -42,10 +42,11 @@ module RecursiveMatrixGenerator {
     // Transfer idx from array of tuples to row and col arrays
     var row = blockDist.createArray({nnzRange}, int);
     var col = blockDist.createArray({nnzRange}, int);
-    forall (i,s,d) in zip(idx,row,col) { (s,d) = i; }
+    forall (i,r,c) in zip(idx,row,col) { (r,c) = i; }
 
-    // Create a random permutation of the indices
-    var nRangeIndices = blockDist.createArray({nRange}, int);
+    // Create a random permutation of the indices where range must be 1..n 
+    // because initial idx is (1,1)
+    var nRangeIndices = blockDist.createArray({1..n}, int);
     forall (o,i) in zip(nRangeIndices, nRangeIndices.domain) do o = i;
     var permutation = permute(nRangeIndices);
 

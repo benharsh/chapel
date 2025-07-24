@@ -46,12 +46,12 @@ var colIdx = blockDist.createArray(uniqueIdx.domain, int);
 // Add one to row and column values to account for 0-based index creation that
 // `recursiveMatrixGenerator` carries out
 forall (ui, r, c) in zip(uniqueIdx, rowIdx, colIdx) {
-  r = ui[0] + 1;
-  c = ui[1] + 1;
+  r = ui[0];
+  c = ui[1];
 }
 
-var vals = blockDist.createArray({1..rowIdx.size}, int);
-forall (i,v) in zip(vals.domain, vals) do v = i;
+var vals = blockDist.createArray(uniqueIdx.domain, int);
+forall (i,v) in zip(vals.domain, vals) do v = i + 1;
 
 /***************************** NO AGGREGATION *********************************/
 timer.start();
@@ -78,7 +78,7 @@ class DestinationHandler {
 
   inline proc flush(ref rBuffer, const ref remBufferPtr, const ref myBufferIdx) {
     const (found, locid) = domVal.dist.chpl__locToLocIdx(here);
-    var locIdxBuf = domVal.locDoms[locid]!.mySparseBlock.createIndexBuffer(idxBufSize);
+    var locIdxBuf = domVal.locDoms[locid]!.mySparseBlock.createIndexBuffer(idxBufSize,true,true);
     for (dstAddr, srcVal) in rBuffer.localIter(remBufferPtr, myBufferIdx) {
       assert(dstAddr == nil);
       var (i,j,_) = srcVal;
