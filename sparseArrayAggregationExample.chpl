@@ -1,4 +1,5 @@
 use BlockDist;
+use CompressedSparseLayout;
 use CTypes;
 use IO.FormattedIO;
 use Time;
@@ -19,14 +20,15 @@ config const verboseArrayPrint = false;
 config const idxBufSize = SCALE;
 var timer:stopwatch;
 
-// The dense space
+// The dense space, block distribution, and domain
 const Space = {1..N, 1..N};
-const DenseDom = Space dmapped new blockDist(Space);
+const DenseDom = Space dmapped new blockDist(Space, sparseLayoutType=csrLayout(parSafe=true));
 
-// Creating sparse domains and arrays for two use cases
+// Creating sparse domains
 var SparseDomNoAgg: sparse subdomain(DenseDom);
 var SparseDomAgg: sparse subdomain(DenseDom);
 
+// Creating sparse arrays
 var SparseArrNoAgg: [SparseDomNoAgg] int;
 var SparseArrAgg: [SparseDomAgg] int;
 
@@ -62,6 +64,18 @@ forall (i,j) in zip(rowIdx,colIdx) with (var idxBuf = SparseDomNoAgg.createIndex
 forall (i,j,v) in zip(rowIdx,colIdx,vals) with (ref SparseArrNoAgg) do
 	SparseArrNoAgg[i,j] = v;
 
+// // Note: workaround for parallel between locales but sequential on local
+// coforall loc in Locales do on loc {
+//   var idxBuf = SparseDomNoAgg.createIndexBuffer(idxBufSize);
+//   var localSubdomain = uniqueIdx.localSubdomain();
+//   for i in localSubdomain do
+// 	  idxBuf.add((rowIdx[i],colIdx[i]));
+//   idxBuf.commit();
+//   forall i in localSubdomain with (ref SparseArrNoAgg) do
+// 	  SparseArrNoAgg[rowIdx[i],colIdx[i]] = vals[i];
+// }
+
+
 writeln("SparseDomNoAgg time: %r".format(timer.elapsed()));
 writeln("SparseDomNoAgg size: %i".format(SparseDomNoAgg.size));
 writeln("SparseArrNoAgg size: %i".format(SparseArrNoAgg.size));
@@ -77,8 +91,8 @@ class DestinationHandler {
   }
 
   inline proc flush(ref rBuffer, const ref remBufferPtr, const ref myBufferIdx) {
-    const (found, locid) = domVal.dist.chpl__locToLocIdx(here);
-    var locIdxBuf = domVal.locDoms[locid]!.mySparseBlock.createIndexBuffer(idxBufSize,true,true);
+    const (_, locid) = this.domVal.dist.chpl__locToLocIdx(here);
+    var locIdxBuf = this.domVal.locDoms[locid]!.mySparseBlock._value.createIndexBuffer(idxBufSize,true,true);
     for (dstAddr, srcVal) in rBuffer.localIter(remBufferPtr, myBufferIdx) {
       assert(dstAddr == nil);
       var (i,j,_) = srcVal;
@@ -88,7 +102,9 @@ class DestinationHandler {
     for (dstAddr, srcVal) in rBuffer.localIter(remBufferPtr, myBufferIdx) {
       assert(dstAddr == nil);
       var (i,j,v) = srcVal;
-      this.arrVal.locArr[locid]!.myElems[i,j] = v;
+      var (_,loc) = this.domVal.locDoms[locid]!.mySparseBlock._value.find((i,j));
+      // writeln(this.arrVal.locArr[locid]!.myElems._value.data.type:string);
+      this.arrVal.locArr[locid]!.myElems._value.data[loc] = v;
     }
   }
 }
