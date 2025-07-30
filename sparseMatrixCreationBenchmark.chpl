@@ -106,7 +106,20 @@ proc getRandomSparseIndicesAndValues() {
   return (rowsUnique, colsUnique, vals);
 }
 
-proc runNoAggregationSparseMatrixCreation(rows, cols, vals) {
+proc runAggregatedSparseMatrixCreation(rows, cols, vals) {
+  const Space = {1..N, 1..N};
+  const DenseDom = Space dmapped new blockDist(Space, sparseLayoutType=csrLayout(parSafe=true));
+  var SparseDom: sparse subdomain(DenseDom);
+  var SparseArr: [SparseDom] int;
+  
+  forall (i,j,v) in zip(rows, cols, vals) 
+    with (var agg = new CustomDstAggregator(new shared SourceHandler(SparseDom, SparseArr))) do 
+	    agg.copy((i,j,v));
+  
+  return SparseArr.size;
+}
+
+proc runNonAggregatedSparseMatrixCreation(rows, cols, vals) {
   const Space = {1..N, 1..N};
   const DenseDom = Space dmapped new blockDist(Space, sparseLayoutType=csrLayout(parSafe=true));
   var SparseDom: sparse subdomain(DenseDom);
@@ -119,19 +132,6 @@ proc runNoAggregationSparseMatrixCreation(rows, cols, vals) {
     with (ref SparseArr) do
       SparseArr[i,j] = v;
 
-  return SparseArr.size;
-}
-
-proc runAggregationSparseMatrixCreation(rows, cols, vals) {
-  const Space = {1..N, 1..N};
-  const DenseDom = Space dmapped new blockDist(Space, sparseLayoutType=csrLayout(parSafe=true));
-  var SparseDom: sparse subdomain(DenseDom);
-  var SparseArr: [SparseDom] int;
-  
-  forall (i,j,v) in zip(rows, cols, vals) 
-    with (var agg = new CustomDstAggregator(new shared SourceHandler(SparseDom, SparseArr))) do 
-	    agg.copy((i,j,v));
-  
   return SparseArr.size;
 }
 
@@ -181,7 +181,7 @@ proc main() {
     var times: [1..trials] real;
     for i in times.domain {
       timer.start();
-      result = runAggregationSparseMatrixCreation(rows, cols, vals);
+      result = runAggregatedSparseMatrixCreation(rows, cols, vals);
       timer.stop();
       times[i] = timer.elapsed(); timer.reset();
     }
@@ -196,7 +196,7 @@ proc main() {
     var times: [1..trials] real;
     for i in times.domain {
       timer.start();
-      result = runNoAggregationSparseMatrixCreation(rows, cols, vals);
+      result = runNonAggregatedSparseMatrixCreation(rows, cols, vals);
       timer.stop();
       times[i] = timer.elapsed(); timer.reset();
     }
