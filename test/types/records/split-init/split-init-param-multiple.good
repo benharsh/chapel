@@ -1,4 +1,7 @@
 split-init-param-multiple.chpl:3: In function 'main':
-split-init-param-multiple.chpl:9: error: Split initialization sets parameter to different values
-split-init-param-multiple.chpl:17: error: Split initialization uses multiple types; another initialization has type int(32) but this initialization has type int(64)
-split-init-param-multiple.chpl:17: error: Split initialization sets parameter to different values
+split-init-param-multiple.chpl:4: error: mismatched types for split-initialization of 'a' in conditional branches
+split-init-param-multiple.chpl:6: note: initialized with a param of type 'int(64)' in 'then' branch
+split-init-param-multiple.chpl:8: note: initialized with a param of type 'int(64)' in 'else' branch
+split-init-param-multiple.chpl:13: error: mismatched types for split-initialization of 'b' in conditional branches
+split-init-param-multiple.chpl:14: note: initialized with a param of type 'int(64)' in 'then' branch
+split-init-param-multiple.chpl:16: note: initialized with a param of type 'int(32)' in 'else' branch

@@ -1,1 +1,1 @@
-tupleExpandInt.chpl:3: error: invalid tuple expand primitive
+tupleExpandInt.chpl:3: error: cannot apply tuple expansion to an expression of non-tuple type

@@ -1,1 +1,4 @@
-typeTupleIdxExtraArgs.chpl:3: error: too many arguments to type index expression
+typeTupleIdxExtraArgs.chpl:3: error: unable to resolve call to 'this': no matching candidates
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2432: note: the following candidate didn't match because the provided actuals could not be mapped to its formals
+$CHPL_HOME/modules/internal/ChapelTuple.chpl:181: note: the following candidate didn't match because the provided actuals could not be mapped to its formals
+typeTupleIdxExtraArgs.chpl:3: note: omitting 11 more candidates that didn't match

@@ -1,1 +1,4 @@
-void-field-9.chpl:6: error: Field 'a' cannot be declared 'void'. Consider using 'nothing' instead.
+void-field-9.chpl:1: In function 't':
+void-field-9.chpl:2: error: Cannot return void with type return intent
+void-field-9.chpl:-1: In initializer:
+void-field-9.chpl: error: unable to resolve call to '=': no matching candidates

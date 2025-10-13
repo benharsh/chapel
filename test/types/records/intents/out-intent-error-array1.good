@@ -1,3 +1,2 @@
 out-intent-error-array1.chpl:10: In function 'outPartialArray1':
-out-intent-error-array1.chpl:10: error: 'arr' is not initialized and has no type
-note: the type for a generic out-intent formal is inferred in the function body
+out-intent-error-array1.chpl:10: error: cannot default initialize variable using generic or unknown type

@@ -1,1 +1,2 @@
-method-of-parent-record-1.chpl:5: error: inheritance is not currently supported for records
+method-of-parent-record-1.chpl:10: error: unable to resolve call to 'test': no matching candidates
+method-of-parent-record-1.chpl:5: error: invalid parent class expression

@@ -1,3 +1,7 @@
+$CHPL_HOME/modules/standard/Reflection.chpl:252: In function 'getFieldRef':
+$CHPL_HOME/modules/standard/Reflection.chpl:257: error: bad call to primitive "field by num"
+$CHPL_HOME/modules/standard/Reflection.chpl:259: error: bad call to primitive "field by num"
+$CHPL_HOME/modules/standard/Reflection.chpl:261: error: bad call to primitive "field by num"
 $CHPL_HOME/modules/standard/CTypes.chpl:xyz: In function 'c_offsetof':
-$CHPL_HOME/modules/standard/CTypes.chpl:xyz: error: field foo not found in Test
-  recordOffset-badField.chpl:11: called as c_offsetof(type t = Test, param fieldname = "foo")
+$CHPL_HOME/modules/standard/CTypes.chpl:xyz: error: cannot return a reference to 'type' field 'foo'
+$CHPL_HOME/modules/standard/CTypes.chpl:xyz: error: cannot return a reference to 'param' field 'foo'

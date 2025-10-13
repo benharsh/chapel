@@ -1,1 +1,4 @@
-void-formal-3.chpl:5: error: Formal 'x' cannot be declared 'void'. Consider using 'nothing' instead.
+void-formal-3.chpl:1: In function 'tf':
+void-formal-3.chpl:2: error: Cannot return void with type return intent
+void-formal-3.chpl:8: error: unable to resolve call to 'f': no matching candidates
+void-formal-3.chpl:5: note: the following candidate didn't match because an actual couldn't be passed to a formal

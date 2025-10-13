@@ -1,5 +1,6 @@
 incompatible-type1.chpl:5: In function 'test':
-incompatible-type1.chpl:8: error: could not find a copy initializer ('init=') for type 'R' from type 'int(64)'
-incompatible-type1.chpl:3: note: this candidate did not match: R.init=(other: R)
-incompatible-type1.chpl:8: note: because actual argument #1 with type 'int(64)'
-incompatible-type1.chpl:3: note: is passed to formal 'other: R'
+incompatible-type1.chpl:6: error: mismatched types for split-initialization of 'x' in conditional branches
+incompatible-type1.chpl:8: note: initialized with a value of type 'real(64)' in 'then' branch
+incompatible-type1.chpl:10: note: initialized with a value of type 'int(64)' in 'else' branch
+incompatible-type1.chpl:8: error: unable to resolve call to '=': no matching candidates
+incompatible-type1.chpl:10: error: unable to resolve call to '=': no matching candidates

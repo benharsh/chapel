@@ -1,4 +1,5 @@
 addEnumUint8.chpl:5: warning: int(64)
 addEnumUint8.chpl:6: warning: int(64)
-addEnumUint8.chpl:7: error: unresolved call '+(E, 1: uint(8))'
+addEnumUint8.chpl:7: error: unable to resolve call to '+': no matching candidates
+addEnumUint8.chpl:7: note: omitting 80 more candidates that didn't match
 (prediff deleted module lines)

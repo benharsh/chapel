@@ -1,1 +1,1 @@
-nonParamEnum.chpl:1: error: enumerator 'red' is not an integer param value
+nonParamEnum.chpl:1: error: only 'param' values can be associated with enumeration constants

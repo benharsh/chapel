@@ -1,3 +1,2 @@
-test_clone_class1_old.chpl:8: error: invalid type specifier 'foo(2)'
-test_clone_class1_old.chpl:8: note: type specifier did not match: foo(type x)
-test_clone_class1_old.chpl:8: note: generic field 'x' must be instantiated with a type-expression
+test_clone_class1_old.chpl:8: error: unable to resolve call to 'foo': no matching candidates
+test_clone_class1_old.chpl:8: error: invalid class type construction

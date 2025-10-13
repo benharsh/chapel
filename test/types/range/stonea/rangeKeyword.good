@@ -3,3 +3,8 @@ rangeKeyword.chpl:3: error: attempt to redefine reserved type 'range'
 rangeKeyword.chpl:4: error: attempt to redefine reserved type 'range'
 rangeKeyword.chpl:5: error: attempt to redefine reserved type 'range'
 rangeKeyword.chpl:6: error: attempt to redefine reserved type 'range'
+rangeKeyword.chpl:2: error: 'range' has multiple definitions
+rangeKeyword.chpl:3: note: redefined here
+rangeKeyword.chpl:4: note: redefined here
+rangeKeyword.chpl:5: note: redefined here
+rangeKeyword.chpl:6: note: redefined here

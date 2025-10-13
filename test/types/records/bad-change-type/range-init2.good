@@ -1,3 +1,2 @@
 range-init2.chpl:1: In function 'test':
-range-init2.chpl:6: error: invalid copy-initialization
 range-init2.chpl:6: error: initializing a range with strideKind.one from a range with strideKind.positive

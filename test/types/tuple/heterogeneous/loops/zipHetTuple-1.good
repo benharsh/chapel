@@ -1,1 +1,9 @@
-zipHetTuple.chpl:20: error: Heterogeneous tuples don't support this style of loop yet
+$CHPL_HOME/modules/standard/IO.chpl:2316: In method 'serializeValue':
+$CHPL_HOME/modules/standard/IO.chpl:2326: error: unable to resolve call to 'serialize': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:385: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/standard/ChapelIO.chpl:374: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/standard/IO.chpl:2326: note: omitting 53 more candidates that didn't match
+$CHPL_HOME/modules/standard/IO.chpl:6125: In method '_serializeOne':
+$CHPL_HOME/modules/standard/IO.chpl:6143: error: unable to resolve call to '=': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:219: In method 'serialize':
+$CHPL_HOME/modules/standard/ChapelIO.chpl:223: error: unable to resolve call to '=': no matching candidates

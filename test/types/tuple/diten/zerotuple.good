@@ -1,1 +1,1 @@
-zerotuple.chpl:1: error: tuple must have positive size
+zerotuple.chpl:1: error: cannot default initialize variable using generic or unknown type

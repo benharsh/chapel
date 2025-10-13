@@ -1,1 +1,2 @@
-void-formal-1.chpl:1: error: Formal 'x' cannot be declared 'void'. Consider using 'nothing' instead.
+void-formal-1.chpl:4: error: unable to resolve call to 'f': no matching candidates
+void-formal-1.chpl:1: note: the following candidate didn't match because an actual couldn't be passed to a formal

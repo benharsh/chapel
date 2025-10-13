@@ -1,1 +1,4 @@
-tuplecast.chpl:10: error: illegal cast from real(64) to 10*real(64)
+tuplecast.chpl:10: error: unable to resolve call to ':': no matching candidates
+$CHPL_HOME/modules/internal/ChapelArrayViewElision.chpl:352: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/internal/ChapelTaskID.chpl:39: note: the following candidate didn't match because an actual couldn't be passed to a formal
+tuplecast.chpl:10: note: omitting 124 more candidates that didn't match

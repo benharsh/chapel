@@ -1,1 +1,1 @@
-paramEnumOutOfBounds.chpl:2: error: enum cast out of bounds
+paramEnumOutOfBounds.chpl:2: error: the value '4' of type 'int(64)' is not associated with any constant of the enumeration 'enumt'

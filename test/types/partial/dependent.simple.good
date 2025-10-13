@@ -1,3 +1,7 @@
+dependent.chpl:-1: In function 'D':
+dependent.chpl: error: can't apply '.type' to a type ('unknown type')
+dependent.chpl: error: can't apply '.type' to a type ('?')
+dependent.chpl: error: can't apply '.type' to a type ('?')
+dependent.chpl: error: can't apply '.type' to a type ('?')
 dependent.chpl:19: In function 'main':
-dependent.chpl:21: error: Unable to resolve partial instantiation 'D(type int(64), p=1024)'
-dependent.chpl:21: note: Instantiation of field 'p' depends on uninstantiated fields: 'param b', 'const x'
+dependent.chpl:21: error: unable to resolve call to 'D': no matching candidates

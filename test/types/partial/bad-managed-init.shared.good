@@ -1,3 +1,2 @@
 bad-managed-init.chpl:9: In function 'main':
-bad-managed-init.chpl:13: error: cannot initialize 'shared C(int(64))' from a 'shared C(real(64),4)'
-note: An additional error is hidden. Use --print-additional-errors to see it.
+bad-managed-init.chpl:13: error: type mismatch between declared type of 's' and initialization expression

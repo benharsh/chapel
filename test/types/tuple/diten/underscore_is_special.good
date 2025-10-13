@@ -1,3 +1,4 @@
 underscore_is_special.chpl:1: error: Throwaway variable '_' is not allowed in this context
 underscore_is_special.chpl:3: error: Throwaway variable '_' is not allowed in this context
 underscore_is_special.chpl:4: error: Throwaway variable '_' is not allowed in this context
+underscore_is_special.chpl:3: error: unable to resolve call to '=': no matching candidates

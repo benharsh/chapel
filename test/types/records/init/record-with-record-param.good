@@ -1,1 +1,2 @@
-record-with-record-param.chpl:4: error: 'r' is not of a supported param type
+record-with-record-param.chpl:5: error: cannot implicitly initialize field 'r', which does not have a default value
+record-with-record-param.chpl:3: error: unable to instantiate generic type from initializer

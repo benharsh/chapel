@@ -1,2 +1,3 @@
 $CHPL_HOME/modules/standard/IO.chpl:: In method 'serializeValue':
 $CHPL_HOME/modules/standard/IO.chpl:: error: sync variables cannot currently be written - apply readFE/readFF() to those variables first
+$CHPL_HOME/modules/standard/IO.chpl:: error: sync variables cannot currently be written - apply readFE/readFF() to those variables first

@@ -1,2 +1,1 @@
-invalidMode.chpl:4: error: unresolved enumerated type symbol or call 'type ioMode.q'
-invalidMode.chpl:4: note: because no functions named q found in scope
+invalidMode.chpl:4: error: unable to resolve call to 'q': no matching candidates

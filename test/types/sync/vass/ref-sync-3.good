@@ -1,4 +1,2 @@
-ref-sync-3.chpl:5: error: unresolved call 'MYPROC(sync int(64))'
-ref-sync-3.chpl:7: note: this candidate did not match: MYPROC(ref FORMAL: real)
-ref-sync-3.chpl:5: note: because actual argument #1 with type 'sync int(64)'
-ref-sync-3.chpl:7: note: is passed to formal 'ref FORMAL: real(64)'
+ref-sync-3.chpl:5: error: unable to resolve call to 'MYPROC': no matching candidates
+ref-sync-3.chpl:7: note: the following candidate didn't match because an actual couldn't be passed to a formal

@@ -1,1 +1,3 @@
-sync-owned-nilable-readFF.chpl:6: error: readFF requires that the type contained in the sync variable be const-copyable and const-assignable
+$CHPL_HOME/modules/internal/ChapelSyncvar.chpl:223: In method 'readFF':
+$CHPL_HOME/modules/internal/ChapelSyncvar.chpl:224: error: readFF requires that the type contained in the sync variable be const-copyable and const-assignable
+sync-owned-nilable-readFF.chpl:6: error: Cannot establish type for call expression

@@ -1,3 +1,2 @@
-init-changes-type.chpl:11: error: initializer produces a different type
-init-changes-type.chpl:11: note: when default-initializing 'x' of type 'R(int(64))'
-init-changes-type.chpl:11: note: init resulted in type 'R(real(64))'
+init-changes-type.chpl:6: error: final result of initialization does not match the initial type
+init-changes-type.chpl:2: note: field 't' started with type 'int(64)', but had incompatible type 'real(64)' after initialization

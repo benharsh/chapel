@@ -1,1 +1,4 @@
-thisOnTypeVar.chpl:3: error: illegal call of type
+thisOnTypeVar.chpl:3: error: unable to resolve call to 'this': no matching candidates
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2432: note: the following candidate didn't match because it expects 1 actual, but none were provided
+$CHPL_HOME/modules/internal/ChapelTuple.chpl:181: note: the following candidate didn't match because it expects 1 actual, but none were provided
+thisOnTypeVar.chpl:3: note: omitting 11 more candidates that didn't match

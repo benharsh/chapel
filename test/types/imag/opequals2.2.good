@@ -1,8 +1,4 @@
-opequals2.chpl:6: error: unresolved call '-=(imag(64), 1.0)'
-$CHPL_HOME/modules/internal/ChapelBase.chpl:nnnn: note: this candidate did not match: -=(ref lhs: imag(32), rhs: imag(32))
-opequals2.chpl:6: note: because actual argument #1 with type 'imag(64)'
-$CHPL_HOME/modules/internal/ChapelBase.chpl:nnnn: note: is passed to formal 'ref lhs: imag(32)'
-opequals2.chpl:6: note: other candidates are:
-$CHPL_HOME/modules/internal/ChapelBase.chpl:nnnn: note:   -=(ref lhs: int(8), rhs: int(8))
-$CHPL_HOME/modules/internal/ChapelBase.chpl:nnnn: note:   -=(ref lhs: int(16), rhs: int(16))
-note: and 21 other candidates, use --print-all-candidates to see them
+opequals2.chpl:6: error: unable to resolve call to '-=': no matching candidates
+$CHPL_HOME/modules/internal/ChapelBase.chpl:nnnn: note: the following candidate didn't match because the 'where' clause evaluated to 'false'
+$CHPL_HOME/modules/internal/ChapelDomain.chpl:nnnn: note: the following candidate didn't match because an actual couldn't be passed to a formal
+opequals2.chpl:6: note: omitting 22 more candidates that didn't match

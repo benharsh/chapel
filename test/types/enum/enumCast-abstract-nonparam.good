@@ -1,1 +1,4 @@
-enumCast-abstract-nonparam.chpl:7: error: cannot cast abstract enum type 'color' to 'int(64)'
+enumCast-abstract-nonparam.chpl:7: error: unable to resolve call to ':': no matching candidates
+$CHPL_HOME/modules/internal/ChapelArrayViewElision.chpl:352: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/internal/ChapelTaskID.chpl:39: note: the following candidate didn't match because an actual couldn't be passed to a formal
+enumCast-abstract-nonparam.chpl:7: note: omitting 124 more candidates that didn't match

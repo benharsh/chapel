@@ -1,1 +1,2 @@
-tupleYieldConstByRef.chpl:6: error: Cannot set a non-const reference to a const variable.
+tupleYieldConstByRef.chpl:5: In iterator 'yieldTupConstByConstRef':
+tupleYieldConstByRef.chpl:6: error: cannot create a mutable ref to const

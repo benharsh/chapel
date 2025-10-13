@@ -1,3 +1,2 @@
-argConstraints2.chpl:19: error: ambiguous call 'foo(type R(int(64)))'
-argConstraints2.chpl:5: note: candidates are: foo(type t)
-argConstraints2.chpl:13: note:                 foo(type t)
+argConstraints2.chpl:19: error: Cannot resolve call to 'foo': ambiguity
+argConstraints2.chpl:21: error: Cannot resolve call to 'foo': ambiguity

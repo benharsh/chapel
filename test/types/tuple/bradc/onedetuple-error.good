@@ -1,1 +1,1 @@
-onedetuple-error.chpl:1: error: illegal tuple variable declaration with non-tuple initializer
+onedetuple-error.chpl:1: error: value of non-tuple type 'int(64)' cannot be split using a tuple declaration

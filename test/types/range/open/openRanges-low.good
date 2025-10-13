@@ -1,3 +1,20 @@
+openRanges-low.chpl:14: In function 'testRange':
+openRanges-low.chpl:15: error: unable to resolve call to 'idxType': no matching candidates
+openRanges-low.chpl:16: error: cannot iterate over a value of type 'PromotionIteratorType'
 openRanges-low.chpl:6: In function 'testRanges':
-openRanges-low.chpl:10: error: parallel iteration is not currently supported over ranges without bounds
-  openRanges-low.chpl:1: called as testRanges(type t = int(64))
+openRanges-low.chpl:11: error: cannot apply '#' to 'PromotionIteratorType'
+openRanges-low.chpl:14: In function 'testRange':
+openRanges-low.chpl:15: error: unable to resolve call to 'idxType': no matching candidates
+openRanges-low.chpl:16: error: cannot iterate over a value of type 'PromotionIteratorType'
+openRanges-low.chpl:6: In function 'testRanges':
+openRanges-low.chpl:11: error: cannot apply '#' to 'PromotionIteratorType'
+openRanges-low.chpl:14: In function 'testRange':
+openRanges-low.chpl:15: error: unable to resolve call to 'idxType': no matching candidates
+openRanges-low.chpl:16: error: cannot iterate over a value of type 'PromotionIteratorType'
+openRanges-low.chpl:6: In function 'testRanges':
+openRanges-low.chpl:11: error: cannot apply '#' to 'PromotionIteratorType'
+openRanges-low.chpl:14: In function 'testRange':
+openRanges-low.chpl:15: error: unable to resolve call to 'idxType': no matching candidates
+openRanges-low.chpl:16: error: cannot iterate over a value of type 'PromotionIteratorType'
+openRanges-low.chpl:6: In function 'testRanges':
+openRanges-low.chpl:11: error: cannot apply '#' to 'PromotionIteratorType'

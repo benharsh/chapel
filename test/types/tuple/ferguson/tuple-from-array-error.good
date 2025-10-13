@@ -1,1 +1,1 @@
-tuple-from-array-error.chpl:2: error: illegal tuple variable declaration with non-tuple initializer
+tuple-from-array-error.chpl:2: error: value of non-tuple type '[domain(1,int(64),one)] int(64)' cannot be split using a tuple declaration

@@ -1,2 +1,19 @@
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2300: In function 'chpl_range_check_stride':
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2301: error: can't apply 'by' using step of a non-integral type string
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2276: In function 'chpl_need_to_check_step':
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2279: error: unable to resolve call to 'numBits': no matching candidates
+$CHPL_HOME/modules/standard/Types.chpl:804: note: the following candidate didn't match because the 'where' clause evaluated to 'false'
+$CHPL_HOME/modules/standard/Types.chpl:802: note: the following candidate didn't match because the 'where' clause evaluated to 'false'
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2279: note: omitting 43 more candidates that didn't match
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2279: error: cannot return it with provided return intent
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2300: In function 'chpl_range_check_stride':
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2308: error: Cannot establish type for call expression
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2357: In function 'by':
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2358: error: the step argument of the 'by' operator is too large and cannot be represented within the range's stride type int(64)
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2369: error: unable to resolve call to 'chpl_strideProduct': no matching candidates
+$CHPL_HOME/modules/internal/ChapelRange.chpl:805: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/internal/ChapelRange.chpl:802: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/internal/ChapelRange.chpl:2369: note: omitting 4 more candidates that didn't match
 badRange-string-stride.chpl:1: In function 'main':
-badRange-string-stride.chpl:2: error: Range stride must be an int
+badRange-string-stride.chpl:2: error: Cannot establish type for call expression
+badRange-string-stride.chpl:2: error: expected an integer 'param' for 'by'

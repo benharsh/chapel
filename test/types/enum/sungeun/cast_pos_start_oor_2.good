@@ -1,1 +1,1 @@
-cast_pos_start_oor_2.chpl:2: error: enum cast out of bounds
+cast_pos_start_oor_2.chpl:2: error: the value '80' of type 'int(64)' is not associated with any constant of the enumeration 'blah'

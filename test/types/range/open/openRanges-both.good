@@ -1,3 +1,9 @@
-openRanges-both.chpl:6: In function 'testRanges':
-openRanges-both.chpl:10: error: parallel iteration is not currently supported over ranges without bounds
-  openRanges-both.chpl:1: called as testRanges(type t = int(64))
+openRanges-both.chpl:13: In function 'testRange':
+openRanges-both.chpl:14: error: unable to resolve call to 'idxType': no matching candidates
+openRanges-both.chpl:15: error: cannot iterate over a value of type 'PromotionIteratorType'
+openRanges-both.chpl:14: error: unable to resolve call to 'idxType': no matching candidates
+openRanges-both.chpl:15: error: cannot iterate over a value of type 'PromotionIteratorType'
+openRanges-both.chpl:14: error: unable to resolve call to 'idxType': no matching candidates
+openRanges-both.chpl:15: error: cannot iterate over a value of type 'PromotionIteratorType'
+openRanges-both.chpl:14: error: unable to resolve call to 'idxType': no matching candidates
+openRanges-both.chpl:15: error: cannot iterate over a value of type 'PromotionIteratorType'

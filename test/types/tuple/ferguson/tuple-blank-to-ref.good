@@ -1,2 +1,3 @@
 tuple-blank-to-ref.chpl:11: In function 'byblank':
-tuple-blank-to-ref.chpl:15: error: non-lvalue actual is passed to 'ref' formal 'arg' of byref()
+tuple-blank-to-ref.chpl:15: error: unable to resolve call to 'byref': no matching candidates
+tuple-blank-to-ref.chpl:5: note: the following candidate didn't match because an actual couldn't be passed to a formal

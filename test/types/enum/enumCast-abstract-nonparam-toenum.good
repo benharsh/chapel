@@ -1,1 +1,1 @@
-enumCast-abstract-nonparam.chpl:9: error: cannot cast 'int(64)' to abstract enum type 'color'
+enumCast-abstract-nonparam.chpl:9: error: cannot cast from 'int(64)' to abstract enumeration type 'color'

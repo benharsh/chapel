@@ -1,1 +1,1 @@
-badCountedLowBoundedRange.chpl:3: error: can't apply '#' to a range with idxType int(64) using a count of type real(64)
+badCountedLowBoundedRange.chpl:3: error: cannot apply '#' to 'range(int(64), low, one)'

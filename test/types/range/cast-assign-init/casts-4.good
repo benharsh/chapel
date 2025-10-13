@@ -1,1 +1,2 @@
-casts-4.chpl:8: error: 'tryCast' to a range type with idxType=bool is not currently supported
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1633: In method 'tryCast':
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1636: error: 'tryCast' to a range type with idxType=bool is not currently supported

@@ -1,6 +1,4 @@
-init-new-changes-type.chpl:12: error: initializer produces a different type
-init-new-changes-type.chpl:12: note: new was provided type 'borrowed C(int(64))'
-init-new-changes-type.chpl:12: note: init resulted in type 'borrowed C(real(64))'
-init-new-changes-type.chpl:26: error: initializer produces a different type
-init-new-changes-type.chpl:26: note: new was provided type 'R(int(64))'
-init-new-changes-type.chpl:26: note: init resulted in type 'R(real(64))'
+init-new-changes-type.chpl:6: error: final result of initialization does not match the initial type
+init-new-changes-type.chpl:2: note: field 't' started with type 'int(64)', but had incompatible type 'real(64)' after initialization
+init-new-changes-type.chpl:20: error: final result of initialization does not match the initial type
+init-new-changes-type.chpl:16: note: field 't' started with type 'int(64)', but had incompatible type 'real(64)' after initialization

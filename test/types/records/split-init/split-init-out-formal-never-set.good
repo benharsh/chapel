@@ -1,3 +1,2 @@
 split-init-out-formal-never-set.chpl:1: In function 'genericOut':
-split-init-out-formal-never-set.chpl:1: error: 'arg' is not initialized and has no type
-note: the type for a generic out-intent formal is inferred in the function body
+split-init-out-formal-never-set.chpl:1: error: cannot default initialize variable using generic or unknown type

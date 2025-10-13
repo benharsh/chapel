@@ -1,2 +1,10 @@
-castEnumRange2.chpl:4: warning: Casts between ranges involving 'enum' indices are currently unstable (see issue #22406); consider performing the conversion manually
-castEnumRange2.chpl:4: error: cannot cast abstract enum type 'color' to 'int(64)'
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1698: In function ':':
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1701: warning: Casts between ranges involving 'enum' indices are currently unstable (see issue #22406); consider performing the conversion manually
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1708: error: unable to resolve call to ':': no matching candidates
+$CHPL_HOME/modules/internal/ChapelArrayViewElision.chpl:352: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/internal/ChapelTaskID.chpl:39: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1708: note: omitting 250 more candidates that didn't match
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1711: error: unable to resolve call to ':': no matching candidates
+$CHPL_HOME/modules/internal/ChapelArrayViewElision.chpl:352: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/internal/ChapelTaskID.chpl:39: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1711: note: omitting 250 more candidates that didn't match

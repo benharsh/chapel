@@ -1,3 +1,6 @@
 test_type3.chpl:1: In function 'main':
 test_type3.chpl:2: error: statement references variable 'b' before it is defined
 test_type3.chpl:3: note: the variable 'b' is defined here
+test_type3.chpl:4: error: variable 'c' is declared without an initializer or type
+test_type3.chpl:5: note: cannot find initialization point to split-init this variable
+test_type3.chpl:5: note: the variable 'c' is used here

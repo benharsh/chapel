@@ -1,3 +1,1 @@
-split-init-globals-reorder-cond-error.chpl:13: error: Initialization order in conditional does not match
-split-init-globals-reorder-cond-error.chpl:13: note: then initializes: b a
-split-init-globals-reorder-cond-error.chpl:16: note: else initializes: a b
+split-init-globals-reorder-cond-error.chpl:13: error: initialization order does not match between branches

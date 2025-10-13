@@ -1,1 +1,2 @@
-init-new-arg-changes-type1.chpl:12: error: named argument 't' provided twice
+init-new-arg-changes-type1.chpl:6: error: final result of initialization does not match the initial type
+init-new-arg-changes-type1.chpl:2: note: field 't' started with type 'int(64)', but had incompatible type 'real(64)' after initialization

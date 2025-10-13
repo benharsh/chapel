@@ -1,1 +1,2 @@
-rangecastbounds.chpl:15: error: cannot cast range from boundKind.both to boundKind.low
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1666: In function ':':
+$CHPL_HOME/modules/internal/ChapelRange.chpl:1668: error: cannot cast range from boundKind.both to boundKind.low

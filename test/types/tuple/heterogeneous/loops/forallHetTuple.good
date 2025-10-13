@@ -1,1 +1,3 @@
-forallHetTuple.chpl:17: error: Heterogeneous tuples don't support this style of loop yet
+$CHPL_HOME/modules/internal/ChapelTuple.chpl:257: In iterator 'these':
+$CHPL_HOME/modules/internal/ChapelTuple.chpl:266: error: invalid access of non-homogeneous tuple by runtime value
+forallHetTuple.chpl:17: error: cannot iterate over a value of type '(int(64), real(64), string, R)'

@@ -1,2 +1,1 @@
-instantiate-non-generic.chpl:7: error: named arguments can only be used in type construction to set 'type' or 'param' fields
-instantiate-non-generic.chpl:4: note: field 'x' declared here is not 'type' or 'param'
+instantiate-non-generic.chpl:7: error: unable to resolve call to 'S': no matching candidates

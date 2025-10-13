@@ -1,2 +1,4 @@
 split-init-type-multiple.chpl:3: In function 'main':
-split-init-type-multiple.chpl:9: error: type alias split initialization uses different types
+split-init-type-multiple.chpl:4: error: mismatched types for split-initialization of 't' in conditional branches
+split-init-type-multiple.chpl:6: note: initialized with the type 'real(64)' in 'then' branch
+split-init-type-multiple.chpl:8: note: initialized with the type 'int(64)' in 'else' branch

@@ -1,5 +1,3 @@
 int-coerce-var.chpl:9: In function 'test':
-int-coerce-var.chpl:12: error: unresolved call 'acceptIntRef(int(8))'
-int-coerce-var.chpl:1: note: this candidate did not match: acceptIntRef(ref arg: int)
-int-coerce-var.chpl:12: note: because actual argument #1 with type 'int(8)'
-int-coerce-var.chpl:1: note: is passed to formal 'ref arg: int(64)'
+int-coerce-var.chpl:12: error: unable to resolve call to 'acceptIntRef': no matching candidates
+int-coerce-var.chpl:1: note: the following candidate didn't match because an actual couldn't be passed to a formal

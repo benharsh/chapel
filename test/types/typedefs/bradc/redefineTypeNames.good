@@ -8,3 +8,25 @@ redefineTypeNames.chpl:8: error: attempt to redefine reserved type 'imag'
 redefineTypeNames.chpl:18: error: attempt to redefine reserved type 'int'
 redefineTypeNames.chpl:20: error: attempt to redefine reserved type 'imag'
 redefineTypeNames.chpl:22: error: attempt to redefine reserved type 'complex'
+redefineTypeNames.chpl:10: error: unable to resolve call to 'writeln': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:414: note: the following candidate didn't match because the provided actuals could not be mapped to its formals
+$CHPL_HOME/modules/standard/ChapelIO.chpl:409: note: the following candidate didn't match because an actual couldn't be passed to a formal
+redefineTypeNames.chpl:10: note: omitting 1 more candidates that didn't match
+redefineTypeNames.chpl:11: error: unable to resolve call to 'writeln': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:414: note: the following candidate didn't match because the provided actuals could not be mapped to its formals
+$CHPL_HOME/modules/standard/ChapelIO.chpl:409: note: the following candidate didn't match because an actual couldn't be passed to a formal
+redefineTypeNames.chpl:11: note: omitting 1 more candidates that didn't match
+redefineTypeNames.chpl:12: error: unable to resolve call to 'writeln': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:414: note: the following candidate didn't match because the provided actuals could not be mapped to its formals
+$CHPL_HOME/modules/standard/ChapelIO.chpl:409: note: the following candidate didn't match because an actual couldn't be passed to a formal
+redefineTypeNames.chpl:12: note: omitting 1 more candidates that didn't match
+redefineTypeNames.chpl:13: error: unable to resolve call to 'writeln': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:414: note: the following candidate didn't match because the provided actuals could not be mapped to its formals
+$CHPL_HOME/modules/standard/ChapelIO.chpl:409: note: the following candidate didn't match because an actual couldn't be passed to a formal
+redefineTypeNames.chpl:13: note: omitting 1 more candidates that didn't match
+redefineTypeNames.chpl:14: error: unable to resolve call to 'writeln': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:414: note: the following candidate didn't match because the provided actuals could not be mapped to its formals
+$CHPL_HOME/modules/standard/ChapelIO.chpl:409: note: the following candidate didn't match because an actual couldn't be passed to a formal
+redefineTypeNames.chpl:14: note: omitting 1 more candidates that didn't match
+redefineTypeNames.chpl:24: error: type mismatch between declared type of 'a' and initialization expression
+redefineTypeNames.chpl:28: error: type mismatch between declared type of 'e' and initialization expression

@@ -1,1 +1,4 @@
-setOfDom.chpl:3: error: Values of 'domain' type do not support hash functions yet
+$CHPL_HOME/modules/internal/ChapelHashtable.chpl:250: error: cannot implicitly initialize field 'keyType', which does not have a default value
+$CHPL_HOME/modules/internal/ChapelHashtable.chpl:250: error: cannot implicitly initialize field 'valType', which does not have a default value
+$CHPL_HOME/modules/internal/ChapelHashtable.chpl:232: error: unable to instantiate generic type from initializer
+$CHPL_HOME/modules/internal/ChapelHashtable.chpl:232: error: unable to instantiate generic type from initializer

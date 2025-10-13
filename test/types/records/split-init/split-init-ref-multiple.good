@@ -1,4 +1,6 @@
 split-init-ref-multiple.chpl:3: In function 'main':
-split-init-ref-multiple.chpl:10: error: Initializing a reference with another type
-split-init-ref-multiple.chpl:6: note: Reference has type int(64)
-split-init-ref-multiple.chpl:10: note: Initializing with type real(64)
+split-init-ref-multiple.chpl:6: error: mismatched types for split-initialization of 'b' in conditional branches
+split-init-ref-multiple.chpl:7: note: initialized with a value of type 'real(64)' in 'then' branch
+split-init-ref-multiple.chpl:9: note: initialized with a value of type 'int(64)' in 'else' branch
+split-init-ref-multiple.chpl:6: error: cannot default initialize references
+split-init-ref-multiple.chpl:10: error: unable to resolve call to '=': no matching candidates

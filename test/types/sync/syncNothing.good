@@ -1,1 +1,2 @@
-syncNothing.chpl:5: error: sync types cannot contain type 'nothing'
+$CHPL_HOME/modules/internal/ChapelSyncvar.chpl:130: In initializer:
+$CHPL_HOME/modules/internal/ChapelSyncvar.chpl:131: error: sync types cannot contain type 'nothing'

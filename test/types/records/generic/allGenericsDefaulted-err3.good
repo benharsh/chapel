@@ -1,3 +1,2 @@
-allGenericsDefaulted.chpl:43: error: unresolved call 'baz(R(real(64),2))'
-allGenericsDefaulted.chpl:17: note: this candidate did not match: baz(r: R(int, ?rank))
-allGenericsDefaulted.chpl:17: note: because an argument was incompatible
+allGenericsDefaulted.chpl:43: error: unable to resolve call to 'baz': no matching candidates
+allGenericsDefaulted.chpl:17: note: the following candidate didn't match because an actual couldn't be passed to a formal

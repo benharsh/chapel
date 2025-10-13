@@ -1,1 +1,5 @@
-methodOnValue.chpl:12: error: Method defined on non-type 'myR'
+methodOnValue.chpl:12: In method 'bar':
+methodOnValue.chpl:12: error: type specifier is a value of type 'R', but it was expected to be a type
+methodOnValue.chpl:12: error: type specifier is a value of type 'R', but it was expected to be a type
+methodOnValue.chpl:17: error: unable to resolve call to 'bar': no matching candidates
+methodOnValue.chpl:12: note: the following candidate didn't match because an actual couldn't be passed to a formal

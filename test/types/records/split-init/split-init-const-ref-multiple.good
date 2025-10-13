@@ -1,4 +1,7 @@
 split-init-const-ref-multiple.chpl:3: In function 'main':
-split-init-const-ref-multiple.chpl:9: error: Initializing a reference with another type
-split-init-const-ref-multiple.chpl:4: note: Reference has type real(64)
-split-init-const-ref-multiple.chpl:9: note: Initializing with type int(64)
+split-init-const-ref-multiple.chpl:4: error: mismatched types for split-initialization of 'a' in conditional branches
+split-init-const-ref-multiple.chpl:6: note: initialized with a value of type 'int(64)' in 'then' branch
+split-init-const-ref-multiple.chpl:8: note: initialized with a value of type 'real(64)' in 'else' branch
+split-init-const-ref-multiple.chpl:4: error: cannot default initialize references
+split-init-const-ref-multiple.chpl:7: error: cannot pass const to non-const
+split-init-const-ref-multiple.chpl:9: error: cannot pass const to non-const

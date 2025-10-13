@@ -1,1 +1,6 @@
+boolIndex.chpl:7: error: Cannot establish type for call expression
+boolIndex.chpl:8: error: Cannot establish type for call expression
+boolIndex.chpl:9: error: Cannot establish type for call expression
 boolIndex.chpl:12: error: invalid access of non-homogeneous tuple by runtime value
+boolIndex.chpl:13: error: invalid access of non-homogeneous tuple by runtime value
+boolIndex.chpl:14: error: invalid access of non-homogeneous tuple by runtime value

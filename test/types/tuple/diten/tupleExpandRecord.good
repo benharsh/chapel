@@ -1,1 +1,1 @@
-tupleExpandRecord.chpl:12: error: invalid tuple expand primitive
+tupleExpandRecord.chpl:12: error: cannot apply tuple expansion to an expression of non-tuple type

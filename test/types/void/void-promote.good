@@ -1,1 +1,51 @@
-void-promote.chpl:8: error: illegal use of function that does not return a value: 'foo'
+$CHPL_HOME/modules/internal/ChapelIteratorSupport.chpl:268: In function 'chpl_buildStandInRTT':
+$CHPL_HOME/modules/internal/ChapelIteratorSupport.chpl:270: error: Cannot return void with type return intent
+$CHPL_HOME/modules/internal/ChapelTuple.chpl:68: In function 'chpl__unref':
+$CHPL_HOME/modules/internal/ChapelTuple.chpl:72: error: Cannot return void with type return intent
+$CHPL_HOME/modules/internal/ChapelIteratorSupport.chpl:116: In function 'iteratorToArrayElementType':
+$CHPL_HOME/modules/internal/ChapelIteratorSupport.chpl:119: error: Cannot return void with type return intent
+$CHPL_HOME/modules/internal/ChapelDomain.chpl:1621: In method 'buildArray':
+$CHPL_HOME/modules/internal/ChapelDomain.chpl:1622: error: array element type cannot be 'void'
+$CHPL_HOME/modules/internal/ChapelArray.chpl:798: In method 'chpl__promotionType':
+$CHPL_HOME/modules/internal/ChapelArray.chpl:799: error: Cannot return void with type return intent
+$CHPL_HOME/modules/internal/ChapelArray.chpl:821: In method 'eltType':
+$CHPL_HOME/modules/internal/ChapelArray.chpl:821: error: Cannot return void with type return intent
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1631: In iterator 'chpl__serialViewIter1D':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1657: error: Cannot return void with ref return intent
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1679: In iterator 'chpl__serialViewIter':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1687: error: Cannot return void with ref return intent
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1191: In iterator 'these':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1197: error: Cannot return void with ref return intent
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1388: In method 'dsiAccess':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1391: error: Cannot return void with ref return intent
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1394: In method 'dsiAccess':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1398: error: unable to resolve call to '=': no matching candidates
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1376: In method 'dsiAccess':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1378: error: Cannot return void with ref return intent
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1380: In method 'dsiAccess':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1382: error: unable to resolve call to '=': no matching candidates
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1200: In iterator 'these':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1210: error: Cannot return void with ref return intent
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1229: In iterator 'these':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1248: error: Cannot return void with ref return intent
+$CHPL_HOME/modules/internal/ChapelArray.chpl:1356: In iterator 'these':
+$CHPL_HOME/modules/internal/ChapelArray.chpl:1363: error: Cannot return void with ref return intent
+$CHPL_HOME/modules/internal/ChapelArray.chpl:3756: In function 'chpl__initCopy_shapeHelp':
+$CHPL_HOME/modules/internal/ChapelArray.chpl:3812: error: unable to resolve call to '=': no matching candidates
+$CHPL_HOME/modules/standard/IO.chpl:2316: In method 'serializeValue':
+$CHPL_HOME/modules/standard/IO.chpl:2326: error: unable to resolve call to 'serialize': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:385: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/standard/ChapelIO.chpl:374: note: the following candidate didn't match because an actual couldn't be passed to a formal
+$CHPL_HOME/modules/standard/IO.chpl:2326: note: omitting 96 more candidates that didn't match
+$CHPL_HOME/modules/standard/IO.chpl:6125: In method '_serializeOne':
+$CHPL_HOME/modules/standard/IO.chpl:6143: error: unable to resolve call to '=': no matching candidates
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1825: In function 'recursiveArrayReaderWriter':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1843: error: unable to resolve call to '=': no matching candidates
+$CHPL_HOME/modules/internal/ChapelArray.chpl:589: In function 'chpl__eltTypeFromArrayRuntimeType':
+$CHPL_HOME/modules/internal/ChapelArray.chpl:594: error: Cannot return void with type return intent
+$CHPL_HOME/modules/internal/ChapelArray.chpl:2727: In function '_desync':
+$CHPL_HOME/modules/internal/ChapelArray.chpl:2728: error: Cannot return void with type return intent
+$CHPL_HOME/modules/internal/ChapelArray.chpl:2731: In function 'desyncEltType':
+$CHPL_HOME/modules/internal/ChapelArray.chpl:2733: error: Cannot return void with type return intent
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1825: In function 'recursiveArrayReaderWriter':
+$CHPL_HOME/modules/internal/DefaultRectangular.chpl:1843: error: unable to resolve call to '=': no matching candidates

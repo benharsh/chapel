@@ -1,2 +1,2 @@
-issue-11846-2.chpl:12: error: Cannot replace an instantiated field with another type
-issue-11846-2.chpl:12: note: field 'data1' has type '2*3*int(64)' but is set to '_uninstantiated'
+issue-11846-2.chpl:12: error: field 'data1' appears to be concrete in the program's syntax, but it has been inferred to be a value of type '?', which is generic
+issue-11846-2.chpl:12: error: field 'data1' appears to be concrete in the program's syntax, but it has been inferred to be a value of type '?', which is generic

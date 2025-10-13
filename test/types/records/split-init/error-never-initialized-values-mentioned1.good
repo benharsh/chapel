@@ -1,4 +1,7 @@
 error-never-initialized-values-mentioned1.chpl:3: In function 'error':
-error-never-initialized-values-mentioned1.chpl:5: error: 'a2' is not initialized and has no type
-error-never-initialized-values-mentioned1.chpl:5: note: cannot find initialization point to split-init this variable
-error-never-initialized-values-mentioned1.chpl:7: note: 'a2' is used here before it is initialized
+error-never-initialized-values-mentioned1.chpl:7: error: unable to resolve call to 'writeln': no matching candidates
+$CHPL_HOME/modules/standard/ChapelIO.chpl:414: note: the following candidate didn't match because the provided actuals could not be mapped to its formals
+$CHPL_HOME/modules/standard/ChapelIO.chpl:409: note: the following candidate didn't match because an actual couldn't be passed to a formal
+error-never-initialized-values-mentioned1.chpl:5: note: The actual 'a2' expects to be split-initialized because it is declared without a type or initialization expression here
+error-never-initialized-values-mentioned1.chpl:7: note: The call to 'writeln' occurs before any valid initialization points
+error-never-initialized-values-mentioned1.chpl:7: note: omitting 1 more candidates that didn't match

@@ -1,1 +1,3 @@
-badenum.chpl:2: error: this enum cannot be represented with a single integer type
+badenum.chpl:2: error: cannot pick single numeric type to represent the elements of enum 'myenum'
+badenum.chpl:2: note: the constant 'a' is associated with -1, a param of type 'int(64)', which requires a signed integer type
+badenum.chpl:2: note: however, the constant 'b' is associated with 9223372036854775808, a param of type 'uint(64)', which requires an unsigned integer type

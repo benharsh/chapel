@@ -1,12 +1,6 @@
+tuples-and-records.chpl:11: In initializer:
+tuples-and-records.chpl:18: error: cannot pass const to non-const
 tuples-and-records.chpl:25: In function 'main':
-tuples-and-records.chpl:26: error: cannot assign to const variable
-tuples-and-records.chpl:27: error: cannot assign to const variable
-tuples-and-records.chpl:31: error: cannot assign to const variable
-tuples-and-records.chpl:32: error: cannot assign to const variable
-tuples-and-records.chpl:33: error: cannot assign to const variable
-tuples-and-records.chpl:34: error: cannot assign to const variable
-tuples-and-records.chpl:35: error: cannot assign to const variable
-tuples-and-records.chpl:36: error: cannot assign to const variable
-tuples-and-records.chpl:37: error: cannot assign to const variable
-tuples-and-records.chpl:38: error: cannot assign to const variable
-tuples-and-records.chpl:39: error: cannot assign to const variable
+tuples-and-records.chpl:26: error: cannot pass const to non-const
+tuples-and-records.chpl:36: error: cannot pass const to non-const
+tuples-and-records.chpl:39: error: cannot pass const to non-const

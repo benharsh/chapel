@@ -1,3 +1,6 @@
 numBitsBytesDefault.chpl:3: In function 'printSizes':
 numBitsBytesDefault.chpl:4: error: 'bool' does not have a well-defined size
-  numBitsBytesDefault.chpl:9: called as printSizes(type t = bool)
+$CHPL_HOME/modules/standard/Types.chpl:817: In function 'numBytes':
+$CHPL_HOME/modules/standard/Types.chpl:817: error: 'bool' does not have a well-defined size
+numBitsBytesDefault.chpl:3: In function 'printSizes':
+numBitsBytesDefault.chpl:5: error: Cannot establish type for call expression
