@@ -2,3 +2,5 @@ warn-generic-var-field-no-q.chpl:6: warning: field 'genericFieldX' has generic t
 warn-generic-var-field-no-q.chpl:6: note: generic fields must be marked with '?'
 warn-generic-var-field-no-q.chpl:10: error: field 'genericFieldY' appears to be concrete in the program's syntax, but it has been inferred to be a value of type 'GR', which is generic
 warn-generic-var-field-no-q.chpl:10: error: field 'genericFieldY' appears to be concrete in the program's syntax, but it has been inferred to be a value of type 'GR', which is generic
+warn-generic-var-field-no-q.chpl:14: warning: field 'genericFieldX' has generic type 'GR' but is not marked with '?'
+warn-generic-var-field-no-q.chpl:14: note: generic fields must be marked with '?'
