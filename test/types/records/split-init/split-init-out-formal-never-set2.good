@@ -7,3 +7,4 @@ $CHPL_HOME/modules/internal/ChapelDomain.chpl:428: note: the following candidate
 split-init-out-formal-never-set2.chpl:1: note: The actual 'outarg' expects to be split-initialized because it is declared without a type or initialization expression here
 split-init-out-formal-never-set2.chpl:2: note: The call to '+' occurs before any valid initialization points
 split-init-out-formal-never-set2.chpl:2: note: omitting 80 more candidates that didn't match
+split-init-out-formal-never-set2.chpl:9: error: unable to resolve call to '=': no matching candidates

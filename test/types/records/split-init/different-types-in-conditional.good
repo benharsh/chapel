@@ -5,9 +5,6 @@ different-types-in-conditional.chpl:8: note: initialized with a value of type 'i
 different-types-in-conditional.chpl:12: error: mismatched types for split-initialization of 'b' in conditional branches
 different-types-in-conditional.chpl:13: note: initialized with a value of type 'int(64)' in 'then' branch
 different-types-in-conditional.chpl:15: note: initialized with a value of type 'real(64)' in 'else' branch
-different-types-in-conditional.chpl:19: error: mismatched types for split-initialization of 'c' in conditional branches
-different-types-in-conditional.chpl:20: note: initialized with a value of type 'string' in 'then' branch
-different-types-in-conditional.chpl:22: note: initialized with a value of type 'real(64)' in 'else' branch
 different-types-in-conditional.chpl:9: error: unable to resolve call to '=': no matching candidates
-different-types-in-conditional.chpl:21: error: unable to resolve call to '=': no matching candidates
-different-types-in-conditional.chpl:23: error: unable to resolve call to '=': no matching candidates
+different-types-in-conditional.chpl:21: error: type mismatch between declared type and initialization expression
+different-types-in-conditional.chpl:23: error: type mismatch between declared type and initialization expression
