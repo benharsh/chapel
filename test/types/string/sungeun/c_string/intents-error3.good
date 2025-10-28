@@ -1,1 +1,1 @@
-intents.chpl:43: error: non-lvalue actual is passed to 'inout' formal 's' of fio()
+intents.chpl:43: error: cannot pass const to non-const

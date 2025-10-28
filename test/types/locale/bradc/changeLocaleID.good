@@ -1,1 +1,1 @@
-changeLocaleID.chpl:2: error: illegal lvalue in assignment
+changeLocaleID.chpl:2: error: cannot pass const to non-const

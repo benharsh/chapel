@@ -1,1 +1,1 @@
-c_ptrConst_modify.chpl:6: error: cannot assign to const variable
+c_ptrConst_modify.chpl:6: error: cannot pass const to non-const
