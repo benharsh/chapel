@@ -1,6 +1,2 @@
-internal error: UTI-MIS-1049 chpl version 2.7.0 pre-release (de786db05f4)
-
-Internal errors indicate a bug in the Chapel compiler,
-and we're sorry for the hassle.  We would appreciate your reporting this bug --
-please see https://chapel-lang.org/bugs.html for instructions.
-
+indexEnumType.chpl:2: error: unable to resolve call to 'testEnum': no matching candidates
+indexEnumType.chpl:1: note: the type 'testEnum' does not support indexing
