@@ -1,2 +1,2 @@
-void-field-5.chpl:-1: In initializer:
-void-field-5.chpl: error: unable to resolve call to '=': no matching candidates
+void-field-5.chpl:3: In initializer:
+void-field-5.chpl:3: error: unable to resolve call to '=': no matching candidates

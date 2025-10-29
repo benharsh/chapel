@@ -1,5 +1,5 @@
 issue-18005.chpl:8: warning: field 'bar' has generic type 'map(string, B, false)' but is not marked with '?'
 issue-18005.chpl:8: note: generic fields must be marked with '?'
 issue-18005.chpl:11: error: call does not provide enough type information for a complete instantiation
-issue-18005.chpl:-1: In initializer:
-issue-18005.chpl: note: formal 'bar' has generic type 'map(string, B, false)', but is expected to have a concrete type
+issue-18005.chpl:7: In initializer:
+issue-18005.chpl:7: note: formal 'bar' has generic type 'map(string, B, false)', but is expected to have a concrete type

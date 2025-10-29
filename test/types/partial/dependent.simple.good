@@ -1,7 +1,8 @@
-dependent.chpl:-1: In function 'D':
-dependent.chpl: error: can't apply '.type' to a type ('unknown type')
-dependent.chpl: error: can't apply '.type' to a type ('?')
-dependent.chpl: error: can't apply '.type' to a type ('?')
-dependent.chpl: error: can't apply '.type' to a type ('?')
+dependent.chpl:4: In function 'D':
+dependent.chpl:4: error: can't apply '.type' to a type ('unknown type')
+dependent.chpl:4: error: can't apply '.type' to a type ('?')
+dependent.chpl:4: error: can't apply '.type' to a type ('?')
+dependent.chpl:4: error: can't apply '.type' to a type ('?')
 dependent.chpl:19: In function 'main':
 dependent.chpl:21: error: unable to resolve call to 'D': no matching candidates
+dependent.chpl:4: note: the type constructor for 'D' didn't match because an actual couldn't be passed to a formal
