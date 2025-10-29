@@ -1,1 +1,2 @@
 construct-1b.chpl:6: error: unable to resolve call to 'R': no matching candidates
+construct-1b.chpl:1: note: the type constructor for 'R' didn't match because actual 2 was named 'x', but no formal with that name was found

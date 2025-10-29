@@ -1,5 +1,6 @@
 illegalFieldQuery.chpl:8: In function 'foo':
 illegalFieldQuery.chpl:8: error: unable to resolve call to 'Foo': no matching candidates
+illegalFieldQuery.chpl:2: note: the type constructor for 'Foo' didn't match because the provided actuals could not be mapped to its formals
 illegalFieldQuery.chpl:8: error: invalid class type construction
 illegalFieldQuery.chpl:13: error: unable to resolve call to 'foo': no matching candidates
 illegalFieldQuery.chpl:8: note: the following candidate didn't match

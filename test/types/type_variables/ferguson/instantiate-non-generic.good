@@ -1,1 +1,2 @@
 instantiate-non-generic.chpl:7: error: unable to resolve call to 'S': no matching candidates
+instantiate-non-generic.chpl:1: note: the type constructor for 'S' didn't match because actual 1 was named 'x', but no formal with that name was found
