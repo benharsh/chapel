@@ -10,3 +10,5 @@ assignments.chpl:99: error: cannot pass const to non-const
 assignments.chpl:100: error: cannot pass const to non-const
 assignments.chpl:101: error: cannot pass const to non-const
 assignments.chpl:102: error: cannot pass const to non-const
+assignments.chpl:56: error: cannot pass const to non-const
+assignments.chpl:118: error: cannot pass const to non-const

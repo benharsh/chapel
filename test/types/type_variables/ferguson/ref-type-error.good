@@ -2,3 +2,6 @@ ref-type-error.chpl:10: error: a regular variable cannot be initialized with a t
 ref-type-error.chpl:11: error: a regular variable cannot be initialized with a type
 ref-type-error.chpl:12: error: a regular variable cannot be initialized with a type
 ref-type-error.chpl:13: error: a regular variable cannot be initialized with a type
+ref-type-error.chpl:10: error: cannot create a mutable ref to const
+ref-type-error.chpl:12: error: cannot create a mutable ref to const
+ref-type-error.chpl:14: error: cannot create a mutable ref to const
