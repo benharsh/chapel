@@ -680,6 +680,7 @@ static bool inferRefToConst(Symbol* sym) {
 
         CallExpr* call = toCallExpr(se->parentExpr);
         if (call->isPrimitive(PRIM_CAST_TO_TYPE)) continue;
+        if (call->baseExpr != se) continue; // passed as argument
         INT_ASSERT(call && call->isResolved());
 
         Symbol* actual = toSymExpr(formal_to_actual(call, sym))->symbol();
