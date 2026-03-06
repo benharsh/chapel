@@ -9453,6 +9453,10 @@ Type* moveDetermineLhsType(CallExpr* call) {
       type = type->getValType();
 
     lhsSym->type = type;
+
+    if (call->get(2)->isRef() && !type->symbol->hasFlag(FLAG_REF)) {
+      lhsSym->qual = call->get(2)->qualType().getQual();
+    }
   }
 
   return lhsSym->type;
