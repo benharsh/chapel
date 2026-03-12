@@ -9448,13 +9448,21 @@ Type* moveDetermineLhsType(CallExpr* call) {
       debuggerBreakHere();
     }
 
-    Type* type = call->get(2)->typeInfo();
+    auto rhs = call->get(2);
+    Type* type = rhs->typeInfo();
     if (call->isPrimitive(PRIM_ASSIGN))
       type = type->getValType();
 
     lhsSym->type = type;
 
-    if (call->get(2)->isRef() && !type->symbol->hasFlag(FLAG_REF)) {
+    // HACK: Sometimes we replace a field access call with a SymExpr of a shadow
+    // variable. The field access would normally cause the LHS to be inferred
+    // as a ref, but using the shadow variable interferes with this inference.
+    // Instead, manually adjust here.
+    if (isSymExpr(rhs) &&
+        isShadowVarSymbol(toSymExpr(rhs)->symbol()) &&
+        rhs->isRef() &&
+        !type->symbol->hasFlag(FLAG_REF)) {
       lhsSym->qual = call->get(2)->qualType().getQual();
     }
   }
